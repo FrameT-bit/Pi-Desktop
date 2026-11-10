@@ -1,0 +1,23 @@
+[package]
+name = "pi-desktop"
+version = "1.0.0"
+edition = "2021"
+description = "Native GTK4 + libadwaita client for talking to Pi over RPC"
+authors = ["FrameT"]
+license = "GPL-3.0-or-later"
+repository = "https://github.com/FrameT-bit/pi-desktop"
+
+[dependencies]
+gtk = { package = "gtk4", version = "0.10", features = ["v4_16"] }
+adw = { package = "libadwaita", version = "0.8", features = ["v1_5"] }
+glib = "0.21"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+async-channel = "2"
+
+[build-dependencies]
+serde_json = "1"
+
+[profile.release]
+lto = "thin"
+strip = true

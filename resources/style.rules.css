@@ -1,0 +1,2706 @@
+
+
+
+
+window {
+  background-color: @page_bg;
+  color: @text;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+tooltip {
+  background-color: @card_bg;
+  color: @text;
+  border: 1px solid @border;
+  border-radius: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+selection {
+  background-color: @selected_bg;
+  color: @text;
+}
+
+scrollbar {
+  background-color: transparent;
+  border: none;
+}
+
+scrollbar trough {
+  background-color: transparent;
+}
+
+scrollbar slider {
+  background-color: @scrollbar_thumb;
+  border-radius: 0;
+  min-width: 8px;
+  min-height: 8px;
+}
+
+separator {
+  background-color: @border;
+  min-width: 1px;
+  min-height: 1px;
+}
+
+
+
+.header-panel {
+  background-color: @card_bg;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+  min-height: 44px;
+  padding: 0 10px;
+}
+
+.wordmark-box {
+  padding: 0 2px;
+}
+
+
+.wordmark {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: @text;
+}
+
+.header-session {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @text_base;
+}
+
+.model-chip {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  padding: 2px 12px;
+  min-height: 0;
+  box-shadow: none;
+}
+
+.model-chip:hover {
+  border-color: @border_accent;
+}
+
+.model-chip-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @text_base;
+}
+
+.model-chip-chevron {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @muted;
+}
+
+.model-chip:hover .model-chip-chevron {
+  color: @text_base;
+}
+
+.theme-button {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  box-shadow: none;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+
+.theme-button:hover {
+  background-color: @selected_bg;
+}
+
+.theme-button image {
+  color: @text_base;
+}
+
+
+.content-split > separator {
+  background-color: transparent;
+  min-width: 12px;
+  min-height: 1px;
+}
+
+
+
+.sidebar {
+  background-color: @canvas;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+}
+
+.new-session {
+  background-color: @accent;
+  background-image: none;
+  color: @page_bg;
+  border: 1px solid @accent;
+  border-radius: 0;
+  min-height: 32px;
+  padding: 0 12px;
+  margin: 12px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: none;
+}
+
+.new-session:hover {
+  background-color: mix(white, @accent, 0.08);
+  border-color: @border_accent;
+}
+
+.new-session:active {
+  background-color: mix(black, @accent, 0.12);
+}
+
+.nav-item {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 12px;
+  min-height: 30px;
+  color: @text_base;
+}
+
+.nav-item:hover {
+  background-color: @card_bg;
+  color: @text;
+}
+
+.nav-item.active {
+  background-color: transparent;
+  background-image: linear-gradient(180deg, alpha(@text, 0.055), alpha(@text, 0.015));
+  color: @text;
+}
+
+.nav-indicator {
+  min-width: 2px;
+  background-color: transparent;
+}
+
+.nav-item.active .nav-indicator {
+  background-color: @accent;
+  background-image: linear-gradient(180deg, @accent 0 62%, @thread_blue 62% 100%);
+}
+
+.nav-label,
+.nav-count {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.section-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+  padding: 10px 12px 4px 12px;
+}
+
+.nav-label {
+  color: inherit;
+}
+
+.nav-icon {
+  color: @muted;
+}
+
+.nav-item.active .nav-icon {
+  color: @accent;
+}
+
+.nav-count {
+  color: @muted;
+}
+
+.session-scroll,
+.session-scroll > viewport {
+  background-color: transparent;
+}
+
+
+.session-scroll scrollbar {
+  background-color: transparent;
+  border: none;
+  min-width: 10px;
+  margin: 0 2px;
+}
+
+.session-scroll scrollbar slider {
+  background-color: @muted;
+  border-radius: 0;
+  min-width: 6px;
+  min-height: 24px;
+}
+
+.session-item {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 6px 12px;
+}
+
+.session-item:hover {
+  background-color: @card_bg;
+}
+
+.session-item.active {
+  background-color: @selected_bg;
+}
+
+.session-item .nav-indicator {
+  background-color: transparent;
+}
+
+.session-item.active .nav-indicator {
+  background-color: @accent;
+}
+
+.session-name {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @text_base;
+}
+
+.session-item.active .session-name {
+  color: @text;
+}
+
+.session-meta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @text_base;
+}
+
+.session-age {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @text_base;
+}
+
+.session-dot {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @border;
+}
+
+.session-empty {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @text_base;
+  padding: 4px 0;
+}
+
+.sidebar-footer {
+  padding: 8px 12px;
+}
+
+.sidebar-divider {
+  background-color: @border_muted;
+  min-height: 1px;
+}
+
+.footer-version {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.conn-dot {
+  min-width: 6px;
+  min-height: 6px;
+  border-radius: 50%;
+  background-color: @dim;
+}
+
+.conn-dot.ok {
+  background-color: @success;
+}
+
+.conn-dot.bad {
+  background-color: @error;
+}
+
+.conn-dot.wait {
+  background-color: @warning;
+}
+
+.conn-text {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+
+
+.content-panel {
+  background-color: @canvas;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+}
+
+.chat-scroll,
+.chat-scroll > viewport {
+  background-color: transparent;
+}
+
+.chat-area {
+  background-color: transparent;
+}
+
+.user-msg,
+.user-msg label {
+  font-family: "Pixelify Sans", serif;
+  font-size: 15px;
+  line-height: 1.65;
+  color: @user_message_text;
+}
+
+.user-msg {
+  background-color: @user_message_bg;
+  border: 1px solid @user_message_border;
+  border-radius: 0;
+  padding: 10px 12px;
+}
+
+.user-image {
+  margin-top: 8px;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+}
+
+.assistant-text {
+  font-family: "Pixelify Sans", serif;
+  font-size: 15px;
+  line-height: 1.65;
+  color: @text;
+}
+
+.chat-note {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.chat-note.error {
+  color: @error;
+}
+
+
+.tool-card {
+  background-color: @card_bg;
+  border: 1px solid @border;
+  border-radius: 0;
+}
+
+.tool-card.pending {
+  border-left: 2px solid @border;
+}
+
+.tool-card.success {
+  border-left: 2px solid @success;
+}
+
+.tool-card.error {
+  border-left: 2px solid @error;
+}
+
+.tool-head {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 6px 10px;
+  min-height: 0;
+}
+
+.tool-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @tool_title;
+}
+
+.tool-meta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.tool-status {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.tool-status.ok {
+  color: @success;
+}
+
+.tool-status.error {
+  color: @error;
+}
+
+.tool-chevron {
+  color: @dim;
+}
+
+.tool-output {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @tool_output;
+  padding: 0 10px 8px 10px;
+}
+
+
+.tool-adds {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @success;
+}
+
+.tool-dels {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @error;
+}
+
+.diff-body {
+  padding: 0 0 8px 0;
+}
+
+.diff-line {
+  padding: 0 10px;
+}
+
+.diff-line.add {
+  background-color: alpha(@success, 0.12);
+}
+
+.diff-line.del {
+  background-color: alpha(@error, 0.12);
+}
+
+.diff-no {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.diff-text {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @tool_output;
+}
+
+.diff-line.meta .diff-text {
+  color: @muted;
+}
+
+.thinking-head {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+}
+
+.thinking-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.thinking-title.off {
+  color: @thinking_off;
+}
+
+.thinking-title.minimal {
+  color: @thinking_minimal;
+}
+
+.thinking-title.low {
+  color: @thinking_low;
+}
+
+.thinking-title.medium {
+  color: @thinking_medium;
+}
+
+.thinking-title.high {
+  color: @thinking_high;
+}
+
+.thinking-title.xhigh {
+  color: @thinking_xhigh;
+}
+
+.thinking-title.max {
+  color: @thinking_max;
+}
+
+
+.thinking-body {
+  background-color: @card_bg;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+  padding: 6px 10px;
+  margin-top: 4px;
+}
+
+.thinking-body scrollbar {
+  min-width: 4px;
+}
+
+.thinking-body scrollbar slider {
+  min-width: 4px;
+  border-radius: 0;
+  background-color: @muted;
+}
+
+.thinking-text {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: @thinking_text;
+}
+
+
+
+.md-h1,
+.md-h2,
+.md-h3,
+.md-h4,
+.md-h5,
+.md-h6 {
+  font-family: "Pixelify Sans", serif;
+  font-weight: 600;
+  color: @md_heading;
+}
+
+.md-h1 {
+  font-size: 22px;
+}
+
+.md-h2 {
+  font-size: 18px;
+}
+
+.md-h3 {
+  font-size: 16px;
+}
+
+.md-h4,
+.md-h5,
+.md-h6 {
+  font-size: 15px;
+}
+
+.md-p {
+  font-family: "Pixelify Sans", serif;
+  font-size: 15px;
+  line-height: 1.65;
+  color: @text;
+}
+
+.md-quote {
+  font-family: "Pixelify Sans", serif;
+  font-size: 15px;
+  line-height: 1.65;
+  color: @md_quote;
+  border-left: 1px solid @md_quote_border;
+  padding-left: 12px;
+}
+
+.md-codeblock {
+  font-family: "JetBrains Mono", monospace;
+  background-color: @card_bg;
+  border: 1px solid @md_code_block_border;
+  border-radius: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: @md_code_block;
+}
+
+.md-bullet {
+  font-family: "Pixelify Sans", serif;
+  color: @md_list_bullet;
+  font-size: 15px;
+}
+
+.md-hr {
+  background-color: @md_hr;
+  min-height: 1px;
+}
+
+
+.md-table {
+  border-radius: 0;
+}
+
+.md-table-cell {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @text;
+  padding: 6px 8px;
+}
+
+.md-table-head {
+  color: @md_heading;
+  font-weight: 700;
+}
+
+.md-table-alt {
+  background-color: @card_bg;
+}
+
+.md-table-sep {
+  border-top: 1px solid @border_muted;
+}
+
+
+
+.composer-wrap {
+  background-color: transparent;
+  padding: 0 12px 12px 12px;
+}
+
+.composer-box {
+  background-color: @card_bg;
+  border: 1px solid @border;
+  border-radius: 0;
+  padding: 10px 12px;
+}
+
+.composer-box.focused {
+  border-color: @accent;
+}
+
+
+
+.attach-strip {
+  background-color: transparent;
+  padding: 0 2px 6px 2px;
+}
+
+.attach-slot {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.attach-thumb {
+  border: 1px solid @panel_border;
+  border-radius: 0;
+}
+
+.attach-name {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @text;
+}
+
+.attach-meta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.attach-remove {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid transparent;
+  border-radius: 0;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  box-shadow: none;
+}
+
+.attach-remove:hover {
+  background-color: @tool_error_bg;
+}
+
+.attach-remove image {
+  color: @muted;
+}
+
+.composer-input,
+.composer-input text {
+  background-color: transparent;
+  color: @text;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+}
+
+.composer-input {
+  border: none;
+  outline: none;
+  padding: 0;
+}
+
+.composer-input text {
+  padding: 0;
+}
+
+.composer-placeholder {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  color: @text_base;
+}
+
+.composer-send {
+  background-color: @accent;
+  background-image: none;
+  border: 1px solid @accent;
+  border-radius: 0;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  box-shadow: none;
+}
+
+.composer-send:hover {
+  background-color: mix(white, @accent, 0.08);
+}
+
+.composer-send image {
+  color: @page_bg;
+}
+
+
+.composer-send:disabled,
+.composer-send.idle {
+  background-color: transparent;
+  border: 1px solid @border_muted;
+  opacity: 1;
+}
+
+.composer-send:disabled image,
+.composer-send.idle image {
+  color: @dim;
+  opacity: 1;
+}
+
+.composer-stop {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid transparent;
+  border-radius: 0;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  box-shadow: none;
+}
+
+.composer-stop:hover {
+  background-color: @tool_error_bg;
+}
+
+.composer-stop image {
+  color: @error;
+}
+
+
+
+.statusbar {
+  background-color: @card_bg;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+  
+  min-height: 30px;
+  padding: 0 12px;
+}
+
+.status-key,
+.status-value,
+.status-sep {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.status-key {
+  color: @text_base;
+}
+
+.status-value {
+  color: @text;
+}
+
+.status-value.dim {
+  color: @text_base;
+}
+
+.status-value.warn {
+  color: @warning;
+}
+
+.status-sep {
+  color: @border;
+}
+
+.status-error {
+  color: @error;
+}
+
+.status-warn {
+  color: @warning;
+}
+
+.status-button {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 4px;
+  min-height: 0;
+}
+
+.status-button:hover {
+  background-color: @card_bg;
+}
+
+
+
+.panel-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @text;
+}
+
+
+
+popover.palette-popup {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+popover.palette-popup > contents {
+  background-color: @card_bg;
+  border: 1px solid @border;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 4px;
+}
+
+
+.palette-inline {
+  background-color: @card_bg;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+  padding: 4px;
+}
+
+.palette-scroll,
+.palette-scroll > viewport {
+  background-color: @card_bg;
+}
+
+.palette-list {
+  background-color: transparent;
+}
+
+.palette-row {
+  padding: 6px 8px;
+  border-radius: 0;
+}
+
+.palette-row:hover {
+  background-color: @card_bg_soft;
+}
+
+.palette-row.selected {
+  background-color: @selected_bg;
+}
+
+.palette-name {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @text;
+}
+
+.palette-desc {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.palette-badge {
+  border-radius: 999px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+  border: 1px solid @border;
+  border-radius: 0;
+  padding: 0 6px;
+}
+
+.palette-badge.skill {
+  color: @text_base;
+  border-color: @border;
+}
+
+.palette-badge.prompt {
+  color: @muted;
+  border-color: @border;
+}
+
+.palette-badge.extension {
+  color: @success;
+  border-color: @border;
+}
+
+.palette-group {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+  padding: 8px 8px 4px 8px;
+}
+
+.palette-note {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+  padding: 8px;
+}
+
+.palette-model-id {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.palette-current {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @accent;
+  border: 1px solid @accent;
+  border-radius: 0;
+  padding: 0 6px;
+}
+
+
+
+.chat-empty {
+  padding: 24px;
+}
+
+.chat-empty-mark {
+  
+  font-family: "JetBrains Mono", monospace;
+  font-size: 48px;
+  color: @dim;
+}
+
+.chat-empty-hint {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+
+
+.empty-page {
+  font-family: "Pixelify Sans", serif;
+  color: @muted;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.empty-action {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  color: @dim;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: 32px;
+  padding: 0 16px;
+  box-shadow: none;
+  margin-top: 4px;
+}
+
+.empty-action:disabled {
+  color: @dim;
+  border-color: @border;
+  opacity: 1;
+}
+
+
+
+.plugins-page {
+  background-color: transparent;
+}
+
+.plugins-inner {
+  margin: 24px 32px;
+}
+
+.plugins-subtitle {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.plugin-install-row {
+  min-height: 32px;
+}
+
+.plugin-entry {
+  background-color: @card_bg;
+  background-image: none;
+  color: @text;
+  border: 1px solid @border;
+  border-radius: 0;
+  padding: 0 10px;
+  min-height: 32px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+.plugin-entry:focus,
+.plugin-entry:focus-within,
+entry.plugin-entry:focus-within {
+  border-color: @accent;
+  box-shadow: none;
+  outline: none;
+}
+
+.plugin-entry:disabled {
+  color: @dim;
+}
+
+.plugin-install {
+  background-color: @accent;
+  background-image: none;
+  color: @page_bg;
+  border: 1px solid @accent;
+  border-radius: 0;
+  min-height: 32px;
+  padding: 0 16px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: none;
+}
+
+.plugin-install:hover {
+  background-color: mix(white, @accent, 0.08);
+}
+
+.plugin-install:disabled {
+  background-color: transparent;
+  border: 1px solid @border;
+  color: @muted;
+}
+
+.plugin-status {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.plugin-status.error {
+  color: @error;
+}
+
+.plugin-scroll,
+.plugin-scroll > viewport {
+  background-color: transparent;
+}
+
+.plugin-list {
+  background-color: @card_bg;
+  border: 1px solid @border;
+  border-radius: 0;
+}
+
+.plugin-item {
+  padding: 10px 12px;
+}
+
+.plugin-item.with-divider {
+  border-bottom: 1px solid @border;
+}
+
+.plugin-badge {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+  border: 1px solid @border;
+  border-radius: 0;
+  padding: 0 6px;
+}
+
+.plugin-badge.npm {
+  color: @text_base;
+  border-color: @border;
+}
+
+.plugin-badge.git {
+  color: @muted;
+  border-color: @border;
+}
+
+.plugin-name {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @text;
+}
+
+.plugin-remove {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  color: @muted;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: 24px;
+  padding: 0 8px;
+  box-shadow: none;
+}
+
+.plugin-remove:hover {
+  color: @error;
+  border-color: @error;
+}
+
+.plugin-remove:disabled {
+  color: @dim;
+  border-color: @border;
+}
+
+.plugin-empty {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @dim;
+}
+
+
+
+.plugins-tab {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  color: @muted;
+  min-height: 30px;
+  padding: 0 12px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.plugins-tabs {
+  border-bottom: 1px solid @border_muted;
+}
+
+.plugins-tab:hover {
+  color: @text;
+}
+
+
+.plugins-tab.active {
+  color: @text;
+  border-bottom-color: @accent;
+  background-color: transparent;
+}
+
+
+
+
+.catalog-scroll,
+.catalog-scroll > viewport {
+  background-color: transparent;
+}
+
+.catalog-scroll scrollbar {
+  background-color: transparent;
+  border: none;
+  min-width: 10px;
+  margin: 0 2px;
+}
+
+.catalog-scroll scrollbar slider {
+  background-color: @muted;
+  border-radius: 0;
+  min-width: 6px;
+  min-height: 24px;
+}
+
+.catalog-row {
+  min-height: 52px;
+}
+
+.catalog-name {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  color: @text;
+}
+
+.catalog-version {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.catalog-desc {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.catalog-note {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.catalog-note.success {
+  color: @success;
+}
+
+.catalog-note.error {
+  color: @error;
+}
+
+.catalog-install {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  color: @text_base;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: 26px;
+  padding: 0 10px;
+  box-shadow: none;
+}
+
+.catalog-install:hover {
+  border-color: @accent;
+  color: @accent;
+}
+
+.catalog-install:disabled {
+  border-color: @border;
+  color: @dim;
+}
+
+
+
+.composer-queue {
+  border-radius: 999px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+  border: 1px solid @border;
+  border-radius: 0;
+  padding: 0 6px;
+  min-height: 22px;
+}
+
+.extension-widget {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+  padding: 0 0 6px 0;
+}
+
+.composer-stop.bash {
+  background-color: @tool_error_bg;
+  border: 1px solid @error;
+}
+
+.composer-stop.bash image {
+  color: @error;
+}
+
+.status-ext {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+
+.toast-card {
+  background-color: @card_bg;
+  border-width: 1px 1px 1px 2px;
+  border-style: solid;
+  border-color: @panel_border;
+  border-left-color: @accent;
+  border-radius: 0;
+  padding: 9px 14px;
+}
+
+.toast-card.warning {
+  border-left-color: @warning;
+}
+
+.toast-card.error {
+  border-left-color: @error;
+}
+
+.toast-text {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @text;
+}
+
+
+.dialog-header {
+  background-color: @card_bg;
+  border-bottom: 1px solid @border;
+}
+
+.dialog-option {
+  background-color: @canvas;
+  background-image: none;
+  color: @text;
+  border: 1px solid @border;
+  border-radius: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  box-shadow: none;
+}
+
+.dialog-option:hover {
+  background-color: @selected_bg;
+  border-color: @accent;
+}
+
+.dialog-option-cancel,
+.dialog-option-cancel label {
+  color: @muted;
+}
+
+.dialog-accept,
+.dialog-accept label {
+  background-color: @accent;
+  background-image: none;
+  color: @page_bg;
+  border: 1px solid @accent;
+  border-radius: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: none;
+}
+
+.dialog-note {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.dialog-editor,
+.dialog-editor text {
+  background-color: @card_bg;
+  color: @text;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+.dialog-editor-scroll {
+  border: 1px solid @border;
+  border-radius: 0;
+}
+
+.dialog-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @text_base;
+}
+
+.dialog-window,
+.dialog-body {
+  background-color: @page_bg;
+}
+
+
+
+window.dialog-window {
+  background-color: @page_bg;
+}
+
+window.dialog-window .dialog-header {
+  background-color: @card_bg;
+  border-bottom: 1px solid @panel_border;
+  min-height: 40px;
+  padding: 4px 10px;
+}
+
+window.dialog-window .dialog-header .dialog-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: @text_base;
+}
+
+window.dialog-window .dialog-body {
+  background-color: @page_bg;
+}
+
+.dialog-cancel,
+.dialog-cancel label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: @muted;
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  min-height: 26px;
+  padding: 0 10px;
+}
+
+.dialog-cancel:hover {
+  color: @text;
+  border-color: @border;
+}
+
+.dialog-message {
+  font-family: "Pixelify Sans", serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: @text;
+}
+
+.dialog-entry {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  background-color: @canvas;
+  background-image: none;
+  color: @text;
+  border: 1px solid @border;
+  border-radius: 0;
+  min-height: 36px;
+  padding: 0 10px;
+  box-shadow: none;
+}
+
+.dialog-entry:focus,
+.dialog-entry:focus-within {
+  border-color: @accent;
+}
+
+
+popover.background,
+popover.background > contents,
+popover > contents,
+menu,
+menuitem {
+  box-shadow: none;
+}
+
+popover > contents {
+  border-radius: 0;
+  border: 1px solid @panel_border;
+  background-color: @card_bg;
+}
+
+
+.dialog-option label,
+.dialog-accept label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+.dialog-accept label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+
+
+
+window.pi-dialog,
+window.pi-dialog.background {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.pi-dialog {
+  background-color: @canvas;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+window.pi-dialog > decoration,
+.pi-dialog > decoration {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.pi-dialog-header {
+  background-color: @canvas;
+  border-bottom: 1px solid @border;
+  padding: 12px 16px;
+}
+
+.pi-dialog-body {
+  background-color: @canvas;
+  padding: 16px;
+}
+
+.pi-dialog .dialog-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @text_base;
+}
+
+.dialog-message {
+  font-family: "Pixelify Sans", serif;
+  font-size: 15px;
+  line-height: 1.65;
+  color: @text;
+}
+
+.dialog-cancel {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  color: @muted;
+  min-height: 28px;
+  padding: 0 10px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: none;
+}
+
+.dialog-cancel:hover {
+  color: @text;
+  border-color: @border_accent;
+}
+
+.dialog-entry {
+  background-color: @card_bg;
+  background-image: none;
+  color: @text;
+  border: 1px solid @border;
+  border-radius: 0;
+  padding: 0 10px;
+  min-height: 36px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  box-shadow: none;
+}
+
+.dialog-entry:focus,
+.dialog-entry:focus-within {
+  border-color: @accent;
+  outline: none;
+  box-shadow: none;
+}
+
+
+
+button:focus-visible,
+entry:focus-visible,
+textview:focus-visible,
+row:focus-visible,
+.pi-dialog button:focus,
+.pi-dialog entry:focus,
+.pi-dialog textview:focus,
+.dialog-option:focus-visible,
+.dialog-accept:focus-visible,
+.dialog-cancel:focus-visible {
+  outline: 1px solid @accent;
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
+
+
+popover,
+popover.background,
+popover.menu,
+popover.palette-popup {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+popover > contents,
+popover.background > contents,
+popover.menu > contents {
+  background-color: @card_bg;
+  border: 1px solid @border;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 4px;
+}
+
+popover > arrow,
+popover.background > arrow {
+  background-color: @card_bg;
+  border: 1px solid @border;
+  box-shadow: none;
+}
+
+menu,
+.menu,
+menuitem,
+modelbutton {
+  background-color: @card_bg;
+  background-image: none;
+  color: @text;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+menu > contents,
+.menu > contents {
+  background-color: @card_bg;
+  border: 1px solid @border;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 4px;
+}
+
+menuitem:hover,
+modelbutton:hover {
+  background-color: @selected_bg;
+  border-radius: 0;
+}
+
+menuitem:focus,
+modelbutton:focus {
+  outline: 1px solid @accent;
+  outline-offset: -1px;
+  box-shadow: none;
+}
+
+
+window.dialog,
+window.messagedialog,
+window.message-dialog,
+.messagedialog,
+.message-dialog,
+.dialog,
+.dialog > decoration,
+window.dialog > decoration,
+window.messagedialog > decoration {
+  background-color: @canvas;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+tooltip,
+tooltip.background,
+tooltip > box {
+  background-color: @card_bg;
+  background-image: none;
+  color: @text;
+  border: 1px solid @border;
+  border-radius: 0;
+  box-shadow: none;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+
+
+.ui-icon {
+  background-color: transparent;
+}
+
+
+
+.status-target {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  
+  text-transform: none;
+  color: @text_base;
+}
+
+.status-notice {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @warning;
+}
+
+
+
+window.pi-settings,
+window.pi-settings.background {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.pi-settings {
+  background-color: @page_bg;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+window.pi-settings > decoration,
+.pi-settings > decoration {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.settings-header {
+  background-color: @card_bg;
+  border-bottom: 1px solid @panel_border;
+  min-height: 44px;
+  padding: 4px 12px;
+}
+
+.settings-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: @text;
+}
+
+.settings-scroll,
+.settings-scroll > viewport {
+  background-color: @page_bg;
+}
+
+.settings-body {
+  background-color: @page_bg;
+  padding: 0 0 12px 0;
+}
+
+.settings-section {
+  margin-top: 8px;
+}
+
+.settings-section-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+  padding: 12px 16px 6px 16px;
+}
+
+.settings-row {
+  min-height: 44px;
+  padding: 2px 16px;
+  border-bottom: 1px solid @border_muted;
+}
+
+.settings-row-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @text;
+}
+
+.settings-row-desc {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.settings-entry {
+  background-color: @card_bg;
+  background-image: none;
+  color: @text;
+  border: 1px solid @border;
+  border-radius: 0;
+  padding: 0 10px;
+  min-height: 32px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  box-shadow: none;
+}
+
+.settings-entry:focus,
+.settings-entry:focus-within {
+  border-color: @accent;
+  outline: none;
+  box-shadow: none;
+}
+
+.settings-editor,
+.settings-editor text {
+  background-color: @card_bg;
+  color: @text;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+.settings-editor-scroll {
+  border: 1px solid @border;
+  border-radius: 0;
+  background-color: @card_bg;
+}
+
+.settings-editor-scroll:focus-within {
+  border-color: @accent;
+}
+
+.settings-switch {
+  background-color: @border_muted;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  box-shadow: none;
+  min-width: 42px;
+  min-height: 22px;
+  padding: 0;
+}
+
+.settings-switch:checked {
+  background-color: @accent;
+  border-color: @accent;
+}
+
+.settings-switch > slider {
+  background-color: @card_bg;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  box-shadow: none;
+  min-width: 16px;
+  min-height: 16px;
+  margin: 2px;
+}
+
+.settings-switch:checked > slider {
+  background-color: @page_bg;
+  border-color: @page_bg;
+}
+
+.settings-dropdown button {
+  background-color: @card_bg;
+  background-image: none;
+  color: @text;
+  border: 1px solid @border;
+  border-radius: 0;
+  min-height: 32px;
+  padding: 0 10px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  box-shadow: none;
+}
+
+.settings-dropdown button:hover {
+  border-color: @accent;
+}
+
+.settings-dropdown button:focus {
+  border-color: @accent;
+  outline: none;
+}
+
+.settings-footer {
+  background-color: @card_bg;
+  border-top: 1px solid @panel_border;
+  padding: 8px 16px;
+  min-height: 48px;
+}
+
+.settings-error {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @error;
+  padding: 0 8px;
+}
+
+.settings-save,
+.settings-save label {
+  background-color: transparent;
+  background-image: none;
+  color: @text;
+  border: 1px solid @border;
+  border-radius: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: 30px;
+  padding: 0 14px;
+  box-shadow: none;
+}
+
+.settings-save:hover {
+  border-color: @accent;
+  color: @accent;
+}
+
+.chat-stamp {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+
+
+.composer-loop,
+.composer-loop label {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @accent;
+  border-radius: 0;
+  color: @accent;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  min-height: 22px;
+  padding: 0 6px;
+  box-shadow: none;
+}
+
+.composer-loop:hover {
+  background-color: @selected_bg;
+}
+
+.composer-loop-text {
+  color: @accent;
+}
+
+.user-msg .user-mark {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @accent;
+}
+
+.user-msg .user-mark.queue {
+  color: @muted;
+}
+
+.jobs-page {
+  background-color: transparent;
+}
+
+.jobs-inner {
+  margin: 24px 32px;
+}
+
+.jobs-subtitle {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.jobs-list {
+  background-color: @card_bg;
+  border: 1px solid @border;
+  border-radius: 0;
+}
+
+.jobs-card {
+  padding: 12px;
+}
+
+.jobs-task {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  color: @text;
+}
+
+.jobs-meta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.jobs-next {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @accent;
+}
+
+.jobs-stop {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  color: @muted;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: 28px;
+  padding: 0 12px;
+  box-shadow: none;
+}
+
+.jobs-stop:hover {
+  border-color: @accent;
+  color: @accent;
+}
+
+
+
+
+.section-row {
+  padding: 0 8px 0 0;
+}
+
+.section-row .section-label {
+  padding: 10px 0 4px 12px;
+}
+
+.sidebar-search-toggle {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 4px;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.sidebar-search-toggle:hover {
+  background-color: @card_bg;
+}
+
+.sidebar-search {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  background-color: @canvas;
+  background-image: none;
+  color: @text;
+  border: 1px solid @border;
+  border-radius: 0;
+  min-height: 30px;
+  padding: 0 8px;
+  box-shadow: none;
+}
+
+.sidebar-search:focus,
+.sidebar-search:focus-within {
+  border-color: @accent;
+}
+
+
+.session-group {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 8px 12px 4px 12px;
+}
+
+.session-group:hover {
+  background-color: @card_bg;
+}
+
+.session-group-name {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @text_base;
+}
+
+.session-group-count {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: @muted;
+}
+
+.group-chevron {
+  color: @muted;
+}
+
+
+.session-rename {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  background-color: @canvas;
+  background-image: none;
+  color: @text;
+  border: 1px solid @accent;
+  border-radius: 0;
+  min-height: 24px;
+  padding: 0 4px;
+  box-shadow: none;
+}
+
+
+
+popover.context-popover {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+popover.context-popover > contents {
+  background-color: @card_bg;
+  border: 1px solid @border;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 4px;
+}
+
+.context-list {
+  background-color: @card_bg;
+  border-radius: 0;
+  padding: 2px;
+}
+
+.context-item {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 6px 10px;
+  min-height: 28px;
+}
+
+.context-item:hover {
+  background-color: @selected_bg;
+}
+
+
+.context-item:disabled label {
+  color: @text_base;
+}
+
+.context-item label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @text;
+}
+
+
+
+.model-chip-logo {
+  border-radius: 0;
+}
+
+.model-logo {
+  border-radius: 0;
+}
+
+.model-logo-fallback {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  color: @muted;
+  border: 1px solid @border;
+  border-radius: 0;
+}
+
+
+
+.status-action {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @accent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 6px;
+  min-height: 20px;
+}
+
+.status-action:hover {
+  background-color: @card_bg;
+}
+
+.status-action label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @accent;
+}
+
+
+
+.tree-page {
+  background-color: transparent;
+}
+
+.tree-inner {
+  margin: 24px 32px;
+}
+
+.tree-status {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.tree-status.error {
+  color: @error;
+}
+
+.tree-reload {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  color: @muted;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: 28px;
+  padding: 0 12px;
+  box-shadow: none;
+}
+
+.tree-reload:hover {
+  border-color: @accent;
+  color: @accent;
+}
+
+.tree-scroll,
+.tree-scroll > viewport {
+  background-color: transparent;
+}
+
+.tree-list {
+  background-color: @card_bg;
+  border: 1px solid @border;
+  border-radius: 0;
+}
+
+.tree-empty {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+  padding: 12px;
+}
+
+.tree-row {
+  padding: 8px 12px;
+  border-bottom: 1px solid @border;
+}
+
+.tree-row.active {
+  background-color: @selected_bg;
+}
+
+.tree-bar {
+  background-color: @accent;
+}
+
+.tree-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: @muted;
+}
+
+.tree-row.on-path .tree-label {
+  color: @text_base;
+}
+
+.tree-row.active .tree-label {
+  color: @text;
+}
+
+.tree-text {
+  font-family: "Pixelify Sans", serif;
+  font-size: 13px;
+  color: @muted;
+}
+
+.tree-row.on-path .tree-text {
+  color: @text_base;
+}
+
+.tree-row.active .tree-text {
+  color: @text;
+}
+
+.tree-current {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: @accent;
+  border: 1px solid @accent;
+  border-radius: 0;
+  padding: 0 4px;
+}
+
+.tree-time {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: @muted;
+}
+
+
+
+.settings-tabs {
+  background-color: @card_bg;
+  border-bottom: 1px solid @panel_border;
+  padding: 0 8px;
+  min-height: 40px;
+}
+
+.settings-tab {
+  background: none;
+  background-image: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 14px;
+  min-height: 38px;
+  color: @muted;
+}
+
+.settings-tab label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.settings-tab:hover {
+  background-color: alpha(@text, 0.04);
+}
+
+.settings-tab:hover label {
+  color: @text;
+}
+
+.settings-tab.active,
+.settings-tab:checked {
+  border-bottom-color: transparent;
+  background-image: linear-gradient(90deg, @accent 0 62%, @thread_blue 62% 100%);
+  background-size: 100% 1px;
+  background-repeat: no-repeat;
+  background-position: bottom;
+  box-shadow: none;
+}
+
+.settings-tab.active label,
+.settings-tab:checked label {
+  color: @text;
+}
+
+.settings-tab-page,
+.settings-tab-page > viewport {
+  background-color: @page_bg;
+}
+
+.settings-tab-page > .page-title {
+  margin: 18px 20px 0 20px;
+}
+
+.settings-tab-page > .page-desc {
+  margin: 2px 20px 10px 20px;
+}
+
+.settings-page-content {
+  padding: 0 20px 24px 20px;
+}
+
+.settings-block {
+  padding: 2px 0 10px 0;
+}
+
+.settings-block-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+  padding: 14px 0 4px 0;
+}
+
+.settings-key-head {
+  padding: 10px 2px 2px 2px;
+}
+
+.settings-key-head .settings-block-label {
+  padding: 0;
+}
+
+.settings-check {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @text;
+  padding: 2px 0;
+}
+
+.settings-check check {
+  background-color: @card_bg;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  box-shadow: none;
+  min-width: 14px;
+  min-height: 14px;
+}
+
+.settings-check check:checked {
+  background-color: @accent;
+  border-color: @accent;
+  color: @page_bg;
+}
+
+.settings-item {
+  background-color: @card_bg_soft;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+  padding: 8px 10px;
+  margin: 4px 0;
+}
+
+.settings-item-title {
+  font-size: 13px;
+  color: @text;
+}
+
+.settings-item-desc {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.settings-empty {
+  font-size: 12px;
+  color: @muted;
+  padding: 10px 2px;
+}
+
+.settings-dot {
+  min-width: 8px;
+  min-height: 8px;
+  border-radius: 0;
+  background-color: @dim;
+}
+
+.settings-dot.ok {
+  background-color: @success;
+}
+
+.settings-dot.bad {
+  background-color: @error;
+}
+
+.settings-dot.unknown {
+  background-color: @muted;
+}
+
+.settings-mini {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 2px 10px;
+  min-height: 24px;
+  font-size: 12px;
+  color: @text;
+}
+
+.settings-mini:hover {
+  background-color: alpha(@text, 0.06);
+}
+
+.settings-mini.danger {
+  color: @error;
+  border-color: alpha(@error, 0.5);
+}
+
+.settings-actions {
+  padding: 8px 0 2px 0;
+}
+
+.settings-editor-box {
+  border: 1px dashed @panel_border;
+  border-radius: 0;
+  padding: 10px;
+  margin: 6px 0 10px 0;
+}
+
+.settings-view {
+  border: 1px solid @panel_border;
+  border-radius: 0;
+}
+
+.settings-view,
+.settings-view > viewport {
+  background-color: @card_bg;
+}
+
+.settings-ok {
+  color: @success;
+  font-size: 12px;
+  padding: 6px 0;
+}
+
+.settings-note {
+  font-size: 12px;
+  color: @muted;
+  background-color: @card_bg_soft;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+  padding: 8px 10px;
+  margin: 14px 0 4px 0;
+}
+
+.settings-note.dim {
+  background: none;
+  background-color: transparent;
+  border: none;
+  padding: 2px 0 0 0;
+  color: @dim;
+  font-size: 11px;
+}
+
+.page-title {
+  font-size: 17px;
+  color: @text;
+}
+
+.page-desc {
+  font-size: 12px;
+  color: @muted;
+}
+
+
+.msg-actions {
+  background-color: @card_bg;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+  padding: 2px;
+  margin: 2px 2px 0 0;
+}
+
+.msg-action {
+  background: none;
+  background-image: none;
+  border: none;
+  box-shadow: none;
+  min-height: 22px;
+  min-width: 22px;
+  padding: 2px;
+  border-radius: 0;
+}
+
+.msg-action:hover {
+  background-color: alpha(@text, 0.08);
+}

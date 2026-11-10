@@ -1,0 +1,1503 @@
+
+
+
+
+.find-bar {
+  background-color: @card_bg;
+  border: 1px solid @panel_border;
+  border-radius: 6px;
+  padding: 4px;
+}
+
+.find-entry {
+  min-width: 220px;
+}
+
+.find-count {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+  padding: 0 4px;
+}
+
+.find-button {
+  background: none;
+  background-image: none;
+  border: none;
+  box-shadow: none;
+  min-height: 22px;
+  min-width: 22px;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.find-button:hover {
+  background-color: alpha(@text, 0.08);
+}
+
+
+.find-hit {
+  background-color: @search_match_bg;
+  color: @search_match_text;
+}
+
+.find-current {
+  background-color: @accent;
+  color: @text_base;
+}
+
+
+entry placeholder {
+  color: @muted;
+  opacity: 1;
+}
+
+
+.settings-ok {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @success;
+  padding: 0 8px;
+}
+
+
+.thinking-head {
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.thinking-head:hover {
+  background-color: alpha(@text, 0.06);
+}
+
+
+
+.composer-tool {
+  background: none;
+  background-image: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  box-shadow: none;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0 6px;
+}
+
+.composer-tool:hover {
+  background-color: @selected_bg;
+  border-color: @border_muted;
+}
+
+.composer-think {
+  border-color: @border_muted;
+}
+
+.composer-think-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: @muted;
+}
+
+
+.composer-think.turbo {
+  border-color: @accent;
+  box-shadow: 0 0 10px alpha(@accent, 0.45);
+}
+
+.composer-think.turbo .composer-think-label {
+  color: @accent;
+}
+
+.think-popover-body {
+  padding: 12px 14px 20px 14px;
+  min-width: 300px;
+}
+
+.think-scale.turbo trough highlight {
+  background-color: @accent;
+  box-shadow: 0 0 10px alpha(@accent, 0.7);
+}
+
+.think-scale slider {
+  border-radius: 9999px;
+}
+
+.think-scale.turbo slider {
+  box-shadow: 0 0 14px alpha(@accent, 0.9);
+  background-color: @accent;
+}
+
+
+.catalog-more {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border_muted;
+  border-radius: 6px;
+  color: @muted;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  min-height: 30px;
+}
+
+.catalog-more:hover {
+  background-color: @selected_bg;
+  color: @text;
+}
+
+
+
+.header-crumb {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.session-tabs {
+  margin-top: 1px;
+}
+
+.session-tab {
+  background: none;
+  background-image: none;
+  border: 1px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  min-height: 24px;
+  padding: 0 8px;
+  color: @muted;
+}
+
+.session-tab label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: inherit;
+}
+
+.session-tab:hover {
+  background-color: @card_bg;
+  color: @text;
+}
+
+.session-tab.active {
+  border-color: @border;
+  background-color: @card_bg;
+  color: @text;
+}
+
+.session-tab.add {
+  padding: 0 7px;
+}
+
+.page-head {
+  padding: 16px 24px 2px 24px;
+}
+
+.page-title {
+  font-family: "Pixelify Sans", serif;
+  font-size: 27px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: @text;
+}
+
+.page-sub {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: @muted;
+  padding-top: 2px;
+}
+
+
+
+.rail {
+  min-width: 260px;
+  border-left: 1px solid @border;
+  background-color: @page_bg;
+}
+
+.rail-tabs {
+  min-height: 42px;
+  border-bottom: 1px solid @border;
+  padding: 0 4px;
+}
+
+.rail-tab {
+  background: none;
+  background-image: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0 10px;
+  min-height: 40px;
+  color: @muted;
+}
+
+.rail-tab label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: inherit;
+}
+
+.rail-tab:hover {
+  background-color: alpha(@text, 0.04);
+  color: @text;
+}
+
+.rail-tab:checked {
+  color: @text;
+  border-bottom-color: @accent;
+  background-image: linear-gradient(90deg, @accent 0 62%, @thread_blue 62% 100%);
+  background-size: 100% 1px;
+  background-repeat: no-repeat;
+  background-position: bottom;
+}
+
+.rail-page {
+  padding: 12px;
+}
+
+.rail-empty {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: @muted;
+  padding: 8px 2px;
+}
+
+.rail-queue {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: @accent;
+  border: 1px solid @accent;
+  border-radius: 999px;
+  padding: 1px 6px;
+  margin-bottom: 8px;
+}
+
+.rail-list {
+  padding: 0;
+}
+
+.rail-activity {
+  padding: 9px 2px 9px 0;
+  border-bottom: 1px solid alpha(@border, 0.45);
+}
+
+.rail-activity-name {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  color: @text;
+}
+
+.rail-activity-time {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  color: @muted;
+}
+
+.rail-activity-state {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: @accent;
+}
+
+.rail-activity-ok {
+  color: @success;
+}
+
+.rail-activity-error {
+  color: @error;
+}
+
+.rail-pulse {
+  animation: rail-pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes rail-pulse {
+  0%, 100% { opacity: .45; }
+  50% { opacity: 1; }
+}
+
+.rail-block-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: @muted;
+  padding: 4px 0 10px 0;
+}
+
+.rail-row {
+  padding: 7px 0;
+  border-bottom: 1px solid alpha(@border, 0.35);
+}
+
+.rail-key {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 8.5px;
+  letter-spacing: .1em;
+  color: @dim;
+}
+
+.rail-value {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  color: @text;
+}
+
+.rail-open {
+  background: none;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 3px 8px;
+  margin: 0 0 8px 0;
+  color: @muted;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.rail-open:hover {
+  background-color: @card_bg;
+  color: @text;
+}
+
+.rail-preview {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  background-color: @canvas;
+  color: @muted;
+}
+
+
+
+.chat-area > * {
+  transition: opacity 160ms ease;
+}
+
+.chat-area > .enter {
+  opacity: 0;
+}
+
+.tool-status.pending {
+  animation: tool-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes tool-pulse {
+  0%, 100% { opacity: .45; }
+  50% { opacity: 1; }
+}
+
+
+.rail-subagent {
+  padding: 8px 0;
+  border-bottom: 1px solid alpha(@border, 0.45);
+}
+
+.rail-subagent-task {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: @dim;
+  padding-left: 22px;
+}
+
+.rail-subagent-progress {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: @muted;
+  padding-left: 22px;
+}
+
+
+.session-tab-group {
+  border: 1px solid transparent;
+  background-color: transparent;
+}
+
+.session-tab-group.active {
+  border-color: @border;
+  background-color: @card_bg;
+}
+
+.session-tab-group.active .session-tab {
+  color: @text;
+}
+
+.session-tab-group .session-tab {
+  border: none;
+  background: none;
+  padding: 0 6px 0 8px;
+  min-height: 24px;
+}
+
+.session-tab-close {
+  background: none;
+  background-image: none;
+  border: none;
+  box-shadow: none;
+  min-height: 24px;
+  min-width: 20px;
+  padding: 0 5px;
+  color: @dim;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+.session-tab-close:hover {
+  color: @error;
+  background-color: alpha(@error, 0.08);
+}
+
+
+.busy-chip {
+  padding: 0 6px;
+  min-height: 24px;
+}
+
+.busy-dot {
+  min-width: 6px;
+  min-height: 6px;
+  border-radius: 50%;
+  background-color: @warning;
+  animation: busy-pulse 1.2s ease-in-out infinite;
+}
+
+.busy-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: @warning;
+}
+
+@keyframes busy-pulse {
+  0%, 100% { opacity: .35; }
+  50% { opacity: 1; }
+}
+
+
+.rail-handle {
+  min-width: 6px;
+  background-color: transparent;
+}
+
+.rail-handle:hover {
+  background-color: alpha(@accent, 0.18);
+}
+
+.composer-think.off .composer-think-label {
+  color: @dim;
+}
+
+.composer-think.off {
+  border-color: @border_muted;
+}
+
+
+
+.git-page {
+  background-color: transparent;
+}
+
+.git-inner {
+  margin: 24px 32px;
+}
+
+.git-branch {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  color: @text;
+}
+
+.git-meta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.git-status {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.git-status.error {
+  color: @error;
+}
+
+.git-btn {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 2px 12px;
+  min-height: 26px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @text;
+}
+
+.git-btn:hover {
+  background-color: alpha(@text, 0.06);
+}
+
+.git-btn.accent {
+  color: @accent;
+  border-color: alpha(@accent, 0.55);
+}
+
+.git-btn:disabled {
+  color: @muted;
+  border-color: alpha(@border, 0.6);
+}
+
+.git-list-scroll,
+.git-diff-scroll {
+  background-color: @card_bg;
+  border: 1px solid @border;
+}
+
+.git-list {
+  background-color: @card_bg;
+}
+
+.git-file {
+  padding: 7px 10px;
+  border-bottom: 1px solid alpha(@border, 0.55);
+}
+
+.git-file-path {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @text;
+}
+
+.git-chip {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid alpha(@border, 0.8);
+  padding: 1px 5px;
+  color: @muted;
+}
+
+.git-chip.staged,
+.git-chip.new {
+  color: @accent;
+  border-color: alpha(@accent, 0.5);
+}
+
+.git-chip.renamed {
+  color: @accent;
+  border-color: alpha(@accent, 0.5);
+}
+
+.git-chip.partial {
+  color: @warning;
+  border-color: alpha(@warning, 0.5);
+}
+
+.git-chip.deleted {
+  color: @error;
+  border-color: alpha(@error, 0.5);
+}
+
+.git-mini {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 1px 8px;
+  min-height: 22px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: @text;
+}
+
+.git-mini:hover {
+  background-color: alpha(@text, 0.06);
+}
+
+.git-mini.danger {
+  color: @error;
+  border-color: alpha(@error, 0.5);
+}
+
+.git-diff-title {
+  padding-left: 2px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.git-diff {
+  background-color: @card_bg;
+  color: @text;
+  font-size: 12px;
+}
+
+.git-empty {
+  padding: 16px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.git-commit-entry {
+  background-color: @card_bg;
+  background-image: none;
+  color: @text;
+  border: 1px solid @border;
+  border-radius: 0;
+  padding: 0 10px;
+  min-height: 30px;
+}
+
+
+
+.palette-search-entry {
+  margin: 8px 8px 4px 8px;
+  min-height: 28px;
+  background-color: @page_bg;
+  background-image: none;
+  color: @text;
+  border: 1px solid @border;
+  border-radius: 0;
+  padding: 0 8px;
+}
+
+
+
+.error-banner {
+  background-color: alpha(@error, 0.10);
+  border-top: 1px solid alpha(@error, 0.45);
+  padding: 8px 12px;
+}
+
+.banner-text {
+  color: @error;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+}
+
+.banner-action {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid alpha(@error, 0.45);
+  border-radius: 0;
+  box-shadow: none;
+  min-height: 24px;
+  padding: 1px 8px;
+  color: @error;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.banner-action:hover {
+  background-color: alpha(@error, 0.10);
+}
+
+
+
+.empty-chip {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  box-shadow: none;
+  min-height: 28px;
+  padding: 0 10px;
+  color: @muted;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.empty-chip:hover {
+  border-color: @accent;
+  color: @accent;
+}
+
+
+
+.sidebar-plan {
+  margin: 8px 12px;
+  padding: 8px 10px;
+  background-color: @card_bg;
+  border: 1px solid @border;
+}
+
+.sidebar-plan-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.sidebar-plan-item {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: @text;
+}
+
+.sidebar-plan-item.done {
+  color: @muted;
+}
+
+.sidebar-plan-more {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  color: @dim;
+}
+
+
+
+
+.rail-plan {
+  margin: 0 0 10px 0;
+  padding: 8px;
+  background-color: @card_bg;
+  border: 1px solid @border;
+}
+
+.rail-plan .rail-block-title {
+  padding-bottom: 4px;
+}
+
+.rail-plan-item {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: @text;
+}
+
+.rail-plan-item.done {
+  color: @muted;
+}
+
+.rail-plan-more {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  color: @dim;
+}
+
+
+
+.settings-body-shell {
+  background-color: @page_bg;
+}
+
+.settings-nav {
+  background-color: @card_bg;
+  border-right: 1px solid @panel_border;
+  padding: 10px 0 12px 0;
+}
+
+.settings-nav-group {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: @muted;
+  padding: 16px 20px 6px 20px;
+}
+
+.settings-nav-item {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  min-height: 36px;
+  padding: 0 18px 0 18px;
+}
+
+.settings-nav-item:hover {
+  background-color: alpha(@text, 0.04);
+}
+
+.settings-nav-item:checked {
+  background-color: alpha(@accent, 0.10);
+  border-left-color: @accent;
+}
+
+.settings-nav-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @muted;
+}
+
+.settings-nav-item:hover .settings-nav-label,
+.settings-nav-item:checked .settings-nav-label {
+  color: @text;
+}
+
+.settings-nav-link {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  color: @dim;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  min-height: 30px;
+  padding: 0 20px;
+}
+
+.settings-nav-link:hover {
+  color: @accent;
+}
+
+.settings-stack {
+  background-color: @page_bg;
+}
+
+.settings-tab-page {
+  background-color: transparent;
+}
+
+.settings-tab-page > .page-title {
+  margin: 30px 36px 0 36px;
+  font-size: 22px;
+}
+
+.settings-tab-page > .page-desc {
+  margin: 4px 36px 18px 36px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-page-content {
+  padding: 0 36px 36px 36px;
+}
+
+.settings-block {
+  padding: 0 0 18px 0;
+}
+
+.settings-block-label {
+  padding: 20px 0 6px 0;
+}
+
+.settings-row {
+  border-bottom: none;
+  padding: 8px 0;
+  min-height: 40px;
+}
+
+.settings-footer {
+  padding: 10px 20px;
+}
+
+.settings-save,
+.settings-save label {
+  background-color: @accent;
+  background-image: none;
+  color: @page_bg;
+  border: 1px solid @accent;
+  min-height: 32px;
+  padding: 0 18px;
+}
+
+.settings-save:hover,
+.settings-save:hover label {
+  background-color: @text;
+  border-color: @text;
+  color: @page_bg;
+}
+
+
+
+.rail-activity-marker {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  color: @dim;
+}
+
+.rail-activity-output {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  color: @muted;
+  padding: 6px 2px 2px 22px;
+}
+
+
+
+.settings-advanced {
+  margin-top: 24px;
+  border-top: 1px solid @border;
+  padding-top: 8px;
+}
+
+.settings-advanced > title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+
+
+.thinking-text,
+.thinking-text text {
+  background-color: transparent;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @thinking_text;
+}
+
+
+
+.artifacts-page {
+  background-color: transparent;
+}
+
+.artifacts-inner {
+  margin: 24px 32px;
+}
+
+.artifacts-subtitle {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.artifacts-search {
+  background-color: @card_bg;
+  background-image: none;
+  color: @text;
+  border: 1px solid @border;
+  border-radius: 0;
+  padding: 0 10px;
+  min-height: 32px;
+}
+
+.artifacts-search:focus {
+  border-color: @accent;
+}
+
+.artifacts-filters {
+  padding: 2px 0;
+}
+
+.artifact-filter {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  box-shadow: none;
+  min-height: 26px;
+  padding: 0 10px;
+  color: @muted;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.artifact-filter:hover {
+  border-color: @accent;
+}
+
+.artifact-filter:checked {
+  background-color: alpha(@accent, .12);
+  border-color: @accent;
+  color: @text;
+}
+
+.artifacts-status {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: @muted;
+}
+
+.artifacts-scroll {
+  border-top: 1px solid @border;
+}
+
+.artifacts-list {
+  background-color: transparent;
+}
+
+.artifact-row {
+  padding: 10px 2px;
+  border-bottom: 1px solid alpha(@border, .45);
+}
+
+.artifact-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @text;
+}
+
+.artifact-meta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: @muted;
+}
+
+.artifacts-empty {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+  padding: 18px 2px;
+}
+
+
+
+.plugins-inner {
+  margin: 24px 32px;
+}
+
+.plugins-subtitle {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.plugin-install-row {
+  min-height: 34px;
+}
+
+.plugin-entry {
+  min-height: 34px;
+}
+
+.plugin-install {
+  min-height: 34px;
+}
+
+.plugin-status {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: @muted;
+}
+
+.plugin-list {
+  background-color: transparent;
+  border: none;
+}
+
+.plugin-item {
+  padding: 12px 2px;
+}
+
+.plugin-item.with-divider {
+  border-bottom: 1px solid alpha(@border, 0.45);
+}
+
+.plugin-name {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  color: @text;
+}
+
+.plugin-spec {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: @muted;
+}
+
+.plugin-remove {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-radius: 0;
+  color: @muted;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0 6px;
+  box-shadow: none;
+}
+
+.plugin-remove:hover {
+  color: @error;
+  background-color: alpha(@error, 0.08);
+  border: none;
+}
+
+.catalog-filters {
+  margin: 0;
+}
+
+.catalog-dropdown,
+.catalog-dropdown > button {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  color: @muted;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  min-height: 30px;
+  padding: 0 8px;
+  box-shadow: none;
+}
+
+.catalog-dropdown:hover,
+.catalog-dropdown > button:hover {
+  border-color: @accent;
+  color: @text;
+}
+
+.catalog-scroll {
+  border-top: 1px solid @border_muted;
+}
+
+.catalog-row {
+  min-height: 0;
+}
+
+.catalog-kind-icon {
+  opacity: 0.55;
+}
+
+.catalog-main {
+  padding: 0;
+}
+
+.catalog-name {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  color: @text;
+}
+
+.catalog-version {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: @muted;
+}
+
+.catalog-kind {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.catalog-desc {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: @muted;
+}
+
+.catalog-meta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: @dim;
+}
+
+.catalog-open {
+  opacity: 0.4;
+}
+
+.catalog-main:hover .catalog-name,
+.catalog-main:hover .catalog-open {
+  color: @accent;
+  opacity: 1;
+}
+
+.catalog-install {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  color: @text_base;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: 30px;
+  min-width: 88px;
+  padding: 0 10px;
+  box-shadow: none;
+}
+
+.catalog-install:hover {
+  border-color: @accent;
+  color: @accent;
+}
+
+.catalog-install:disabled {
+  border-color: @border;
+  color: @dim;
+}
+
+.catalog-note {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: @muted;
+}
+
+.catalog-note.success {
+  color: @success;
+}
+
+.catalog-note.error {
+  color: @error;
+}
+
+.catalog-more {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border_muted;
+  border-radius: 0;
+  color: @muted;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: 30px;
+}
+
+.catalog-more:hover {
+  background-color: @selected_bg;
+  color: @text;
+}
+
+
+.catalog-avatar {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.catalog-detail-links {
+  margin: 0 0 2px 0;
+}
+
+.catalog-detail-link {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  color: @muted;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: 30px;
+  padding: 0 12px;
+  box-shadow: none;
+}
+
+.catalog-detail-link:hover {
+  border-color: @accent;
+  color: @accent;
+}
+
+.catalog-section {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.catalog-readme-scroll {
+  background-color: transparent;
+  border-top: 1px solid @border_muted;
+}
+
+.catalog-readme-body {
+  padding: 12px 2px 20px 2px;
+}
+
+
+
+.composer-hint {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: @muted;
+  padding: 0 8px 4px 8px;
+}
+
+
+
+.mode-switch {
+  border: 1px solid @border;
+  padding: 2px;
+  min-height: 28px;
+}
+
+.mode-option {
+  background-color: transparent;
+  background-image: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  color: @muted;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: 22px;
+  padding: 0 8px;
+}
+
+.mode-option:hover {
+  color: @text;
+}
+
+.mode-option.active {
+  background-color: @selected_bg;
+  color: @text;
+}
+
+.header-chat-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @text_base;
+}
+
+.sidebar-toggle {
+  min-width: 28px;
+}
+
+.composer-chip {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  box-shadow: none;
+  color: @muted;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  min-height: 28px;
+  padding: 0 8px;
+}
+
+.composer-chip label {
+  color: @muted;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.composer-chip:hover {
+  border-color: @accent;
+  color: @text;
+}
+
+.composer-chip:hover label {
+  color: @text;
+}
+
+.composer-chip:checked {
+  background-color: @selected_bg;
+  border-color: @accent;
+  color: @text;
+}
+
+.composer-chip:checked label {
+  color: @text;
+}
+
+
+.tool-card.tool-compact {
+  background-color: transparent;
+  border: none;
+  border-left: 1px solid @border_muted;
+  border-radius: 0;
+  padding-left: 8px;
+}
+
+.tool-card.tool-compact.error {
+  border-left-color: @error;
+}
+
+.tool-card.tool-compact .tool-head {
+  padding: 2px 0;
+  min-height: 24px;
+}
+
+.tool-card.tool-compact .tool-title {
+  font-size: 10px;
+}
+
+.tool-card.tool-compact .tool-meta {
+  font-size: 10px;
+}
+
+.tool-card.tool-compact .tool-status {
+  font-size: 9px;
+}
+
+.chat-mode .chat-empty-hint {
+  font-family: "Pixelify Sans", serif;
+  font-size: 18px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: @text;
+}
+
+.mode-option:checked {
+  background-color: @selected_bg;
+  color: @text;
+}
+
+.settings-row-desc.error {
+  color: @error;
+}
+
+.settings-secret-state {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: @muted;
+}
+
+.settings-secret-state.saved {
+  color: @success;
+}
+
+.settings-secret-state.editing {
+  color: @warning;
+}
+
+.settings-secret-state.missing {
+  color: @muted;
+}

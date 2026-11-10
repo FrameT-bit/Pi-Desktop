@@ -1,0 +1,35 @@
+# Rust build
+target/
+**/target/
+
+# Local environment and secrets
+.env
+.env.*
+*.pem
+*.key
+*.p12
+auth.json
+mcp-auth.json
+web-search.json
+provider-keys.json
+
+# Local app state
+*.log
+*.tmp
+*.swp
+.cache/
+.local/
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Archives
+*.zip
