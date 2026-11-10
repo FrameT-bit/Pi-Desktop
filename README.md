@@ -28,7 +28,28 @@ describe compatibility with the Pi coding agent.
 - The `pi` binary available on `PATH` or configured in `config.ini`
 - The fonts in `resources/fonts/` (installed by the script below)
 
-## Build and install
+## One-click setup
+
+```sh
+./setup.sh
+```
+
+The setup wizard installs into the current user's home: `~/.local/bin/pi-desktop`,
+the desktop entry, icons and bundled fonts. It does not need root.
+
+Non-interactive and maintenance modes:
+
+```sh
+./setup.sh --no-gui       # terminal install, no wizard
+./setup.sh --dry-run      # print the plan; write nothing
+./setup.sh --status       # show installed files
+./setup.sh --uninstall    # remove the app; keep user data and config
+```
+
+If GTK4/PyGObject are unavailable for the system Python, the wizard falls back
+to the terminal installer. Building still needs Rust and GTK4 development files.
+
+## Build and install from source
 
 ```sh
 cargo build --release
