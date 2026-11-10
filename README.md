@@ -14,7 +14,9 @@ describe compatibility with the Pi coding agent.
 
 - Chat and code modes in one app, switched from the header.
 - Sessions, search, tree, artifacts, jobs and Pi extensions.
-- 50 food themes, light and dark, searchable in Settings → Theme.
+- 50 food themes, light and dark, searchable in Settings → Personalization.
+- Personalization tab for theme, typeface (Pixelify/JetBrains, Adwaita or system)
+  and font size.
 - Memory, personas, plan mode, permissions, restore points and subagents.
 - Weekly GitHub release check on app start, never on a background timer.
 - Credits tab with version, links, license and the preinstalled extension bundle.
@@ -69,7 +71,7 @@ server is embedded.
 build.rs                  generates tokens and CSS from resources/tokens-site.json
 resources/style.rules.css layout rules, no literal color
 resources/style.css       generated at build time; do not edit by hand
-resources/fonts/          Pixelify Sans and JetBrains Mono (OFL)
+resources/fonts/          Pixelify Sans and JetBrains Mono (OFL); Adwaita/system fonts are optional
 resources/icons/          pixelarticons and interface icons
 resources/brand/          Pi Desktop brand assets
 resources/logos/          model provider marks

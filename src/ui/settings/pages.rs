@@ -4,7 +4,7 @@ use gtk::prelude::*;
 use super::{Control, Form};
 use crate::config::Config;
 use crate::state::{resolve_pi_bin, ModelItem};
-use crate::theme::{self, ThemeMode};
+use crate::theme::{self, FontChoice, ThemeMode};
 
 
 pub fn choice_value(key: &str, index: usize) -> &'static str {
@@ -451,21 +451,38 @@ pub fn model_context(config: &Config, form: &mut Form) -> gtk::Box {
     page
 }
 
-pub fn interface_theme(form: &mut Form) -> gtk::Box {
+pub fn personalization(config: &Config, form: &mut Form) -> gtk::Box {
     let page = blank();
     let rows = rows(&page);
+
     let current = theme::load_mode().unwrap_or(ThemeMode::System);
-    let labels: Vec<String> = ThemeMode::all()
+    let theme_labels: Vec<String> = ThemeMode::all()
         .iter()
         .map(|mode| mode.menu_label())
         .collect();
-    let theme = dropdown_owned(&labels, current.index());
+    let theme = dropdown_owned(&theme_labels, current.index());
     push_choice(form, "theme", theme.clone());
     rows.append(&row(
         "theme",
-        "system, of race, dark or one of the 50 themes food; search by opening",
+        "system, light, dark or one of the 50 food themes",
         &theme,
     ));
+
+    let font_labels: Vec<String> = (0..3)
+        .map(|index| FontChoice::from_index(index).label().to_string())
+        .collect();
+    let font = dropdown_owned(&font_labels, config.font.index());
+    push_choice(form, "font", font.clone());
+    rows.append(&row(
+        "font",
+        "typeface for prose and code; the size stays adjustable below",
+        &font,
+    ));
+
+    let scale = text_entry(&config.font_scale.to_string(), 120);
+    push_text(form, "font_scale", scale.clone());
+    rows.append(&row("font size", "90 to 130 (%) applied to CSS", &scale));
+
     page
 }
 
@@ -475,7 +492,7 @@ pub fn interface(config: &Config, form: &mut Form) -> gtk::Box {
 
     for (key, label, desc, value) in [
         ("timestamps", "time in messages", "HH:MM shows above each message", config.timestamps),
-        ("auto_scroll", "Self-winding", "follows the end during streaming", config.auto_scroll),
+        ("auto_scroll", "Auto-scroll", "follows the end during streaming", config.auto_scroll),
         ("show_costs", "cost in status bar", "shows the token/cost block", config.show_costs),
     ] {
         let switch = toggle(value);
@@ -485,11 +502,8 @@ pub fn interface(config: &Config, form: &mut Form) -> gtk::Box {
 
     let width = text_entry(&config.chat_width.to_string(), 120);
     push_text(form, "chat_width", width.clone());
-    rows.append(&row("width of the prose", "60 to 120 characters", &width));
+    rows.append(&row("prose width", "60 to 120 characters", &width));
 
-    let scale = text_entry(&config.font_scale.to_string(), 120);
-    push_text(form, "font_scale", scale.clone());
-    rows.append(&row("Scale source", "90 to 130 (%) applied to CSS", &scale));
     page
 }
 

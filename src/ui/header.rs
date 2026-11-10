@@ -118,7 +118,7 @@ pub fn build(model: &str, theme: &Theme) -> HeaderUi {
     tabs.set_valign(gtk::Align::Center);
 
     let chat_title = gtk::Label::new(None);
-    chat_title.add_css_class("Header-chat-title");
+    chat_title.add_css_class("header-chat-title");
     chat_title.set_xalign(0.5);
     chat_title.set_ellipsize(gtk::pango::EllipsizeMode::Middle);
     chat_title.set_max_width_chars(56);
@@ -453,9 +453,9 @@ impl HeaderUi {
     pub fn set_view(&self, chat: bool) {
         self.center
             .set_visible_child_name(if chat { "title" } else { "tabs" });
-        self.root.remove_css_class("mode chat");
+        self.root.remove_css_class("chat-mode");
         if chat {
-            self.root.add_css_class("mode chat");
+            self.root.add_css_class("chat-mode");
         }
         self.help.set_visible(!chat);
         self.settings.set_visible(!chat);

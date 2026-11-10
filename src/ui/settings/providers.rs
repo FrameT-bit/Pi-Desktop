@@ -172,7 +172,7 @@ impl Ui {
             let title = gtk::Label::new(Some(
                 providers::known(&name).map(|known| known.label).unwrap_or(&name),
             ));
-            title.add_css_class("settings-item-titles");
+            title.add_css_class("settings-item-title");
             title.set_xalign(0.0);
 
             let detail_text = match auth.credential(&name) {
@@ -186,7 +186,7 @@ impl Ui {
                 }
             };
             let detail = gtk::Label::new(Some(&detail_text));
-            detail.add_css_class("settings-item-dec");
+            detail.add_css_class("settings-item-desc");
             detail.set_xalign(0.0);
             detail.set_ellipsize(gtk::pango::EllipsizeMode::Middle);
             info.append(&title);
@@ -349,7 +349,7 @@ impl Ui {
             let info = gtk::Box::new(gtk::Orientation::Vertical, 1);
             info.set_hexpand(true);
             let title = gtk::Label::new(Some(&model.id));
-            title.add_css_class("settings-item-titles");
+            title.add_css_class("settings-item-title");
             title.set_xalign(0.0);
             title.set_ellipsize(gtk::pango::EllipsizeMode::Middle);
 
@@ -361,7 +361,7 @@ impl Ui {
                 tags.push("images".to_string());
             }
             let detail = gtk::Label::new(Some(&tags.join(" · ")));
-            detail.add_css_class("settings-item-dec");
+            detail.add_css_class("settings-item-desc");
             detail.set_xalign(0.0);
             info.append(&title);
             info.append(&detail);
@@ -647,7 +647,7 @@ pub fn page() -> gtk::Box {
     key.set_placeholder_text(Some("paste API key"));
 
     let hint = gtk::Label::new(None);
-    hint.add_css_class("settings-item-dec");
+    hint.add_css_class("settings-item-desc");
     hint.set_xalign(0.0);
     hint.set_wrap(true);
 
@@ -671,7 +671,7 @@ pub fn page() -> gtk::Box {
     let models_note = gtk::Label::new(Some(
         "the default is for the next sessions; new providers are applied when this window closes (the session reconnects)",
     ));
-    models_note.add_css_class("settings-item-dec");
+    models_note.add_css_class("settings-item-desc");
     models_note.set_xalign(0.0);
     models_note.set_wrap(true);
     let models_list = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -715,7 +715,7 @@ pub fn page() -> gtk::Box {
         .build();
     custom_scroll.add_css_class("settings-view");
     let custom_status = gtk::Label::new(None);
-    custom_status.add_css_class("settings-item-dec");
+    custom_status.add_css_class("settings-item-desc");
     custom_status.set_xalign(0.0);
     custom_status.set_visible(false);
 

@@ -513,7 +513,8 @@ pub fn inline(text: &str) -> Inline {
                 if let Some(end) = find_char(&chars, i + 1, '`') {
                     let code: String = chars[i + 1..end].iter().collect();
                     out.push_str(&format!(
-                        "<span font_family='JetBrains Mono' size='9pt' foreground='{}' background='{}'>{}</span>",
+                        "<span font_family='{}' size='9pt' foreground='{}' background='{}'>{}</span>",
+                        crate::theme::mono_font(),
                         t::active("mdCode"),
                         t::active("cardBg"),
                         escape(&code)

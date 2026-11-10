@@ -4,10 +4,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-pub const REPO: &str = "FrameT-bit/pi-desktop";
-pub const REPO_URL: &str = "https://github.com/FrameT-bit/pi-desktop";
-pub const RELEASES_URL: &str = "https://github.com/FrameT-bit/pi-desktop/releases";
-pub const ISSUES_URL: &str = "https://github.com/FrameT-bit/pi-desktop/issues";
+pub const REPO: &str = "FrameT-bit/Pi-Desktop";
+pub const REPO_URL: &str = "https://github.com/FrameT-bit/Pi-Desktop";
+pub const RELEASES_URL: &str = "https://github.com/FrameT-bit/Pi-Desktop/releases";
+pub const ISSUES_URL: &str = "https://github.com/FrameT-bit/Pi-Desktop/issues";
 const CHECK_INTERVAL_SECS: i64 = 7 * 24 * 60 * 60;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

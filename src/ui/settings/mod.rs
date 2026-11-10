@@ -16,7 +16,7 @@ use gtk::prelude::*;
 
 use crate::config::{self, Approve, Config, Target, Thinking};
 use crate::state::ModelItem;
-use crate::theme::{self, ThemeMode};
+use crate::theme::{self, FontChoice, ThemeMode};
 
 use self::pages::block;
 
@@ -30,6 +30,7 @@ const MAX_FONT_SCALE: i32 = 130;
 const TABS: &[(&str, &str)] = &[
     ("CONNECTION", "CONNECTION"),
     ("MODEL", "MODEL"),
+    ("PERSONALIZATION", "PERSONALIZATION"),
     ("PROVIDERS", "PROVIDERS"),
     ("MCP", "MCP"),
     ("MEMORY", "MEMORY"),
@@ -39,7 +40,7 @@ const TABS: &[(&str, &str)] = &[
 ];
 
 const NAV: &[(&str, &[&str])] = &[
-    ("GENERAL", &["CONNECTION", "MODEL"]),
+    ("GENERAL", &["CONNECTION", "MODEL", "PERSONALIZATION"]),
     ("TOOLS", &["PROVIDERS", "MCP", "MEMORY", "SOUL"]),
     ("ADVANCED", &["CONNECTIONS"]),
     ("ABOUT", &["CREDITS"]),
@@ -166,6 +167,7 @@ pub fn show(
         let content = match *name {
             "CONNECTION" => connection_page(&config, &mut form),
             "MODEL" => model_page(&config, &mut form, &aux_models),
+            "PERSONALIZATION" => personalization_page(&config, &mut form),
             "PROVIDERS" => providers::page(),
             "MCP" => mcp::page(&window, &config.bin),
             "MEMORY" => memory::page(),
@@ -426,6 +428,7 @@ fn tab_name(value: &str) -> Option<&'static str> {
     match value.trim().to_ascii_lowercase().as_str() {
         "connection" => Some("CONNECTION"),
         "model" => Some("MODEL"),
+        "personalization" => Some("PERSONALIZATION"),
         "providers" | "provider" => Some("PROVIDERS"),
         "mcp" => Some("MCP"),
         "connections" | "connection_search" => Some("CONNECTIONS"),
@@ -466,6 +469,7 @@ fn tab_shell(name: &str, content: &gtk::Box) -> gtk::ScrolledWindow {
 fn tab_title(name: &str) -> &'static str {
     match name {
         "CONNECTION" => "Connection and interface",
+        "PERSONALIZATION" => "Personalization",
         "MODEL" => "Model",
         "PROVIDERS" => "Providers and models",
         "MCP" => "MCP servers",
@@ -480,6 +484,7 @@ fn tab_title(name: &str) -> &'static str {
 fn tab_desc(name: &str) -> &'static str {
     match name {
         "CONNECTION" => "Where Pi runs and which session to open. Advanced options are below.",
+        "PERSONALIZATION" => "Theme, typeface and font size for the app.",
         "MODEL" => "Model, provider and reasoning; scope and tools are under Advanced.",
         "PROVIDERS" => "Connect a provider, inspect the models and choose the default without editing JSON.",
         "MCP" => "Global MCP servers; the list comes from Pi itself.",
@@ -513,9 +518,6 @@ fn connection_page(config: &Config, form: &mut Form) -> gtk::Box {
     let session = block(&page, "SESSION");
     session.append(&pages::connection_session(config, form));
 
-    let theme = block(&page, "THEME");
-    theme.append(&pages::interface_theme(form));
-
     let adv = advanced(&page, "advanced · session, trust, network and interface");
     let sessao_extra = block(&adv, "SESSION");
     sessao_extra.append(&pages::connection_session_advanced(config, form));
@@ -524,6 +526,14 @@ fn connection_page(config: &Config, form: &mut Form) -> gtk::Box {
     let interface = block(&adv, "INTERFACE");
     interface.append(&pages::interface(config, form));
 
+    page
+}
+
+fn personalization_page(config: &Config, form: &mut Form) -> gtk::Box {
+    let page = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    page.add_css_class("settings-page-content");
+    let appearance = block(&page, "APPEARANCE");
+    appearance.append(&pages::personalization(config, form));
     page
 }
 
@@ -663,6 +673,7 @@ fn collect(form: &Form) -> Result<Config, String> {
     config.auto_scroll = form.boolean("auto_scroll");
     config.chat_width = chat_width;
     config.font_scale = font_scale;
+    config.font = FontChoice::from_index(form.index("font"));
     config.show_costs = form.boolean("show_costs");
     Ok(config)
 }

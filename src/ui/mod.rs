@@ -175,6 +175,7 @@ impl AppUi {
         let session_override = config.session_override().map(str::to_string);
         let transport = Transport::from_config(&config);
         theme.set_font_scale(config.font_scale as u32);
+        theme.set_font(config.font);
         let configured_thinking = match config.thinking {
             crate::config::Thinking::Unset => None,
             level => Some(level.as_str().to_string()),
@@ -2916,7 +2917,7 @@ impl AppUi {
     }
 
     fn demo_diff(self: &Rc<Self>) {
-        let messages = std::env::var("PI_DESKTOP_SESSION_PHILE")
+        let messages = std::env::var("PI_DESKTOP_SESSION_FILE")
             .ok()
             .map(std::path::PathBuf::from)
             .map(|path| history::read_messages(&path))
@@ -3203,6 +3204,7 @@ impl AppUi {
         let mode = crate::theme::load_mode().unwrap_or(ThemeMode::System);
         self.theme.set_mode(mode);
         self.theme.set_font_scale(config.font_scale as u32);
+        self.theme.set_font(config.font);
         self.chat.set_show_timestamps(config.timestamps);
         self.chat.set_auto_scroll(config.auto_scroll);
         self.chat.set_chat_width(config.chat_width);

@@ -57,7 +57,7 @@ pub fn page(config: &Config, form: &mut Form) -> gtk::Box {
     system_actions.append(&clear_system);
 
     let hint = gtk::Label::new(None);
-    hint.add_css_class("settings-item-dec");
+    hint.add_css_class("settings-item-desc");
     hint.set_xalign(0.0);
     hint.set_visible(false);
 

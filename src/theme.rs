@@ -23,6 +23,92 @@ pub enum Palette {
     Dark,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum FontChoice {
+    Pixel,
+    Adwaita,
+    System,
+}
+
+impl FontChoice {
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "pixel" | "pixelify" => Some(FontChoice::Pixel),
+            "adwaita" => Some(FontChoice::Adwaita),
+            "system" => Some(FontChoice::System),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            FontChoice::Pixel => "pixel",
+            FontChoice::Adwaita => "adwaita",
+            FontChoice::System => "system",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            FontChoice::Pixel => "Pixelify Sans + JetBrains Mono",
+            FontChoice::Adwaita => "Adwaita Sans + Adwaita Mono",
+            FontChoice::System => "System Sans + System Mono",
+        }
+    }
+
+    pub fn families(self) -> (&'static str, &'static str) {
+        match self {
+            FontChoice::Pixel => ("Pixelify Sans", "JetBrains Mono"),
+            FontChoice::Adwaita => ("Adwaita Sans", "Adwaita Mono"),
+            FontChoice::System => ("Sans", "Monospace"),
+        }
+    }
+
+    pub fn index(self) -> usize {
+        match self {
+            FontChoice::Pixel => 0,
+            FontChoice::Adwaita => 1,
+            FontChoice::System => 2,
+        }
+    }
+
+    pub fn from_index(index: usize) -> Self {
+        match index {
+            1 => FontChoice::Adwaita,
+            2 => FontChoice::System,
+            _ => FontChoice::Pixel,
+        }
+    }
+}
+
+thread_local! {
+    static ACTIVE_FONT: Cell<FontChoice> = const { Cell::new(FontChoice::Pixel) };
+}
+
+pub fn mono_font() -> &'static str {
+    ACTIVE_FONT.with(|font| font.get().families().1)
+}
+
+pub fn body_font() -> &'static str {
+    ACTIVE_FONT.with(|font| font.get().families().0)
+}
+
+fn apply_fonts(css: &str, font: FontChoice) -> String {
+    let body_decl = match font {
+        FontChoice::Pixel => "\"Pixelify Sans\", serif".to_string(),
+        FontChoice::Adwaita => "\"Adwaita Sans\", sans-serif".to_string(),
+        FontChoice::System => "Sans, sans-serif".to_string(),
+    };
+    let mono_decl = match font {
+        FontChoice::Pixel => "\"JetBrains Mono\", monospace".to_string(),
+        FontChoice::Adwaita => "\"Adwaita Mono\", monospace".to_string(),
+        FontChoice::System => "Monospace, monospace".to_string(),
+    };
+    css.replace("\"Pixelify Sans\", serif", &body_decl)
+        .replace("\"JetBrains Mono\", monospace", &mono_decl)
+}
+
+
 impl ThemeMode {
     pub fn next(self) -> Self {
         match self {
@@ -58,8 +144,8 @@ impl ThemeMode {
             .to_ascii_lowercase();
         match value.as_str() {
             "system" => Some(ThemeMode::System),
-            "light" | "clear" => Some(ThemeMode::Light),
-            "dark" | "Dark" => Some(ThemeMode::Dark),
+            "light" => Some(ThemeMode::Light),
+            "dark" => Some(ThemeMode::Dark),
             _ => theme_catalog::find(&value).map(|index| ThemeMode::Named(index as u8)),
         }
     }
@@ -87,7 +173,7 @@ impl ThemeMode {
     pub fn label(self) -> &'static str {
         match self {
             ThemeMode::System => "System",
-            ThemeMode::Light => "Sure.",
+            ThemeMode::Light => "Light",
             ThemeMode::Dark => "Dark",
             ThemeMode::Named(index) => theme_catalog::at(index as usize)
                 .map(|theme| theme.name)
@@ -152,6 +238,7 @@ struct Inner {
     palette: Cell<Palette>,
     system_dark: Cell<bool>,
     font_scale: Cell<u32>,
+    font: Cell<FontChoice>,
     persist: Cell<bool>,
     provider: RefCell<Option<gtk::CssProvider>>,
     listeners: RefCell<Vec<Listener>>,
@@ -169,6 +256,7 @@ pub fn init() -> Theme {
     let forced = from_env.is_some();
     let mode = from_env.or_else(load_mode).unwrap_or(ThemeMode::System);
     let system_dark = system_prefers_dark();
+    let font = load_font().unwrap_or(FontChoice::Pixel);
 
     let theme = Theme {
         inner: Rc::new(Inner {
@@ -176,6 +264,7 @@ pub fn init() -> Theme {
             palette: Cell::new(mode.resolve(system_dark)),
             system_dark: Cell::new(system_dark),
             font_scale: Cell::new(100),
+            font: Cell::new(font),
             persist: Cell::new(!forced),
             provider: RefCell::new(None),
             listeners: RefCell::new(Vec::new()),
@@ -214,7 +303,7 @@ impl Theme {
     }
 
     pub fn tooltip(&self) -> String {
-        format!("Subject: {}", self.inner.mode.get().label())
+        format!("Theme: {}", self.inner.mode.get().label())
     }
 
     pub fn set_font_scale(&self, percent: u32) {
@@ -229,6 +318,21 @@ impl Theme {
     #[allow(dead_code)]
     pub fn font_scale(&self) -> u32 {
         self.inner.font_scale.get()
+    }
+
+    pub fn font(&self) -> FontChoice {
+        self.inner.font.get()
+    }
+
+    pub fn set_font(&self, font: FontChoice) {
+        if self.inner.font.get() == font {
+            return;
+        }
+        self.inner.font.set(font);
+        if self.inner.persist.get() {
+            save_font(font);
+        }
+        self.apply();
     }
 
     pub fn page_bg_rgb(&self) -> (f64, f64, f64) {
@@ -275,7 +379,9 @@ impl Theme {
 
         let provider = gtk::CssProvider::new();
         let scale = self.inner.font_scale.get();
-        let css = apply_named_tokens(palette.css(), &named_tokens);
+        let font = self.inner.font.get();
+        ACTIVE_FONT.with(|active| active.set(font));
+        let css = apply_fonts(&apply_named_tokens(palette.css(), &named_tokens), font);
         provider.load_from_string(&scale_css(&css, scale));
 
         if let Some(display) = gtk::gdk::Display::default() {
@@ -418,6 +524,42 @@ pub fn save_preference(mode: ThemeMode) {
     save_mode(mode);
 }
 
+pub fn save_font_preference(font: FontChoice) {
+    save_font(font);
+}
+
+pub fn load_font() -> Option<FontChoice> {
+    let text = fs::read_to_string(config_path()?).ok()?;
+    parse_font_config(&text)
+}
+
+pub fn parse_font_config(text: &str) -> Option<FontChoice> {
+    let mut section = String::new();
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') || line.starts_with(';') {
+            continue;
+        }
+        if let Some(name) = line.strip_prefix('[') {
+            section = name
+                .split(']')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_ascii_lowercase();
+            continue;
+        }
+        let Some((key, value)) = line.split_once('=') else { continue };
+        if !(section.is_empty() || section == "ui") {
+            continue;
+        }
+        if key.trim().eq_ignore_ascii_case("font") {
+            return FontChoice::parse(value);
+        }
+    }
+    None
+}
+
 pub fn config_path() -> Option<PathBuf> {
     if let Some(path) = std::env::var_os("PI_DESKTOP_CONFIG") {
         if !path.is_empty() {
@@ -465,6 +607,46 @@ pub fn parse_config(text: &str) -> Option<ThemeMode> {
 }
 
 
+
+fn save_font(font: FontChoice) {
+    let Some(path) = config_path() else { return };
+    if let Some(dir) = path.parent() {
+        let _ = fs::create_dir_all(dir);
+    }
+    let existing = fs::read_to_string(&path).unwrap_or_default();
+    if parse_font_config(&existing) == Some(font) {
+        return;
+    }
+    let _ = fs::write(path, upsert_ui_key(&existing, "font", font.as_str()));
+}
+
+fn upsert_ui_key(text: &str, key: &str, value: &str) -> String {
+    let mut lines: Vec<String> = text.lines().map(str::to_string).collect();
+    let mut in_ui = false;
+    let mut ui_end = None;
+    for (index, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            if in_ui {
+                ui_end = Some(index);
+                break;
+            }
+            in_ui = trimmed[1..trimmed.len() - 1].trim().eq_ignore_ascii_case("ui");
+        }
+        if in_ui && trimmed.split_once('=').is_some_and(|(name, _)| name.trim().eq_ignore_ascii_case(key)) {
+            lines[index] = format!("{key}={value}");
+            return lines.join("\n");
+        }
+    }
+    let insert_at = ui_end.unwrap_or_else(|| {
+        if !lines.iter().any(|line| line.trim().eq_ignore_ascii_case("[ui]")) {
+            lines.push("[ui]".to_string());
+        }
+        lines.len()
+    });
+    lines.insert(insert_at, format!("{key}={value}"));
+    lines.join("\n")
+}
 
 fn save_mode(mode: ThemeMode) {
     let Some(path) = config_path() else {

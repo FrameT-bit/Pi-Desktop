@@ -43,15 +43,15 @@ impl Category {
 
     pub fn group(self) -> &'static str {
         match self {
-            Category::Yellow => "Yellow / Creams",
-            Category::Brown => "Brown/Terrous",
+            Category::Yellow => "Yellow / Cream",
+            Category::Brown => "Brown / Earthy",
             Category::Red => "Red",
             Category::Pink => "Pink",
             Category::Orange => "Orange",
             Category::Green => "Green",
             Category::Blue => "Blue",
             Category::Purple => "Purple",
-            Category::Neutral => "Neutral / Clear",
+            Category::Neutral => "Neutral / Light",
             Category::Dark => "Dark",
         }
     }

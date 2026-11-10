@@ -1,11 +1,11 @@
 [package]
 name = "pi-desktop"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 description = "Native GTK4 + libadwaita client for talking to Pi over RPC"
 authors = ["FrameT"]
 license = "GPL-3.0-or-later"
-repository = "https://github.com/FrameT-bit/pi-desktop"
+repository = "https://github.com/FrameT-bit/Pi-Desktop"
 
 [dependencies]
 gtk = { package = "gtk4", version = "0.10", features = ["v4_16"] }

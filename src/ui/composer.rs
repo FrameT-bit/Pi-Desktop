@@ -315,7 +315,7 @@ impl Composer {
         chat_search.set_tooltip_text(Some("request web search when the answer needs current data"));
 
         let chat_tools = gtk::Box::new(gtk::Orientation::Horizontal, 6);
-        chat_tools.add_css_class("compose-chat-tools");
+        chat_tools.add_css_class("composer-chat-tools");
         chat_tools.set_halign(gtk::Align::Start);
         chat_tools.append(&chat_think);
         chat_tools.append(&chat_search);

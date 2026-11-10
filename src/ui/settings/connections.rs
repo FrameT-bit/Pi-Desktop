@@ -235,7 +235,7 @@ pub fn page() -> (gtk::Box, SaveConnectionsFn) {
     actions.append(&save);
 
     let path_label = gtk::Label::new(Some(&format!("file: {path}")));
-    path_label.add_css_class("settings-item-dec");
+    path_label.add_css_class("settings-item-desc");
     path_label.set_xalign(0.0);
     actions.append(&path_label);
 

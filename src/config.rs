@@ -2,6 +2,8 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
+use crate::theme::FontChoice;
+
 pub const DEFAULT_BIN: &str = "~/.local/bin/pi";
 pub const DEFAULT_REMOTE_SSH: &str = "";
 pub const DEFAULT_WORKSPACE: &str = "~/projects";
@@ -273,6 +275,7 @@ pub struct Config {
     pub auto_scroll: bool,
     pub chat_width: i32,
     pub font_scale: i32,
+    pub font: FontChoice,
     pub show_costs: bool,
     pub notify: bool,
 
@@ -320,6 +323,7 @@ impl Default for Config {
             auto_scroll: true,
             chat_width: DEFAULT_CHAT_WIDTH,
             font_scale: DEFAULT_FONT_SCALE,
+            font: FontChoice::Pixel,
             show_costs: true,
             notify: true,
             session_override: None,
@@ -540,6 +544,9 @@ impl Config {
                     } else {
                         self.font_scale = default.font_scale;
                     }
+                }
+                "font" if ui || section.is_empty() => {
+                    self.font = FontChoice::parse(&value()).unwrap_or(default.font);
                 }
                 "notify" if ui || section.is_empty() => {
                     if let Some(parsed) = parse_bool(&value()) {
@@ -831,6 +838,7 @@ impl Config {
             ("ui", "auto_scroll", bool_str(self.auto_scroll)),
             ("ui", "chat_width", self.chat_width.to_string()),
             ("ui", "font_scale", self.font_scale.to_string()),
+            ("ui", "font", self.font.as_str().to_string()),
             ("ui", "show_costs", bool_str(self.show_costs)),
             ("ui", "notify", bool_str(self.notify)),
         ]

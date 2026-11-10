@@ -89,7 +89,7 @@ struct Stream {
 impl ChatView {
     pub fn new(theme: &Theme) -> Rc<Self> {
         let list = gtk::Box::new(gtk::Orientation::Vertical, 12);
-        list.add_css_class("chatting");
+        list.add_css_class("chat-area");
         list.set_valign(gtk::Align::Start);
         list.set_margin_top(16);
         list.set_margin_bottom(16);
@@ -102,7 +102,7 @@ impl ChatView {
             .vexpand(true)
             .hexpand(true)
             .build();
-        scroll.add_css_class("Scroll chat");
+        scroll.add_css_class("chat-scroll");
         scroll.set_child(Some(&list));
 
         let mark = gtk::Image::new();
@@ -231,9 +231,9 @@ impl ChatView {
 
     pub fn set_chat_mode(&self, chat: bool) {
         self.chat_mode.set(chat);
-        self.root.remove_css_class("mode chat");
+        self.root.remove_css_class("chat-mode");
         if chat {
-            self.root.add_css_class("mode chat");
+            self.root.add_css_class("chat-mode");
         }
         self.empty_quick.set_visible(!chat);
         self.empty_hint.set_text(if chat {
@@ -468,7 +468,7 @@ impl ChatView {
             .map(|text| text.to_string())
             .unwrap_or_default();
         let label = gtk::Label::new(Some(&text));
-        label.add_css_class("chat-print");
+        label.add_css_class("chat-stamp");
         label.set_xalign(0.0);
         label.set_halign(gtk::Align::Start);
         Some(label)
@@ -1948,8 +1948,14 @@ impl ThinkingRow {
             Tone::Muted,
         );
         self.body.set_max_content_height(thinking_height(expanded));
-        self.body
-            .set_visible(!self.chat_mode.get() || expanded);
+        self.body.set_min_content_height(if expanded {
+            thinking_height(true)
+        } else {
+            0
+        });
+        self.body.set_visible(!self.chat_mode.get() || expanded);
+        self.body.queue_resize();
+        self.root.queue_resize();
         self.render_now();
     }
 

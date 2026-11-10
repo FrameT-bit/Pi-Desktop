@@ -62,7 +62,7 @@ pub fn page() -> gtk::Box {
         "the agent writes here alone (review every 10 shifts or when you ask to remember); files in {}",
         dir.display()
     )));
-    note.add_css_class("settings-item-dec");
+    note.add_css_class("settings-item-desc");
     note.set_xalign(0.0);
     note.set_wrap(true);
     page.append(&note);

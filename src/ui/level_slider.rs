@@ -229,7 +229,7 @@ impl LevelSlider {
         };
 
         cr.select_font_face(
-            "JetBrains Mono",
+            crate::theme::mono_font(),
             gtk::cairo::FontSlant::Normal,
             gtk::cairo::FontWeight::Normal,
         );

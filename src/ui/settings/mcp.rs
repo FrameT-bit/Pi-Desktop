@@ -20,11 +20,11 @@ pub fn page(window: &gtk::Window, bin: &str) -> gtk::Box {
     status.set_visible(false);
 
     let list = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    let list_block = block(&page, "SERVANTS");
+    let list_block = block(&page, "SERVERS");
 
     let list_header = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     let spinner_text = gtk::Label::new(Some("reading from pi..."));
-    spinner_text.add_css_class("settings-item-dec");
+    spinner_text.add_css_class("settings-item-desc");
     spinner_text.set_visible(false);
     let spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     spacer.set_hexpand(true);
@@ -40,9 +40,9 @@ pub fn page(window: &gtk::Window, bin: &str) -> gtk::Box {
     let add_block = block(&page, "Add");
 
     let modes: &'static [&'static str] = &["http", "stdio"];
-    let mode = dropdown(modes, &["HTTP (url)", "Stdio (command)"], 0);
+    let mode = dropdown(modes, &["HTTP (url)", "stdio (command)"], 0);
     add_block.append(&row(
-        "transporte",
+        "transport",
         "HTTP uses --url; stdio runs a local command",
         &mode,
     ));
@@ -52,7 +52,7 @@ pub fn page(window: &gtk::Window, bin: &str) -> gtk::Box {
 
     let url = text_entry("", 320);
     add_block.append(&row(
-        "Url (http)",
+        "URL (HTTP)",
         "HTTP streaming server, e.g.: https://example.com/mcp",
         &url,
     ));
@@ -162,7 +162,7 @@ pub fn page(window: &gtk::Window, bin: &str) -> gtk::Box {
                 let info = gtk::Box::new(gtk::Orientation::Vertical, 1);
                 info.set_hexpand(true);
                 let title = gtk::Label::new(Some(&format!("{} · {}", server.name, server.status())));
-                title.add_css_class("settings-item-titles");
+                title.add_css_class("settings-item-title");
                 title.set_xalign(0.0);
                 let tool_preview = server
                     .tools
@@ -198,7 +198,7 @@ pub fn page(window: &gtk::Window, bin: &str) -> gtk::Box {
                     }
                 };
                 let detail = gtk::Label::new(Some(&detail_text));
-                detail.add_css_class("settings-item-dec");
+                detail.add_css_class("settings-item-desc");
                 detail.set_xalign(0.0);
                 detail.set_ellipsize(gtk::pango::EllipsizeMode::Middle);
                 detail.set_tooltip_text(Some(
