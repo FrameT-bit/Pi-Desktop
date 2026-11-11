@@ -33,7 +33,7 @@ pub fn page() -> (gtk::Box, SaveConnectionsFn) {
         } else if field.key.starts_with("firecrawl") {
             "FIRECRAWL"
         } else if field.key.starts_with("searxng") {
-            "NEARXNG"
+            "SEARXNG"
         } else {
             "OTHER SEARCHERS"
         };
@@ -136,13 +136,13 @@ pub fn page() -> (gtk::Box, SaveConnectionsFn) {
                                     has.set(false);
                                     entry.set_text("");
                                     refresh();
-                                    status.set_text(&format!("{key} removida"));
+                                    status.set_text(&format!("{key} removed"));
                                     status.set_visible(true);
                                     status.remove_css_class("settings-error");
                                     status.add_css_class("settings-ok");
                                 }
                                 Err(err) => {
-                                    status.set_text(&format!("record failure: {err}"));
+                                    status.set_text(&format!("failed to save: {err}"));
                                     status.set_visible(true);
                                 }
                             }
@@ -239,7 +239,7 @@ pub fn page() -> (gtk::Box, SaveConnectionsFn) {
     path_label.set_xalign(0.0);
     actions.append(&path_label);
 
-    let footer = block(&page, "ACKNOWLEDGEMENT");
+    let footer = block(&page, "SAVE");
     footer.append(&actions);
     page.append(&status);
 

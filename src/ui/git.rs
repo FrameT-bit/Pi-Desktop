@@ -64,13 +64,13 @@ impl GitUi {
         heading.append(&branch_line);
         inner.append(&heading);
 
-        let refresh_button = gtk::Button::with_label("update");
+        let refresh_button = gtk::Button::with_label("refresh");
         refresh_button.add_css_class("git-btn");
-        let stage_all_button = gtk::Button::with_label("Internship all");
+        let stage_all_button = gtk::Button::with_label("Stage all");
         stage_all_button.add_css_class("git-btn");
         stage_all_button.set_tooltip_text(Some("git add -A (prepare everything that appears in the list)"));
         stage_all_button.set_sensitive(false);
-        let push_button = gtk::Button::with_label("send");
+        let push_button = gtk::Button::with_label("push");
         push_button.add_css_class("git-btn");
         push_button.set_sensitive(false);
         let toolbar = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -105,7 +105,7 @@ impl GitUi {
         list_scroll.add_css_class("git-list-scroll");
         list_scroll.set_min_content_width(300);
 
-        let diff_title = gtk::Label::new(Some("DIFFERENCE"));
+        let diff_title = gtk::Label::new(Some("DIFF"));
         diff_title.add_css_class("git-diff-title");
         diff_title.set_xalign(0.0);
         diff_title.set_ellipsize(gtk::pango::EllipsizeMode::Middle);
@@ -148,9 +148,9 @@ impl GitUi {
 
         let commit_entry = gtk::Entry::new();
         commit_entry.add_css_class("git-commit-entry");
-        commit_entry.set_placeholder_text(Some("confirmation message (only what is prepared)"));
+        commit_entry.set_placeholder_text(Some("commit message (staged changes only)"));
         commit_entry.set_hexpand(true);
-        let commit_button = gtk::Button::with_label("confirmar");
+        let commit_button = gtk::Button::with_label("commit");
         commit_button.add_css_class("git-btn");
         commit_button.add_css_class("accent");
         let commit_row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -361,7 +361,7 @@ impl GitUi {
         let actions = gtk::Box::new(gtk::Orientation::Horizontal, 6);
         actions.set_halign(gtk::Align::Start);
 
-        let diff = gtk::Button::with_label("difference");
+        let diff = gtk::Button::with_label("diff");
         diff.add_css_class("git-mini");
         actions.append(&diff);
         {
@@ -394,7 +394,7 @@ impl GitUi {
         }
 
         if file.unstaged() || file.untracked() {
-            let discard = gtk::Button::with_label("descartar");
+            let discard = gtk::Button::with_label("discard");
             discard.add_css_class("git-mini");
             discard.add_css_class("danger");
             actions.append(&discard);
@@ -417,9 +417,9 @@ impl GitUi {
                 let file = file.clone();
                 dialog::confirm(
                     &window,
-                    "Does the roll out change?",
+                    "Discard this change?",
                     &format!("{detail}\n\ncannot be undone."),
-                    "descartar",
+                    "discard",
                     move || {
                         let args = git::discard_args(&file);
                         me.run_action(args);

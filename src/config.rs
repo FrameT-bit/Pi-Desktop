@@ -95,8 +95,8 @@ impl Approve {
     pub fn parse(value: &str) -> Option<Self> {
         match value.trim().to_ascii_lowercase().as_str() {
             "ask" => Some(Approve::Ask),
-            "yes" | "sim" | "approve" => Some(Approve::Yes),
-            "no" | "nao" | "no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no," | "no-approve" => Some(Approve::No),
+            "yes" | "approve" => Some(Approve::Yes),
+            "no" | "no-approve" => Some(Approve::No),
             _ => None,
         }
     }
@@ -382,7 +382,7 @@ impl Config {
                         }
                         _ => {
                             if cli.error.is_none() {
-                                cli.error = Some(format!("{flag} exige um valor"));
+                                cli.error = Some(format!("{flag} needs a value"));
                             }
                         }
                     }
@@ -869,8 +869,8 @@ fn push_list(args: &mut Vec<String>, flag: &str, value: &str) {
 
 fn parse_bool(value: &str) -> Option<bool> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "true" | "1" | "yes" | "on" | "sim" => Some(true),
-        "false" | "0" | "no" | "off" | "nao" | "no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no," => Some(false),
+        "true" | "1" | "yes" | "on" => Some(true),
+        "false" | "0" | "no" | "off" => Some(false),
         _ => None,
     }
 }

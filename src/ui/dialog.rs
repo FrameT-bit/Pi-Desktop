@@ -202,10 +202,10 @@ fn show_confirm(
     buttons.set_halign(gtk::Align::End);
     buttons.set_valign(gtk::Align::End);
 
-    let no = gtk::Button::with_label("no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no, no,");
+    let no = gtk::Button::with_label("no");
     no.add_css_class("dialog-option");
     no.add_css_class("dialog-option-cancel");
-    let confirm = gtk::Button::with_label("confirmar");
+    let confirm = gtk::Button::with_label("confirm");
     confirm.add_css_class("dialog-accept");
     confirm.set_receives_default(true);
 
@@ -315,7 +315,7 @@ fn show_input(
     row.add_css_class("dialog-entry");
     let placeholder = strip_ansi(&request.placeholder);
     row.set_placeholder_text(Some(if placeholder.is_empty() {
-        "valor"
+        "value"
     } else {
         &placeholder
     }));

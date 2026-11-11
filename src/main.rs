@@ -33,6 +33,12 @@ use gtk::prelude::*;
 const APP_ID: &str = "io.github.FrameT.PiDesktop";
 
 fn main() -> glib::ExitCode {
+    // Child processes (Pi, git, curl) otherwise inherit Portuguese libc messages
+    // from the user's locale. Keep locale data for character handling, but force
+    // diagnostics to English.
+    std::env::set_var("LC_MESSAGES", "C");
+    std::env::set_var("LANGUAGE", "C");
+
     let argv: Vec<String> = std::env::args().skip(1).collect();
     if argv.iter().any(|arg| arg == "--version" || arg == "-V") {
         println!("pi-desktop {}", env!("CARGO_PKG_VERSION"));

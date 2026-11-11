@@ -60,7 +60,7 @@ fn selected_id(ui: &Ui) -> String {
     if index < providers::KNOWN.len() {
         providers::KNOWN[index].id.to_string()
     } else {
-        String::new() // endpoint personalizado
+        String::new() // custom endpoint
     }
 }
 
@@ -95,7 +95,7 @@ impl Ui {
     fn refresh_hint(&self) {
         if selected_id(self).is_empty() {
             self.hint.set_text(
-                "own endpoint: inform URL and API; the key is optional on local servers",
+                "custom endpoint: enter URL and API; the key is optional on local servers",
             );
             self.key.set_sensitive(false);
             self.connect.set_visible(false);
@@ -230,7 +230,7 @@ impl Ui {
                     dialog::confirm(
                         &ui.window,
                         "Disconnect provider?",
-                        &format!("{name_c}\n\nremover {detail}"),
+                        &format!("{name_c}\n\nremove {detail}"),
                         "remove",
                         move || {
                             let agent = config::pi_agent_dir();
@@ -368,13 +368,13 @@ impl Ui {
 
             let is_default = default_provider.as_deref() == Some(provider.as_str())
                 && default_model.as_deref() == Some(model.id.as_str());
-            let use_button = gtk::Button::with_label(if is_default { "standard" } else { "use" });
+            let use_button = gtk::Button::with_label(if is_default { "default" } else { "use" });
             use_button.add_css_class("settings-mini");
             if is_default {
                 use_button.set_sensitive(false);
                 use_button.set_tooltip_text(Some("already the default for new sessions"));
             } else {
-                use_button.set_tooltip_text(Some("default for the next sessions"));
+                use_button.set_tooltip_text(Some("default for new sessions"));
             }
 
             line.append(&info);
@@ -390,7 +390,7 @@ impl Ui {
                     match providers::set_default_model(&agent, &provider_c, &model_c) {
                         Ok(()) => {
                             ui.note(&format!(
-                                "standard: {provider_c}/{model_c} (new sessions)"
+                                "default: {provider_c}/{model_c} (new sessions)"
                             ));
                             ui.show_models(&provider_c);
                         }
@@ -412,7 +412,7 @@ impl Ui {
         let provider = selected_id(self);
         let key = self.key.text().trim().to_string();
         if key.is_empty() {
-            self.error("paste the provider's API key (the variable environment also works, but is not read here)");
+            self.error("paste the provider API key (an environment variable also works, but is not read here)");
             return;
         }
         self.connecting.set(true);
@@ -429,7 +429,7 @@ impl Ui {
             return;
         }
         self.key.set_text("");
-        self.note("checking credential with more...");
+        self.note("checking credential with Pi...");
 
         let bin = self.bin.clone();
         let name = provider.clone();
@@ -437,9 +437,10 @@ impl Ui {
         std::thread::spawn(move || {
             let check = (|| {
                 let path = resolve_pi_bin(&bin)?;
-                let output = std::process::Command::new(path)
+                let output = std::process::Command::new(&path)
                     .args(["auth", "check", "--provider", &name, "--json", "--no-refresh"])
                     .env("PI_CODING_AGENT_DIR", config::pi_agent_dir())
+                    .env("PATH", crate::state::path_with_pi(&path))
                     .stdin(std::process::Stdio::null())
                     .output()
                     .map_err(|err| format!("failed to run pi: {err}"))?;
@@ -474,7 +475,7 @@ impl Ui {
                     let warning = match check {
                         Ok(()) => String::new(),
                         Err(detail) => format!(
-                            "· more warning: {}",
+                            " · Pi warning: {}",
                             first_line(&detail, 200)
                         ),
                     };
@@ -501,7 +502,7 @@ impl Ui {
                         .map(|known| known.hint)
                         .unwrap_or("the documentation of the provider");
                     let mut message = format!(
-                        "the pi refused `{provider}`: {} — check the key in {hint}",
+                        "Pi refused `{provider}`: {} — check the key at {hint}",
                         first_line(&detail, 400)
                     );
                     if let Err(err) = models {
@@ -550,7 +551,7 @@ impl Ui {
                         }
                     }
                 }
-                Err(err) => ui.custom_status.set_text(&format!("failure: {err}")),
+                Err(err) => ui.custom_status.set_text(&format!("failed: {err}")),
             }
         });
     }
@@ -575,7 +576,7 @@ impl Ui {
         }
         let default = self.custom_default.text().trim().to_string();
         if !default.is_empty() && !ids.contains(&default.as_str()) {
-            self.error("the standard model needs to be in the list of models above");
+            self.error("the default model must be in the model list above");
             return;
         }
         let mut provider = Provider::new(&name);
@@ -606,7 +607,7 @@ impl Ui {
             let _ = providers::set_default_model(&agent, &name, &default);
         }
         self.note(&format!(
-            "endpoint {name} except in models.json · {} model(s) · apps when closing",
+            "endpoint {name} saved in models.json · {} model(s) · applies after this window closes",
             provider.models.len()
         ));
         self.custom_block.set_visible(false);
@@ -669,7 +670,7 @@ pub fn page() -> gtk::Box {
     models_title.add_css_class("settings-block-label");
     models_title.set_xalign(0.0);
     let models_note = gtk::Label::new(Some(
-        "the default is for the next sessions; new providers are applied when this window closes (the session reconnects)",
+        "the default applies to new sessions; provider changes take effect after this window closes",
     ));
     models_note.add_css_class("settings-item-desc");
     models_note.set_xalign(0.0);
@@ -729,11 +730,11 @@ pub fn page() -> gtk::Box {
     custom_actions.append(&save);
 
     custom_block.append(&row("name / id", "no spaces; is the provider id", &custom_name));
-    custom_block.append(&row("url base", "e.g.: http://127.0.0.1:8080/v1", &custom_url));
-    custom_block.append(&row("api", "protocol that the server spokes", &custom_api));
+    custom_block.append(&row("base URL", "e.g.: http://127.0.0.1:8080/v1", &custom_url));
+    custom_block.append(&row("api", "protocol spoken by the server", &custom_api));
     custom_block.append(&row("API key", "goes in models.json; optional", &custom_key));
-    custom_block.append(&row("models", "one id for line; use discover", &custom_scroll));
-    custom_block.append(&row("standard model", "new sessions", &custom_default));
+    custom_block.append(&row("models", "one id per line; use discover", &custom_scroll));
+    custom_block.append(&row("default model", "new sessions", &custom_default));
     custom_block.append(&custom_status);
     custom_block.append(&custom_actions);
     page.append(&custom_block);
@@ -834,7 +835,7 @@ fn check_auth(bin: &str, provider: &str, dot: &gtk::Box) {
     let (tx, rx) = async_channel::bounded::<Result<(), String>>(1);
     std::thread::spawn(move || {
         let result = resolve_pi_bin(&bin).and_then(|path| {
-            std::process::Command::new(path)
+            std::process::Command::new(&path)
                 .args([
                     "auth",
                     "check",
@@ -844,6 +845,7 @@ fn check_auth(bin: &str, provider: &str, dot: &gtk::Box) {
                     "--no-refresh",
                 ])
                 .env("PI_CODING_AGENT_DIR", config::pi_agent_dir())
+                .env("PATH", crate::state::path_with_pi(&path))
                 .stdin(std::process::Stdio::null())
                 .output()
                 .map_err(|err| format!("failed to run pi: {err}"))
@@ -877,7 +879,7 @@ fn check_auth(bin: &str, provider: &str, dot: &gtk::Box) {
                 dot.remove_css_class("ok");
                 dot.add_css_class("unknown");
                 dot.set_tooltip_text(Some(if reason.trim().is_empty() {
-                    "uncertified"
+                    "not verified"
                 } else {
                     &reason
                 }));

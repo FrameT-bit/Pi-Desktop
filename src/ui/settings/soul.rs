@@ -9,12 +9,12 @@ pub fn page(config: &Config, form: &mut Form) -> gtk::Box {
     let page = gtk::Box::new(gtk::Orientation::Vertical, 0);
     page.add_css_class("settings-page-content");
 
-    let persona_block = block(&page, "PERSONALITY (GROWN TO PROMPT)");
+    let persona_block = block(&page, "PERSONALITY (APPENDED TO PROMPT)");
     let persona = text_view_sized(&config.append_system_prompt, 220, 320);
     push_editor(form, "append_system_prompt", persona.clone());
     persona_block.append(&row(
-        "person's text",
-        "who the model is, as it speaks, what avoids — goes on --append-system-prompt",
+        "persona",
+        "who the model is, how it speaks, what it avoids — passed via --append-system-prompt",
         &persona,
     ));
 
@@ -29,12 +29,12 @@ pub fn page(config: &Config, form: &mut Form) -> gtk::Box {
     persona_actions.append(&clear_persona);
     persona_block.append(&persona_actions);
 
-    let replace_block = block(&page, "PROMPT OF THE SYSTEM");
+    let replace_block = block(&page, "SYSTEM PROMPT");
     let replace = toggle(!config.system_prompt.trim().is_empty());
     push_switch(form, "soul_replace", replace.clone());
     replace_block.append(&row(
-        "place More's default quickly",
-        "connected: the text below turns the whole prompt (the Pi loses the native instructions)",
+        "replace Pi's default prompt",
+        "enabled: the text below replaces the entire prompt (Pi loses its native instructions)",
         &replace,
     ));
 
@@ -42,7 +42,7 @@ pub fn page(config: &Config, form: &mut Form) -> gtk::Box {
     push_editor(form, "system_prompt", system.clone());
     let system_row = row(
         "system prompt",
-        "goes in --system-prompt; only goes with the switch turned on",
+        "passed via --system-prompt; only used when the switch above is on",
         &system,
     );
 
@@ -69,7 +69,7 @@ pub fn page(config: &Config, form: &mut Form) -> gtk::Box {
     replace_block.append(&everything);
 
     let note = gtk::Label::new(Some(
-        "You're not alone; this goes in --append-system-prompt",
+        "This text is appended to Pi's system prompt; it does not replace it.",
     ));
     note.add_css_class("settings-note");
     note.add_css_class("dim");

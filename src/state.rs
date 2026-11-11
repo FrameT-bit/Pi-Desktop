@@ -89,15 +89,63 @@ pub fn path_with_pi(bin: &Path) -> OsString {
     if let Some(parent) = bin.parent() {
         parts.push(parent.to_path_buf());
     }
-    for extra in [config::home_file(".local/bin"), config::home_file(".local/bin")] {
-        if !parts.contains(&extra) {
-            parts.push(extra);
+
+    // Pi is a Node CLI. A desktop launcher often has a much smaller PATH than
+    // an interactive shell, so include the common per-user Node locations too.
+    let home = config::home_file("");
+    for relative in [
+        ".local/node22/bin",
+        ".local/node/bin",
+        ".local/bin",
+        ".volta/bin",
+        ".bun/bin",
+        ".local/share/pnpm",
+        ".fnm/aliases/default/bin",
+    ] {
+        push_unique(&mut parts, home.join(relative));
+    }
+    if let Ok(entries) = std::fs::read_dir(home.join(".local")) {
+        let mut dirs: Vec<PathBuf> = entries
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|path| {
+                path.file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| name.starts_with("node"))
+            })
+            .filter(|path| path.join("node").is_file())
+            .map(|path| path.join("bin"))
+            .collect();
+        dirs.sort();
+        for dir in dirs {
+            push_unique(&mut parts, dir);
         }
     }
+    if let Ok(entries) = std::fs::read_dir(home.join(".nvm/versions/node")) {
+        let mut dirs: Vec<PathBuf> = entries
+            .filter_map(Result::ok)
+            .map(|entry| entry.path().join("bin"))
+            .collect();
+        dirs.sort();
+        for dir in dirs {
+            push_unique(&mut parts, dir);
+        }
+    }
+    for extra in ["/usr/local/bin", "/usr/bin", "/bin"] {
+        push_unique(&mut parts, PathBuf::from(extra));
+    }
     if let Some(existing) = std::env::var_os("PATH") {
-        parts.extend(std::env::split_paths(&existing));
+        for part in std::env::split_paths(&existing) {
+            push_unique(&mut parts, part);
+        }
     }
     std::env::join_paths(parts).unwrap_or_else(|_| OsString::from("/usr/bin:/bin"))
+}
+
+fn push_unique(parts: &mut Vec<PathBuf>, value: PathBuf) {
+    if !parts.contains(&value) {
+        parts.push(value);
+    }
 }
 
 fn find_in_path(name: &str) -> Option<PathBuf> {
@@ -629,7 +677,7 @@ pub fn slug_from_prompt(prompt: &str) -> String {
     slug = slug.trim_matches('-').trim().replace(' ', "-");
     slug.truncate(48);
     if slug.is_empty() {
-        "sessao".to_string()
+        "session".to_string()
     } else {
         slug
     }

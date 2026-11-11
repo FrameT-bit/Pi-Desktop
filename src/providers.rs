@@ -188,11 +188,11 @@ impl Providers {
         let value = provider_json(provider);
         match self.map_mut().get_mut(&provider.name) {
             Some(Value::Object(object)) => {
-                for (key, new) in value.as_object().expect("objeto").iter() {
+                for (key, new) in value.as_object().expect("object").iter() {
                     if key == "compat" {
                         match object.get_mut("compat").and_then(Value::as_object_mut) {
                             Some(compat) => {
-                                for (ck, cv) in new.as_object().expect("objeto").iter() {
+                                for (ck, cv) in new.as_object().expect("object").iter() {
                                     compat.insert(ck.clone(), cv.clone());
                                 }
                             }
@@ -371,16 +371,16 @@ pub fn validate(provider: &Provider) -> Result<(), String> {
     let mut ids = BTreeSet::new();
     for model in &provider.models {
         if model.id.trim().is_empty() {
-            return Err("every model needs id".to_string());
+            return Err("every model needs an id".to_string());
         }
         if !ids.insert(model.id.trim().to_string()) {
             return Err(format!("repeated model: {}", model.id));
         }
         if model.context_window <= 0 {
-            return Err(format!("{}: contextWindow precisa ser > 0", model.id));
+            return Err(format!("{}: contextWindow must be > 0", model.id));
         }
         if model.max_tokens <= 0 {
-            return Err(format!("{}: maxTokens precisa ser > 0", model.id));
+            return Err(format!("{}: maxTokens must be > 0", model.id));
         }
     }
     Ok(())
@@ -548,7 +548,7 @@ impl ProviderKeys {
                 if keys.iter().any(|key| {
                     key.get("name").and_then(Value::as_str) == Some(name.trim())
                 }) {
-                    return Err(format!("there is already of `{}` key in {provider}", name.trim()));
+                    return Err(format!("a key named `{}` already exists in {provider}", name.trim()));
                 }
                 keys.push(entry);
                 let has_active = object
@@ -640,19 +640,19 @@ pub struct KnownProvider {
 }
 
 pub const KNOWN: &[KnownProvider] = &[
-    KnownProvider { id: "deepseek", label: "DeepSeek", env: "DEEPESEK_API_KEY", hint: "platform.deepseek.com/api_keys" },
+    KnownProvider { id: "deepseek", label: "DeepSeek", env: "DEEPSEEK_API_KEY", hint: "platform.deepseek.com/api_keys" },
     KnownProvider { id: "openrouter", label: "OpenRouter", env: "OPENROUTER_API_KEY", hint: "openrouter.ai/keys" },
     KnownProvider { id: "groq", label: "Groq", env: "GROQ_API_KEY", hint: "console.groq.com/keys" },
     KnownProvider { id: "mistral", label: "Mistral", env: "MISTRAL_API_KEY", hint: "console.mistral.ai/api-keys" },
-    KnownProvider { id: "openai", label: "Open", env: "OPENAI_API_KEY", hint: "platform.openai.com/api-keys" },
-    KnownProvider { id: "anthropic", label: "Anthropogenic", env: "ANTHROPIC_API_KEY", hint: "console.anthropic.com/settings/keys" },
+    KnownProvider { id: "openai", label: "OpenAI", env: "OPENAI_API_KEY", hint: "platform.openai.com/api-keys" },
+    KnownProvider { id: "anthropic", label: "Anthropic", env: "ANTHROPIC_API_KEY", hint: "console.anthropic.com/settings/keys" },
     KnownProvider { id: "google", label: "Google Gemini", env: "GEMINI_API_KEY", hint: "aistudio.google.com/apikey" },
     KnownProvider { id: "xai", label: "xAI", env: "XAI_API_KEY", hint: "console.x.ai" },
-    KnownProvider { id: "cerebras", label: "Brains", env: "CEREBRAS_API_KEY", hint: "cloud.bras.ai" },
-    KnownProvider { id: "nvidia", label: "NIM NVIDIA", env: "NVIDIA_API_KEY", hint: "build.nvidia.com" },
+    KnownProvider { id: "cerebras", label: "Cerebras", env: "CEREBRAS_API_KEY", hint: "cloud.cerebras.ai" },
+    KnownProvider { id: "nvidia", label: "NVIDIA NIM", env: "NVIDIA_API_KEY", hint: "build.nvidia.com" },
     KnownProvider { id: "fireworks", label: "Fireworks", env: "FIREWORKS_API_KEY", hint: "fireworks.ai/account/api-keys" },
     KnownProvider { id: "together", label: "Together AI", env: "TOGETHER_API_KEY", hint: "api.together.ai/settings/api-keys" },
-    KnownProvider { id: "baseten", label: "Base", env: "BASETEN_API_KEY", hint: "baseen.co" },
+    KnownProvider { id: "baseten", label: "Baseten", env: "BASETEN_API_KEY", hint: "baseten.co" },
     KnownProvider { id: "moonshotai", label: "Moonshot / Kimi (global)", env: "MOONSHOT_API_KEY", hint: "platform.moonshot.ai" },
     KnownProvider { id: "moonshotai-cn", label: "Moonshot / Kimi (China)", env: "MOONSHOT_API_KEY", hint: "platform.moonshot.cn" },
     KnownProvider { id: "kimi-coding", label: "Kimi for Coding", env: "KIMI_API_KEY", hint: "kimi.com" },
@@ -669,7 +669,7 @@ pub const KNOWN: &[KnownProvider] = &[
     KnownProvider { id: "huggingface", label: "Hugging Face", env: "HF_TOKEN", hint: "huggingface.co/settings/tokens" },
     KnownProvider { id: "github-copilot", label: "GitHub Copilot", env: "COPILOT_GITHUB_TOKEN", hint: "github.com/settings/copilot" },
     KnownProvider { id: "ant-ling", label: "Ant Ling", env: "ANT_LING_API_KEY", hint: "provider console" },
-    KnownProvider { id: "meta", label: "Target", env: "META_API_KEY", hint: "meta.com" },
+    KnownProvider { id: "meta", label: "Meta", env: "META_API_KEY", hint: "meta.com" },
     KnownProvider { id: "xiaomi", label: "Xiaomi MiMo", env: "XIAOMI_API_KEY", hint: "xiaomi.com" },
     KnownProvider { id: "xiaomi-token-plan-cn", label: "Xiaomi MiMo Token Plan (China)", env: "XIAOMI_TOKEN_PLAN_CN_API_KEY", hint: "xiaomi.com" },
     KnownProvider { id: "xiaomi-token-plan-ams", label: "Xiaomi MiMo Token Plan (Amsterdam)", env: "XIAOMI_TOKEN_PLAN_AMS_API_KEY", hint: "xiaomi.com" },
@@ -820,12 +820,13 @@ pub struct CliModel {
 
 pub fn cli_models(bin: &str, provider: &str) -> Result<Vec<CliModel>, String> {
     let path = crate::state::resolve_pi_bin(bin)?;
-    let output = std::process::Command::new(path)
+    let output = std::process::Command::new(&path)
         .args(["--list-models", provider])
         .env("PI_CODING_AGENT_DIR", crate::config::pi_agent_dir())
+        .env("PATH", crate::state::path_with_pi(&path))
         .stdin(std::process::Stdio::null())
         .output()
-        .map_err(|err| format!("failure to execute pi: {err}"))?;
+        .map_err(|err| format!("failed to execute Pi: {err}"))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(stderr.trim().to_string());
@@ -899,19 +900,19 @@ pub fn repair_models_store(agent_dir: &Path) -> Result<Option<String>, String> {
         return Ok(None);
     }
     let fixed = repair_missing_commas(&raw).ok_or_else(|| {
-        "invalid models-store.json: I can only fix message paragraph — delete file for Pi to recreate".to_string()
+        "invalid models-store.json: I can only repair a missing comma — delete the file so Pi can recreate it".to_string()
     })?;
     if serde_json::from_str::<Value>(fixed.trim()).is_err() {
-        return Err("invalid models-store.json: fixed did not close JSON".to_string());
+        return Err("invalid models-store.json: repair did not produce valid JSON".to_string());
     }
     let stamp = glib_stamp();
     let backup = agent_dir.join(format!("models-store.json.bak-{stamp}"));
     std::fs::copy(&path, &backup)
         .map_err(|err| format!("failed to create catalog backup: {err}"))?;
     crate::config::write_atomic(&path, &fixed)
-        .map_err(|err| format!("failure to record models-store.json: {err}"))?;
+        .map_err(|err| format!("failed to write models-store.json: {err}"))?;
     Ok(Some(format!(
-        "catalog models-store.json was invalid (missing paragraph) — fixed; {} backup",
+        "models-store.json was invalid (missing comma) — repaired; backup: {}",
         backup.display()
     )))
 }

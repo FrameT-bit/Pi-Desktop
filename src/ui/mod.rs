@@ -373,7 +373,7 @@ impl AppUi {
         banner_label.set_wrap(true);
         banner_label.set_selectable(true);
         banner_label.set_hexpand(true);
-        let banner_copy = gtk::Button::with_label("copiar");
+        let banner_copy = gtk::Button::with_label("copy");
         banner_copy.add_css_class("banner-action");
         let banner_close = gtk::Button::with_label("close");
         banner_close.add_css_class("banner-action");
@@ -2684,7 +2684,7 @@ impl AppUi {
         };
 
         let me = self.clone();
-        dialog::confirm(&self.window, "Do you delete the session?", &title, "apagar", move || {
+        dialog::confirm(&self.window, "Do you delete the session?", &title, "delete", move || {
             me.confirm_delete(path.clone(), open);
         });
     }
@@ -2967,11 +2967,16 @@ impl AppUi {
     }
 
     fn set_model(self: &Rc<Self>, provider: String, id: String, name: String) {
+        if provider.trim().is_empty() || id.trim().is_empty() || id == "undefined" {
+            self.chat
+                .note("model unavailable — choose a model from the list", true);
+            return;
+        }
         let command = json!({
             "id": self.id(),
             "type": "set_model",
             "provider": provider,
-            "Model": id,
+            "modelId": id,
         });
         self.rpc.send(command);
 

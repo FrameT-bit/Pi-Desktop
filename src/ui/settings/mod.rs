@@ -432,7 +432,7 @@ fn tab_name(value: &str) -> Option<&'static str> {
         "providers" | "provider" => Some("PROVIDERS"),
         "mcp" => Some("MCP"),
         "connections" | "connection_search" => Some("CONNECTIONS"),
-        "memoria" | "memory" => Some("MEMORY"),
+        "memory" => Some("MEMORY"),
         "soul" => Some("SOUL"),
         "credits" | "about" => Some("CREDITS"),
         _ => None,
@@ -490,7 +490,7 @@ fn tab_desc(name: &str) -> &'static str {
         "MCP" => "Global MCP servers; the list comes from Pi itself.",
         "CONNECTIONS" => "Search providers used by the web access extension.",
         "MEMORY" => "Facts and preferences that pi-memory injects into the prompt.",
-        "SOUL" => "Pi has no SOUL: the persona goes into the system prompt.",
+        "SOUL" => "Persona and system prompt passed to Pi.",
         "CREDITS" => "Version, updates, links and licenses.",
         _ => "",
     }
@@ -519,8 +519,8 @@ fn connection_page(config: &Config, form: &mut Form) -> gtk::Box {
     session.append(&pages::connection_session(config, form));
 
     let adv = advanced(&page, "advanced · session, trust, network and interface");
-    let sessao_extra = block(&adv, "SESSION");
-    sessao_extra.append(&pages::connection_session_advanced(config, form));
+    let session_extra = block(&adv, "SESSION");
+    session_extra.append(&pages::connection_session_advanced(config, form));
     let trust = block(&adv, "TRUST AND NETWORK");
     trust.append(&pages::connection_trust(config, form));
     let interface = block(&adv, "INTERFACE");
@@ -618,10 +618,10 @@ fn collect(form: &Form) -> Result<Config, String> {
 
     let font_scale = form
         .int("font_scale")
-        .ok_or_else(|| "source scales: number between 90 and 130".to_string())?;
+        .ok_or_else(|| "font size: number between 90 and 130".to_string())?;
     if !(MIN_FONT_SCALE..=MAX_FONT_SCALE).contains(&font_scale) {
         return Err(format!(
-            "source scale: {font_scale} outside range 90..130"
+            "font size: {font_scale} outside range 90..130"
         ));
     }
 

@@ -508,10 +508,11 @@ fn run_pi_async(bin: String, args: Vec<String>, done: impl FnOnce(Result<String,
 }
 
 fn run_pi_bin(bin: &str, args: &[String]) -> Result<String, String> {
-    let bin = resolve_pi_bin(bin).map_err(|expected| format!("not found: {expected}"))?;
-    let output = std::process::Command::new(bin)
+    let path = resolve_pi_bin(bin).map_err(|expected| format!("not found: {expected}"))?;
+    let output = std::process::Command::new(&path)
         .args(args)
         .env("PI_CODING_AGENT_DIR", crate::config::pi_agent_dir())
+        .env("PATH", crate::state::path_with_pi(&path))
         .stdin(std::process::Stdio::null())
         .output()
         .map_err(|err| format!("failed to run pi: {err}"))?;
@@ -520,7 +521,7 @@ fn run_pi_bin(bin: &str, args: &[String]) -> Result<String, String> {
         return Ok(stdout);
     }
     Err(format!(
-        "pi {} come out with {}: {}",
+        "pi {} exited with {}: {}",
         args.join(" "),
         output.status,
         String::from_utf8_lossy(&output.stderr).trim()

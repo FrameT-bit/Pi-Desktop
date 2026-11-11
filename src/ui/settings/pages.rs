@@ -97,7 +97,7 @@ pub fn connection_session(config: &Config, form: &mut Form) -> gtk::Box {
     let start_last = toggle(config.start_last);
     push_switch(form, "start_last", start_last.clone());
     rows.append(&row(
-        "start with last conversation",
+        "start with the last conversation",
         "Off (standard): each opening starts a new session; linked: continues the latest",
         &start_last,
     ));
@@ -111,16 +111,16 @@ pub fn connection_session_advanced(config: &Config, form: &mut Form) -> gtk::Box
 
     let dir = text_entry(&config.session_dir, 300);
     push_text(form, "session_dir", dir.clone());
-    rows.append(&row("Directory of Sessions", "empty = the pi pattern", &dir));
+    rows.append(&row("Session directory", "empty = Pi default", &dir));
 
     let name = text_entry(&config.name, 300);
     push_text(form, "name", name.clone());
-    rows.append(&row("initial name", "Open session display name", &name));
+    rows.append(&row("initial name", "Initial display name", &name));
 
     let no_session = toggle(config.no_session);
     push_switch(form, "no_session", no_session.clone());
     rows.append(&row(
-        "Non-session",
+        "No session",
         "session in memory, not recorded on disk",
         &no_session,
     ));
@@ -148,7 +148,7 @@ pub fn connection_trust(config: &Config, form: &mut Form) -> gtk::Box {
     push_switch(form, "offline", offline.clone());
     rows.append(&row(
         "offline",
-        "Turn off automatic network activity at the beginning",
+        "Disable automatic network activity at startup",
         &offline,
     ));
     page
@@ -312,7 +312,7 @@ pub fn model_cycle(config: &Config, form: &mut Form, agent_dir: &std::path::Path
     push_text(form, "models", models.clone());
     rows.append(&row(
         "scope of models",
-        "paragraph-separated globes (Ctrl+P): anthropic/*, *sonnet*",
+        "comma-separated globs (Ctrl+P): anthropic/*, *sonnet*",
         &models,
     ));
 
@@ -381,8 +381,8 @@ pub fn model_tools(config: &Config, form: &mut Form) -> gtk::Box {
     let exclude = text_entry(&config.exclude_tools, 300);
     push_text(form, "exclude_tools", exclude.clone());
     rows.append(&row(
-        "delete tools",
-        "names or globes separated by paragraph",
+        "excluded tools",
+        "names or globs separated by comma",
         &exclude,
     ));
 
@@ -390,11 +390,11 @@ pub fn model_tools(config: &Config, form: &mut Form) -> gtk::Box {
         ("no_tools", "No tools", "turn off all tools", config.no_tools),
         (
             "no_builtin_tools",
-            "without native tools",
+            "no built-in tools",
             "keeps only those of extensions",
             config.no_builtin_tools,
         ),
-        ("no_mcp", "Without mcp", "no MCP server connections", config.no_mcp),
+        ("no_mcp", "No MCP", "no MCP server connections", config.no_mcp),
     ] {
         let switch = toggle(value);
         push_switch(form, key, switch.clone());
@@ -409,17 +409,17 @@ pub fn model_context(config: &Config, form: &mut Form) -> gtk::Box {
 
     let skills = text_entry(&config.skills, 300);
     push_text(form, "skills", skills.clone());
-    rows.append(&row("skills", "paths separated by:", &skills));
+    rows.append(&row("skills", "paths, separated by commas", &skills));
 
     let extensions = text_entry(&config.extensions, 300);
     push_text(form, "extensions", extensions.clone());
-    rows.append(&row("extensions", "paths separated by:", &extensions));
+    rows.append(&row("extensions", "paths, separated by commas", &extensions));
 
     let templates = text_entry(&config.prompt_templates, 300);
     push_text(form, "prompt_templates", templates.clone());
     rows.append(&row(
         "quick templates",
-        "paths separated by:",
+        "paths, separated by commas",
         &templates,
     ));
 
@@ -439,8 +439,8 @@ pub fn model_context(config: &Config, form: &mut Form) -> gtk::Box {
         ),
         (
             "no_context_files",
-            "in context files",
-            "two not read AGENTS.md or CLAUD.md",
+            "Ignore context files",
+            "does not read AGENTS.md or CLAUDE.md",
             config.no_context_files,
         ),
     ] {
