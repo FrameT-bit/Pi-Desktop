@@ -1,4 +1,3 @@
-
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Category {
     Yellow,
@@ -19,26 +18,33 @@ pub struct ThemeSpec {
     pub name: &'static str,
     pub category: Category,
     pub variant: u8,
+    /// Paper color behind the conversation. Every flavor gets its own tint.
+    pub page: &'static str,
+    /// Ink/seed accent for controls, links, selections and highlights.
+    pub accent: &'static str,
+}
+
+const fn t(
+    id: &'static str,
+    name: &'static str,
+    category: Category,
+    variant: u8,
+    page: &'static str,
+    accent: &'static str,
+) -> ThemeSpec {
+    ThemeSpec {
+        id,
+        name,
+        category,
+        variant,
+        page,
+        accent,
+    }
 }
 
 impl Category {
-    fn palette(self) -> (&'static str, &'static str, &'static str, &'static str, &'static str, &'static str, bool) {
-        match self {
-            Category::Yellow => ("#f7f1dc", "#fcf7e8", "#fffdf4", "#2b2517", "#9a6b17", "#c09535", false),
-            Category::Brown => ("#efe4d8", "#f8f0e7", "#fffaf5", "#2e2118", "#7a4f35", "#a9754f", false),
-            Category::Red => ("#f7e7e4", "#fdf3f1", "#fffaf9", "#301b18", "#a83b3a", "#c95b55", false),
-            Category::Pink => ("#f8e9ef", "#fdf4f8", "#fffafd", "#311c25", "#a94e70", "#ce7897", false),
-            Category::Orange => ("#f9ecdf", "#fdf6ef", "#fffaf6", "#332016", "#b05a28", "#d48647", false),
-            Category::Green => ("#e9f1e5", "#f5faf2", "#fbfff9", "#1e2b1b", "#4c7448", "#7da36a", false),
-            Category::Blue => ("#e7eff5", "#f3f8fc", "#fbfdff", "#182632", "#3f6b92", "#6d94b5", false),
-            Category::Purple => ("#f0e9f5", "#f9f5fc", "#fffbff", "#281d31", "#6f4f8c", "#9878b3", false),
-            Category::Neutral => ("#efefef", "#f8f8f8", "#ffffff", "#242424", "#606060", "#8a8a8a", false),
-            Category::Dark => ("#10100f", "#181816", "#22221f", "#f2ede6", "#c9a24a", "#e0c078", true),
-        }
-    }
-
     pub fn is_dark(self) -> bool {
-        self.palette().6
+        matches!(self, Category::Dark)
     }
 
     pub fn group(self) -> &'static str {
@@ -55,65 +61,59 @@ impl Category {
             Category::Dark => "Dark",
         }
     }
-
-    fn accent(self, variant: u8) -> String {
-        let (_, _, _, _, a, b, _) = self.palette();
-        let t = variant.min(4) as f32 / 4.0;
-        mix_hex(a, b, t)
-    }
 }
 
 pub const THEMES: &[ThemeSpec] = &[
-    ThemeSpec { id: "lemon-moussie", name: "Lemon Moussie", category: Category::Yellow, variant: 0 },
-    ThemeSpec { id: "butter-croissant", name: "Butter Croissant", category: Category::Yellow, variant: 1 },
-    ThemeSpec { id: "custard-cream", name: "Custard Cream", category: Category::Yellow, variant: 2 },
-    ThemeSpec { id: "banana-pudding", name: "Banana Pudding", category: Category::Yellow, variant: 3 },
-    ThemeSpec { id: "honey-glaze", name: "Honey Glaze", category: Category::Yellow, variant: 4 },
-    ThemeSpec { id: "brownie", name: "Brownie", category: Category::Brown, variant: 0 },
-    ThemeSpec { id: "mocha-latte", name: "Mocha Latte", category: Category::Brown, variant: 1 },
-    ThemeSpec { id: "caramel-drizzle", name: "Caramel Drizzle", category: Category::Brown, variant: 2 },
-    ThemeSpec { id: "hazelnut-praline", name: "Hazelnut Praline", category: Category::Brown, variant: 3 },
-    ThemeSpec { id: "cinnamon-roll", name: "Cinnamon Roll", category: Category::Brown, variant: 4 },
-    ThemeSpec { id: "cherry-cola", name: "Cherry Cola", category: Category::Red, variant: 0 },
-    ThemeSpec { id: "strawberry-coulis", name: "Strawberry Coulis", category: Category::Red, variant: 1 },
-    ThemeSpec { id: "red-velvet", name: "Red Velvet", category: Category::Red, variant: 2 },
-    ThemeSpec { id: "raspberry-tart", name: "Raspberry Tart", category: Category::Red, variant: 3 },
-    ThemeSpec { id: "tomato-bisque", name: "Tomato Bisque", category: Category::Red, variant: 4 },
-    ThemeSpec { id: "cotton-candy", name: "Cotton Candy", category: Category::Pink, variant: 0 },
-    ThemeSpec { id: "peach-sorbet", name: "Peach Sorbet", category: Category::Pink, variant: 1 },
-    ThemeSpec { id: "watermelon-fizz", name: "Watermelon Fizz", category: Category::Pink, variant: 2 },
-    ThemeSpec { id: "rose-macaron", name: "Rose Macaron", category: Category::Pink, variant: 3 },
-    ThemeSpec { id: "bubblegum-parfait", name: "Bubblegum Parfait", category: Category::Pink, variant: 4 },
-    ThemeSpec { id: "apricot-jam", name: "Apricot Jam", category: Category::Orange, variant: 0 },
-    ThemeSpec { id: "mango-lassi", name: "Mango Lassi", category: Category::Orange, variant: 1 },
-    ThemeSpec { id: "tangerine-zest", name: "Tangerine Zest", category: Category::Orange, variant: 2 },
-    ThemeSpec { id: "pumpkin-spice", name: "Pumpkin Spice", category: Category::Orange, variant: 3 },
-    ThemeSpec { id: "creamsicle", name: "Creamsicle", category: Category::Orange, variant: 4 },
-    ThemeSpec { id: "pistachio-gelato", name: "Pistachio Gelato", category: Category::Green, variant: 0 },
-    ThemeSpec { id: "matcha-mochi", name: "Matcha Mochi", category: Category::Green, variant: 1 },
-    ThemeSpec { id: "key-lime-pie", name: "Key Lime Pie", category: Category::Green, variant: 2 },
-    ThemeSpec { id: "avocado-toast", name: "Avocado Toast", category: Category::Green, variant: 3 },
-    ThemeSpec { id: "mint-chip", name: "Mint Chip", category: Category::Green, variant: 4 },
-    ThemeSpec { id: "blueberry-muffin", name: "Blueberry Muffin", category: Category::Blue, variant: 0 },
-    ThemeSpec { id: "blue-raspberry-slush", name: "Blue Raspberry Slush", category: Category::Blue, variant: 1 },
-    ThemeSpec { id: "cookies-and-cream", name: "Cookies & Cream", category: Category::Blue, variant: 2 },
-    ThemeSpec { id: "blue-curacao", name: "Blue Curacao", category: Category::Blue, variant: 3 },
-    ThemeSpec { id: "bluebell-gelato", name: "Bluebell Gelato", category: Category::Blue, variant: 4 },
-    ThemeSpec { id: "grape-soda", name: "Grape Soda", category: Category::Purple, variant: 0 },
-    ThemeSpec { id: "ube-latte", name: "Ube Latte", category: Category::Purple, variant: 1 },
-    ThemeSpec { id: "blackberry-cobbler", name: "Blackberry Cobbler", category: Category::Purple, variant: 2 },
-    ThemeSpec { id: "lavender-honey", name: "Lavender Honey", category: Category::Purple, variant: 3 },
-    ThemeSpec { id: "plum-wine", name: "Plum Wine", category: Category::Purple, variant: 4 },
-    ThemeSpec { id: "vanilla-bean", name: "Vanilla Bean", category: Category::Neutral, variant: 0 },
-    ThemeSpec { id: "marshmallow", name: "Marshmallow", category: Category::Neutral, variant: 1 },
-    ThemeSpec { id: "oat-milk", name: "Oat Milk", category: Category::Neutral, variant: 2 },
-    ThemeSpec { id: "meringue", name: "Meringue", category: Category::Neutral, variant: 3 },
-    ThemeSpec { id: "coconut-cream", name: "Coconut Cream", category: Category::Neutral, variant: 4 },
-    ThemeSpec { id: "black-sesame", name: "Black Sesame", category: Category::Dark, variant: 0 },
-    ThemeSpec { id: "espresso-shot", name: "Espresso Shot", category: Category::Dark, variant: 1 },
-    ThemeSpec { id: "dark-chocolate-ganache", name: "Dark Chocolate Ganache", category: Category::Dark, variant: 2 },
-    ThemeSpec { id: "licorice-twist", name: "Licorice Twist", category: Category::Dark, variant: 3 },
-    ThemeSpec { id: "midnight-fudge", name: "Midnight Fudge", category: Category::Dark, variant: 4 },
+    t("lemon-moussie", "Lemon Moussie", Category::Yellow, 0, "#fbf7c7", "#856300"),
+    t("butter-croissant", "Butter Croissant", Category::Yellow, 1, "#fbf0d2", "#94620f"),
+    t("custard-cream", "Custard Cream", Category::Yellow, 2, "#faf1d8", "#8f6715"),
+    t("banana-pudding", "Banana Pudding", Category::Yellow, 3, "#f8f0cf", "#75630f"),
+    t("honey-glaze", "Honey Glaze", Category::Yellow, 4, "#f7ecd5", "#8a5707"),
+    t("brownie", "Brownie", Category::Brown, 0, "#eee1d4", "#5b3524"),
+    t("mocha-latte", "Mocha Latte", Category::Brown, 1, "#f1e4d8", "#6d4630"),
+    t("caramel-drizzle", "Caramel Drizzle", Category::Brown, 2, "#f8e9d5", "#8f4d0a"),
+    t("hazelnut-praline", "Hazelnut Praline", Category::Brown, 3, "#f2e4d5", "#81512f"),
+    t("cinnamon-roll", "Cinnamon Roll", Category::Brown, 4, "#f8e7d3", "#9b4e1d"),
+    t("cherry-cola", "Cherry Cola", Category::Red, 0, "#f0dfe1", "#7d1d2d"),
+    t("strawberry-coulis", "Strawberry Coulis", Category::Red, 1, "#ffe3e8", "#b8233c"),
+    t("red-velvet", "Red Velvet", Category::Red, 2, "#f6dfdb", "#a11f2e"),
+    t("raspberry-tart", "Raspberry Tart", Category::Red, 3, "#f7e1e9", "#a51d52"),
+    t("tomato-bisque", "Tomato Bisque", Category::Red, 4, "#fae6da", "#b84024"),
+    t("cotton-candy", "Cotton Candy", Category::Pink, 0, "#fbe7f3", "#b83a79"),
+    t("peach-sorbet", "Peach Sorbet", Category::Pink, 1, "#fde9de", "#a84834"),
+    t("watermelon-fizz", "Watermelon Fizz", Category::Pink, 2, "#fbe5e5", "#c42f4b"),
+    t("rose-macaron", "Rose Macaron", Category::Pink, 3, "#f7e7ee", "#a94b68"),
+    t("bubblegum-parfait", "Bubblegum Parfait", Category::Pink, 4, "#fbe4f0", "#b0206b"),
+    t("apricot-jam", "Apricot Jam", Category::Orange, 0, "#fbe7d3", "#94480f"),
+    t("mango-lassi", "Mango Lassi", Category::Orange, 1, "#fdf0cf", "#856000"),
+    t("tangerine-zest", "Tangerine Zest", Category::Orange, 2, "#fce8d3", "#a13d08"),
+    t("pumpkin-spice", "Pumpkin Spice", Category::Orange, 3, "#f7e3d1", "#93440f"),
+    t("creamsicle", "Creamsicle", Category::Orange, 4, "#fff0d7", "#a84d0b"),
+    t("pistachio-gelato", "Pistachio Gelato", Category::Green, 0, "#eef2d8", "#58752d"),
+    t("matcha-mochi", "Matcha Mochi", Category::Green, 1, "#e9efd8", "#4f6b25"),
+    t("key-lime-pie", "Key Lime Pie", Category::Green, 2, "#edf5d0", "#526b08"),
+    t("avocado-toast", "Avocado Toast", Category::Green, 3, "#edf0d8", "#5a712f"),
+    t("mint-chip", "Mint Chip", Category::Green, 4, "#e2f1e6", "#26704f"),
+    t("blueberry-muffin", "Blueberry Muffin", Category::Blue, 0, "#e6e9f6", "#3f4f8c"),
+    t("blue-raspberry-slush", "Blue Raspberry Slush", Category::Blue, 1, "#def1fb", "#176c9e"),
+    t("cookies-and-cream", "Cookies & Cream", Category::Blue, 2, "#eceff0", "#4b5d68"),
+    t("blue-curacao", "Blue Curacao", Category::Blue, 3, "#d8f3f7", "#006d84"),
+    t("bluebell-gelato", "Bluebell Gelato", Category::Blue, 4, "#e6e9fb", "#4e5db0"),
+    t("grape-soda", "Grape Soda", Category::Purple, 0, "#f1e3f4", "#75308d"),
+    t("ube-latte", "Ube Latte", Category::Purple, 1, "#f0e7f2", "#814786"),
+    t("blackberry-cobbler", "Blackberry Cobbler", Category::Purple, 2, "#eee2ef", "#5a2b62"),
+    t("lavender-honey", "Lavender Honey", Category::Purple, 3, "#f3eef8", "#76589f"),
+    t("plum-wine", "Plum Wine", Category::Purple, 4, "#f0e2e9", "#642b46"),
+    t("vanilla-bean", "Vanilla Bean", Category::Neutral, 0, "#faf6ea", "#7d6634"),
+    t("marshmallow", "Marshmallow", Category::Neutral, 1, "#fafafa", "#6e6962"),
+    t("oat-milk", "Oat Milk", Category::Neutral, 2, "#f7f2e7", "#7a6547"),
+    t("meringue", "Meringue", Category::Neutral, 3, "#fbf8ef", "#7f6c4a"),
+    t("coconut-cream", "Coconut Cream", Category::Neutral, 4, "#f8f6ee", "#7c6d55"),
+    t("black-sesame", "Black Sesame", Category::Dark, 0, "#141210", "#d8b25e"),
+    t("espresso-shot", "Espresso Shot", Category::Dark, 1, "#251a14", "#c98a4b"),
+    t("dark-chocolate-ganache", "Dark Chocolate Ganache", Category::Dark, 2, "#1e1314", "#b87858"),
+    t("licorice-twist", "Licorice Twist", Category::Dark, 3, "#181419", "#b497d6"),
+    t("midnight-fudge", "Midnight Fudge", Category::Dark, 4, "#0f1524", "#86a2de"),
 ];
 
 pub fn find(value: &str) -> Option<usize> {
@@ -131,26 +131,31 @@ pub fn tokens(index: usize) -> Vec<(String, String)> {
     let Some(theme) = at(index) else {
         return Vec::new();
     };
-    let (page, canvas, card, ink, _, _, dark) = theme.category.palette();
-    let accent = theme.category.accent(theme.variant);
-    let variant = theme.variant as f32;
-    let (page_strength, card_strength) = if dark {
-        (0.04 + 0.035 * variant, 0.03 + 0.03 * variant)
+    let dark = theme.category.is_dark();
+    let page = theme.page.to_string();
+    let accent = theme.accent.to_string();
+    // Each flavor owns its paper color. Canvas and cards are derived from that
+    // flavor instead of from one shared palette for the whole category.
+    let canvas = if dark {
+        mix_hex(&page, "#ffffff", 0.045)
     } else {
-        (0.025 + 0.025 * variant, 0.015 + 0.025 * variant)
+        mix_hex(&page, "#ffffff", 0.38)
     };
-    let page = mix_hex(page, &accent, page_strength);
-    let canvas = mix_hex(canvas, &accent, page_strength * 0.72);
-    let card = mix_hex(&card, &accent, card_strength);
+    let card = if dark {
+        mix_hex(&page, "#ffffff", 0.085)
+    } else {
+        mix_hex(&page, "#ffffff", 0.73)
+    };
+    let ink = if dark { "#f5efe7" } else { "#211b18" };
     let text_base = mix_hex(ink, &page, 0.18);
     let muted = mix_hex(ink, &page, 0.44);
     let dim = mix_hex(ink, &page, 0.62);
     let border = mix_hex(ink, &page, 0.20);
     let border_muted = mix_hex(ink, &page, 0.12);
     let panel = mix_hex(ink, &page, 0.36);
-    let selected = mix_hex(&card, &accent, if dark { 0.26 } else { 0.16 });
-    let user_bg = mix_hex(&card, &accent, if dark { 0.06 } else { 0.035 });
-    let user_border = mix_hex(&card, &accent, if dark { 0.28 } else { 0.18 });
+    let selected = mix_hex(&card, &accent, if dark { 0.30 } else { 0.22 });
+    let user_bg = mix_hex(&card, &accent, if dark { 0.10 } else { 0.085 });
+    let user_border = mix_hex(&card, &accent, if dark { 0.34 } else { 0.30 });
     let tool_success = mix_hex(&card, "#35704a", if dark { 0.22 } else { 0.10 });
     let tool_error = mix_hex(&card, "#a34428", if dark { 0.22 } else { 0.10 });
     let code_block = mix_hex(&card, ink, if dark { 0.14 } else { 0.06 });
@@ -159,11 +164,11 @@ pub fn tokens(index: usize) -> Vec<(String, String)> {
         ("pageBg".into(), page.clone()),
         ("canvas".into(), canvas.clone()),
         ("cardBg".into(), card.clone()),
-        ("cardBgSoft".into(), mix_hex(&card, &accent, 0.06)),
-        ("infoBg".into(), mix_hex(&card, &accent, 0.04)),
+        ("cardBgSoft".into(), mix_hex(&card, &accent, 0.09)),
+        ("infoBg".into(), mix_hex(&card, &accent, 0.06)),
         ("userMessageBg".into(), user_bg),
         ("userMessageBorder".into(), user_border),
-        ("customMessageBg".into(), mix_hex(&card, &accent, 0.045)),
+        ("customMessageBg".into(), mix_hex(&card, &accent, 0.07)),
         ("toolPendingBg".into(), card.clone()),
         ("toolSuccessBg".into(), tool_success),
         ("toolErrorBg".into(), tool_error),
@@ -230,4 +235,50 @@ fn with_alpha(hex: &str, alpha: u8) -> String {
     )
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
 
+    fn luminance(hex: &str) -> f32 {
+        let digits = hex.trim_start_matches('#');
+        let channel = |index: usize| {
+            let value = u8::from_str_radix(&digits[index..index + 2], 16).unwrap_or(0) as f32 / 255.0;
+            if value <= 0.04045 {
+                value / 12.92
+            } else {
+                ((value + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4)
+    }
+
+    fn contrast(a: &str, b: &str) -> f32 {
+        let (light, dark) = {
+            let (a, b) = (luminance(a), luminance(b));
+            if a > b { (a, b) } else { (b, a) }
+        };
+        (light + 0.05) / (dark + 0.05)
+    }
+
+    #[test]
+    fn every_flavor_has_its_own_surface_and_accent() {
+        let pages: HashSet<_> = THEMES.iter().map(|theme| theme.page).collect();
+        let accents: HashSet<_> = THEMES.iter().map(|theme| theme.accent).collect();
+        assert_eq!(pages.len(), THEMES.len(), "duplicate surface color");
+        assert_eq!(accents.len(), THEMES.len(), "duplicate accent color");
+    }
+
+    #[test]
+    fn accents_stay_readable_on_their_paper() {
+        for theme in THEMES {
+            let ratio = contrast(theme.accent, theme.page);
+            assert!(
+                ratio >= 4.5,
+                "{} has only {:.2}:1 accent contrast",
+                theme.name,
+                ratio
+            );
+        }
+    }
+}

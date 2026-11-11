@@ -125,4 +125,4 @@ Build a portable x86_64 AppImage with:
 packaging/build-appimage.sh
 ```
 
-The artifact is written to `dist/Pi-Desktop-1.2.1-x86_64.AppImage`.
+The artifact is written to `dist/Pi-Desktop-<version>-x86_64.AppImage`.
