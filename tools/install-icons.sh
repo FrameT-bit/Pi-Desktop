@@ -49,7 +49,7 @@ Icon=pi-desktop
 Terminal=false
 Categories=Development;
 StartupNotify=true
-StartupWMClass=pi-desktop
+StartupWMClass=io.github.FrameT.PiDesktop
 EOF
 chmod 644 "$desktop"
 
