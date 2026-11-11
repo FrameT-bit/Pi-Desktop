@@ -66,7 +66,7 @@ pub struct SidebarInner {
     debounce: RefCell<Option<glib::SourceId>>,
     pending_select: RefCell<Option<glib::SourceId>>,
     row_widgets: RefCell<Vec<(usize, gtk::Box, gtk::Box, gtk::Label, String)>>,
-    age_labels: RefCell<Vec<(String, gtk::Label)>>,
+    age_labels: RefCell<Vec<(String, String, gtk::Label)>>,
 }
 
 impl Deref for SidebarUi {
@@ -333,8 +333,8 @@ impl SidebarUi {
     }
 
     pub fn tick_activity(&self, activity: &HashMap<String, SessionActivity>) {
-        for (id, label) in self.age_labels.borrow().iter() {
-            if let Some(entry) = activity.get(id) {
+        for (id, path, label) in self.age_labels.borrow().iter() {
+            if let Some(entry) = activity.get(id).or_else(|| activity.get(path)) {
                 if entry.running {
                     label.set_text(&entry.elapsed_label());
                 }
@@ -633,7 +633,13 @@ impl SidebarInner {
         let is_active = self.active.get() == Some(index);
         let title = session.title();
 
-        let activity = self.activity.borrow().get(&session.session_id).cloned();
+        let activity = {
+            let activity = self.activity.borrow();
+            activity
+                .get(&session.session_id)
+                .or_else(|| activity.get(&session.path))
+                .cloned()
+        };
         let running = activity.as_ref().is_some_and(|activity| activity.running);
         let unread = activity.as_ref().is_some_and(|activity| activity.unread);
         let phase = activity
@@ -673,9 +679,11 @@ impl SidebarInner {
         let age_text = if running { elapsed.clone() } else { session.age() };
         let age = gtk::Label::new(Some(&age_text));
         age.add_css_class("session-age");
-        self.age_labels
-            .borrow_mut()
-            .push((session.session_id.clone(), age.clone()));
+        self.age_labels.borrow_mut().push((
+            session.session_id.clone(),
+            session.path.clone(),
+            age.clone(),
+        ));
         age.set_xalign(1.0);
         age.set_valign(gtk::Align::End);
 

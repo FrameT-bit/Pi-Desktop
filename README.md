@@ -15,7 +15,10 @@ describe compatibility with the Pi coding agent.
 - Chat and code modes in one app, switched from the header.
 - Live turn feedback: a 1px pulse under the sent message and a receipt with
   phase (sent, thinking, tools, writing, done), elapsed time and tokens.
-- Running-session indicators in the sidebar and session tabs.
+- Sessions run in separate Pi RPC processes: New Session while a turn is
+  running keeps the old turn alive in the background, and switching back
+  attaches to that running process. Running-session indicators live in the
+  sidebar and session tabs; background permission prompts wait until opened.
 - Sessions, search, tree, artifacts, jobs and Pi extensions.
 - Configure installed extensions when they expose settings: search, memory,
   personas and MCP open their settings page; guard, subagents and openwiki

@@ -401,6 +401,7 @@ impl HeaderUi {
             let session = &sessions[index];
             let running = activity
                 .get(&session.session_id)
+                .or_else(|| activity.get(&session.path))
                 .is_some_and(|activity| activity.running);
             let group = gtk::Box::new(gtk::Orientation::Horizontal, 0);
             group.add_css_class("session-tab-group");

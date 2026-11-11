@@ -190,6 +190,17 @@ impl TurnPhase {
             TurnPhase::Error => "ERROR",
         }
     }
+
+    pub fn from_label(value: &str) -> Self {
+        match value {
+            "THINKING" => TurnPhase::Thinking,
+            "TOOLS" => TurnPhase::Tools,
+            "WRITING" => TurnPhase::Writing,
+            "DONE" => TurnPhase::Done,
+            "ERROR" => TurnPhase::Error,
+            _ => TurnPhase::Sent,
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -352,6 +363,7 @@ pub struct SessionActivity {
     pub phase: String,
     pub started: Option<Instant>,
     pub unread: bool,
+    pub waiting: bool,
 }
 
 impl SessionActivity {

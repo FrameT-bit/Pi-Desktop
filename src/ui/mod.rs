@@ -87,10 +87,15 @@ struct PendingDelete {
     path: std::path::PathBuf,
 }
 
+type SlotKey = Rc<RefCell<String>>;
+
 pub struct AppUi {
     pub window: adw::ApplicationWindow,
     pub state: Rc<RefCell<AppState>>,
-    pub rpc: RpcHandle,
+    pub rpc: RefCell<RpcHandle>,
+    active_key: RefCell<SlotKey>,
+    pool: RefCell<HashMap<String, (SlotKey, RpcHandle)>>,
+    background_requests: RefCell<HashMap<String, Vec<Value>>>,
     activity: RefCell<HashMap<String, SessionActivity>>,
     pub theme: Theme,
     pub config: RefCell<Config>,
@@ -445,10 +450,16 @@ impl AppUi {
         window.set_icon_name(Some("pi-desktop"));
         window.set_content(Some(&toast));
 
+        let rpc = rpc::spawn(transport.clone());
+        let active_key = Rc::new(RefCell::new(config.effective_session_id().to_string()));
+
         Rc::new(Self {
             window,
             state,
-            rpc: rpc::spawn(transport.clone()),
+            rpc: RefCell::new(rpc),
+            active_key: RefCell::new(active_key),
+            pool: RefCell::new(HashMap::new()),
+            background_requests: RefCell::new(HashMap::new()),
             activity: RefCell::new(HashMap::new()),
             theme,
             config: RefCell::new(config),
@@ -570,6 +581,10 @@ impl AppUi {
         let id = self.next_id.get();
         self.next_id.set(id + 1);
         format!("req-{id}")
+    }
+
+    fn send(&self, value: Value) {
+        self.rpc.borrow().send(value);
     }
 
     fn wire(self: &Rc<Self>) {
@@ -956,13 +971,9 @@ impl AppUi {
         self.composer
             .set_on_notice(move |message| me.status.flash_notice(&message));
 
-        let me = self.clone();
-        let events = self.rpc.events.clone();
-        glib::spawn_future_local(async move {
-            while let Ok(event) = events.recv().await {
-                me.on_event(event);
-            }
-        });
+        let events = self.rpc.borrow().events.clone();
+        let key = self.active_key.borrow().clone();
+        self.start_event_loop(key, events);
 
         let me = self.clone();
         let history_rx = self.history_rx.clone();
@@ -1195,6 +1206,73 @@ impl AppUi {
                             glib::ControlFlow::Break
                         });
                     }
+                    "multi-both" => {
+                        me.select_nav(2);
+                        me.composer.set_text(
+                            "Run the shell command 'sleep 15' with bash, then reply with the single word: done",
+                        );
+                        let submit = me.clone();
+                        glib::timeout_add_local_once(
+                            std::time::Duration::from_millis(600),
+                            move || submit.submit(SubmitKind::Enter),
+                        );
+                        let next = me.clone();
+                        glib::timeout_add_seconds_local(3, move || {
+                            next.new_session();
+                            glib::ControlFlow::Break
+                        });
+                        let second = me.clone();
+                        glib::timeout_add_seconds_local(4, move || {
+                            second.composer.set_text("Reply with the single word: ok");
+                            second.submit(SubmitKind::Enter);
+                            glib::ControlFlow::Break
+                        });
+                    }
+                    "multi-switch" => {
+                        me.select_nav(2);
+                        me.composer.set_text(
+                            "Run the shell command 'sleep 20' with bash, then reply with the single word: done",
+                        );
+                        let submit = me.clone();
+                        glib::timeout_add_local_once(
+                            std::time::Duration::from_millis(600),
+                            move || submit.submit(SubmitKind::Enter),
+                        );
+                        let next = me.clone();
+                        glib::timeout_add_seconds_local(4, move || {
+                            next.new_session();
+                            glib::ControlFlow::Break
+                        });
+                        let back = me.clone();
+                        glib::timeout_add_seconds_local(7, move || {
+                            let index = back.state.borrow().sessions.iter().position(|session| {
+                                session
+                                    .preview
+                                    .as_deref()
+                                    .is_some_and(|preview| preview.contains("sleep 20"))
+                            });
+                            if let Some(index) = index {
+                                back.select_session(index);
+                            }
+                            glib::ControlFlow::Break
+                        });
+                    }
+                    "multi-session" => {
+                        me.select_nav(2);
+                        me.composer.set_text(
+                            "Run the shell command 'sleep 20' with bash, then reply with the single word: done",
+                        );
+                        let submit = me.clone();
+                        glib::timeout_add_local_once(
+                            std::time::Duration::from_millis(600),
+                            move || submit.submit(SubmitKind::Enter),
+                        );
+                        let next = me.clone();
+                        glib::timeout_add_seconds_local(4, move || {
+                            next.new_session();
+                            glib::ControlFlow::Break
+                        });
+                    }
                     "big-prompt" => {
                         let text = (1..=40)
                             .map(|line| format!("line {line}: a long prompt that should scroll"))
@@ -1244,6 +1322,7 @@ impl AppUi {
                                     phase: "THINKING".to_string(),
                                     started: Some(Instant::now()),
                                     unread: false,
+                                    waiting: false,
                                 },
                             );
                             me.refresh_sidebar();
@@ -1823,7 +1902,7 @@ impl AppUi {
         let id = self.id();
         let message = self.wire_text(&text);
         let command = submit_command(&id, kind, true, &message);
-        self.rpc.send(command);
+        self.send(command);
 
         {
             let mut state = self.state.borrow_mut();
@@ -1924,7 +2003,7 @@ impl AppUi {
                     .collect(),
             );
         }
-        self.rpc.send(command);
+        self.send(command);
 
         {
             let mut state = self.state.borrow_mut();
@@ -1944,22 +2023,21 @@ impl AppUi {
 
     fn stop(self: &Rc<Self>) {
         if self.bash_running.get() {
-            self.rpc.send(json!({"id": self.id(), "type": "abort_bash"}));
+            self.send(json!({"id": self.id(), "type": "abort_bash"}));
         } else {
             self.abort();
         }
     }
 
     fn abort(&self) {
-        self.rpc.send(json!({"id": self.id(), "type": "abort"}));
+        self.send(json!({"id": self.id(), "type": "abort"}));
     }
 
 
     fn send_extension_command_text(self: &Rc<Self>, text: &str) {
         let id = self.id();
         let message = self.wire_text(text);
-        self.rpc
-            .send(json!({"id": id, "type": "prompt", "message": message}));
+        self.send(json!({"id": id, "type": "prompt", "message": message}));
     }
 
     fn is_extension_command(&self, text: &str) -> bool {
@@ -2229,8 +2307,7 @@ impl AppUi {
             return;
         }
         if self.state.borrow().running {
-            self.rpc
-                .send(json!({"id": self.id(), "type": "steer", "message": text}));
+            self.send(json!({"id": self.id(), "type": "steer", "message": text}));
             self.chat.append_user_marked(text, "STEER");
             let pending = {
                 let mut state = self.state.borrow_mut();
@@ -2258,14 +2335,12 @@ impl AppUi {
             return;
         }
         if text.eq_ignore_ascii_case("clear") {
-            self.rpc
-                .send(json!({"id": self.id(), "type": "clear_queue"}));
+            self.send(json!({"id": self.id(), "type": "clear_queue"}));
             self.chat
                 .note("queue cleared · text restored", false);
             return;
         }
-        self.rpc
-            .send(json!({"id": self.id(), "type": "follow_up", "message": text}));
+        self.send(json!({"id": self.id(), "type": "follow_up", "message": text}));
         self.chat.append_user_marked(text, "QUEUED");
         let pending = {
             let mut state = self.state.borrow_mut();
@@ -2336,8 +2411,8 @@ impl AppUi {
     fn escape_streaming(self: &Rc<Self>) {
         self.bash_running.set(false);
         self.composer.set_bash_running(false);
-        self.rpc.send(json!({"id": self.id(), "type": "clear_queue"}));
-        self.rpc.send(json!({"id": self.id(), "type": "abort"}));
+        self.send(json!({"id": self.id(), "type": "clear_queue"}));
+        self.send(json!({"id": self.id(), "type": "abort"}));
     }
 
     fn run_bash(self: &Rc<Self>, command: &str, exclude_from_context: bool) {
@@ -2353,8 +2428,8 @@ impl AppUi {
         self.composer.set_bash_running(true);
         self.chat
             .tool_start(&id, "bash", &json!({"command": command}));
-        self.rpc
-            .send(bash_command(&id, command, exclude_from_context));    }
+        self.send(bash_command(&id, command, exclude_from_context));
+    }
 
     fn finish_bash(self: &Rc<Self>, data: Option<&Value>) {
         let Some(id) = self.bash_id.borrow_mut().take() else {
@@ -2417,6 +2492,55 @@ impl AppUi {
         self.refresh_sidebar();
     }
 
+    fn spawn_slot(
+        self: &Rc<Self>,
+        key: String,
+        path: Option<String>,
+        id: Option<String>,
+    ) -> (SlotKey, RpcHandle) {
+        let config = self
+            .config
+            .borrow()
+            .for_session(path.as_deref(), id.as_deref());
+        let transport = Transport::from_config(&config);
+        let handle = rpc::spawn(transport);
+        let slot_key = Rc::new(RefCell::new(key));
+        self.start_event_loop(slot_key.clone(), handle.events.clone());
+        (slot_key, handle)
+    }
+
+    fn remember_active_activity(&self) {
+        let (running, phase, started, session_id, session_file, active_key) = {
+            let state = self.state.borrow();
+            let active = self.active_key.borrow().clone();
+            let active_key = active.borrow().clone();
+            (
+                state.running,
+                state.phase.label().to_string(),
+                state.run_started,
+                state.session_id.clone(),
+                state.session_file.clone(),
+                active_key,
+            )
+        };
+        if !running {
+            return;
+        }
+        let entry = SessionActivity {
+            running: true,
+            phase,
+            started,
+            unread: false,
+            waiting: false,
+        };
+        let mut activity = self.activity.borrow_mut();
+        for key in [session_id, session_file.unwrap_or_default(), active_key] {
+            if !key.trim().is_empty() {
+                activity.insert(key, entry.clone());
+            }
+        }
+    }
+
     fn new_session(self: &Rc<Self>) {
         self.select_nav(2);
         self.composer.focus();
@@ -2434,24 +2558,80 @@ impl AppUi {
         }
         self.new_session_pending.set(true);
         self.save_draft();
+        self.remember_active_activity();
+
+        let was_running = self.state.borrow().running;
+        let old_key = self.active_key.borrow().clone();
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_millis())
+            .unwrap_or(0);
+        let new_id = format!("desktop-{stamp}");
+        let (new_key, new_handle) =
+            self.spawn_slot(new_id.clone(), None, Some(new_id.clone()));
+        let old_handle = self.rpc.replace(new_handle);
+        *self.active_key.borrow_mut() = new_key;
+        if was_running {
+            let old_key_value = old_key.borrow().clone();
+            self.pool
+                .borrow_mut()
+                .insert(old_key_value, (old_key, old_handle));
+        }
+
         *self.pending_draft_restore.borrow_mut() = None;
+        self.pending_switch.set(None);
+        *self.title_override.borrow_mut() = None;
         self.composer.set_text("");
-        self.rpc.send(json!({"id": self.id(), "type": "new_session"}));
         self.chat.clear();
+        self.rail.clear_activity();
+        self.composer.set_running(false);
+        self.composer.set_queue(0);
         {
             let mut state = self.state.borrow_mut();
             state.reset_session_counters();
             state.session_name = None;
-            state.session_id = "new session".to_string();
+            state.session_id = new_id;
+            state.session_file = None;
             state.active_session = None;
+            state.first_prompt = None;
+            state.title_requested = false;
+            state.auto_named = false;
+            state.messages_loaded = false;
+            state.pending_messages = 0;
+            state.running = false;
+            state.phase = TurnPhase::Sent;
+            state.run_started = None;
+            state.run_elapsed = Duration::ZERO;
+            state.connection = Connection::Connecting;
         }
-        *self.title_override.borrow_mut() = None;
+        self.new_session_pending.set(false);
         self.sidebar.set_active(2);
         self.stack.set_visible_child_name("chat");
         self.composer.focus();
+        self.ask_state();
+        self.ask_stats();
+        self.ask_commands();
+        self.ask_models();
+        self.ask_thinking_levels();
         self.refresh_header();
         self.refresh_sidebar();
         self.refresh_status();
+
+        if let Some(pending) = self.pending_delete.borrow_mut().take() {
+            if was_running {
+                self.status
+                    .flash_notice("session is still running; it was not deleted");
+            } else {
+                let path = pending.path.to_string_lossy().to_string();
+                self.trash_session(&path);
+                self.state
+                    .borrow_mut()
+                    .sessions
+                    .retain(|session| session.path != path);
+                self.refresh_sidebar();
+                self.fetch_history();
+            }
+        }
     }
 
     fn update_rail_toggle(&self) {
@@ -2570,30 +2750,118 @@ impl AppUi {
     }
 
     fn select_session(self: &Rc<Self>, index: usize) {
-        self.save_draft();
-        let target = self
-            .state
-            .borrow()
-            .sessions
-            .get(index)
-            .map(|session| session.session_id.clone());
-        *self.pending_draft_restore.borrow_mut() = target;
-        let path = {
+        let target = {
             let state = self.state.borrow();
             match state.sessions.get(index) {
-                Some(session) => session.path.clone(),
+                Some(session) => session.clone(),
                 None => return,
             }
         };
-        self.pending_switch.set(Some(index));
-        self.rpc.send(json!({
-            "id": self.id(),
-            "type": "switch_session",
-            "sessionPath": path,
-        }));
-        self.stack.set_visible_child_name("chat");
-    }
+        let active = self.active_key.borrow().clone();
+        let active_value = active.borrow().clone();
+        if active_value == target.path || active_value == target.session_id {
+            self.stack.set_visible_child_name("chat");
+            self.sidebar.set_active(2);
+            return;
+        }
 
+        self.save_draft();
+        self.remember_active_activity();
+        let existing = {
+            let mut pool = self.pool.borrow_mut();
+            pool.remove(&target.path)
+                .or_else(|| pool.remove(&target.session_id))
+        };
+        let (slot_key, handle) = match existing {
+            Some(slot) => slot,
+            None => self.spawn_slot(
+                target.path.clone(),
+                Some(target.path.clone()),
+                Some(target.session_id.clone()),
+            ),
+        };
+
+        let was_running = self.state.borrow().running;
+        let old_key = self.active_key.borrow().clone();
+        let old_handle = self.rpc.replace(handle);
+        *self.active_key.borrow_mut() = slot_key;
+        if was_running {
+            let old_key_value = old_key.borrow().clone();
+            self.pool
+                .borrow_mut()
+                .insert(old_key_value, (old_key, old_handle));
+        }
+
+        let activity = {
+            let activity = self.activity.borrow();
+            activity
+                .get(&target.path)
+                .or_else(|| activity.get(&target.session_id))
+                .cloned()
+        };
+        let running = activity.as_ref().is_some_and(|activity| activity.running);
+        let phase = activity
+            .as_ref()
+            .map(|activity| activity.phase.clone())
+            .unwrap_or_else(|| "SENT".to_string());
+        {
+            let mut state = self.state.borrow_mut();
+            state.reset_session_counters();
+            state.active_session = Some(index);
+            state.session_id = target.session_id.clone();
+            state.session_file = Some(target.path.clone());
+            state.session_name = target.name.clone();
+            state.first_prompt = target.preview.clone();
+            state.messages_loaded = false;
+            state.pending_messages = 0;
+            state.running = running;
+            state.phase = TurnPhase::from_label(&phase);
+            state.run_started = activity.as_ref().and_then(|activity| activity.started);
+            state.run_elapsed = Duration::ZERO;
+        }
+        *self.pending_draft_restore.borrow_mut() = None;
+        self.pending_switch.set(None);
+        *self.title_override.borrow_mut() = None;
+        self.chat.clear();
+        self.rail.clear_activity();
+        self.restore_draft(&target.session_id);
+        self.composer.set_running(running);
+        self.composer.set_queue(0);
+        self.sidebar.set_active(2);
+        self.stack.set_visible_child_name("chat");
+
+        self.ask_state();
+        self.ask_stats();
+        self.ask_commands();
+        self.ask_models();
+        self.ask_thinking_levels();
+        self.ask_fork_messages();
+        self.send(json!({"id": self.id(), "type": "get_messages"}));
+
+        let waiting = {
+            let mut requests = self.background_requests.borrow_mut();
+            requests
+                .remove(&target.path)
+                .or_else(|| requests.remove(&target.session_id))
+        };
+        if let Some(requests) = waiting {
+            for request in requests {
+                self.on_extension_ui(&request);
+            }
+        }
+        {
+            let mut activity = self.activity.borrow_mut();
+            if let Some(entry) = activity.get_mut(&target.path) {
+                entry.unread = false;
+            }
+            if let Some(entry) = activity.get_mut(&target.session_id) {
+                entry.unread = false;
+            }
+        }
+        self.refresh_header();
+        self.refresh_sidebar();
+        self.refresh_status();
+    }
 
     fn open_session_path(&self) -> Option<String> {
         let state = self.state.borrow();
@@ -2619,7 +2887,7 @@ impl AppUi {
         };
 
         if open {
-            self.rpc.send(json!({
+            self.send(json!({
                 "id": self.id(),
                 "type": "set_session_name",
                 "name": name,
@@ -2664,7 +2932,7 @@ impl AppUi {
             step_id: id.clone(),
             stage: RemoteStage::Switching,
         });
-        self.rpc.send(json!({
+        self.send(json!({
             "id": id,
             "type": "switch_session",
             "sessionPath": path,
@@ -2699,7 +2967,7 @@ impl AppUi {
                 .and_then(|pending| pending.return_to);
             self.status.flash_notice(error);
             if let Some(back) = return_to {
-                self.rpc.send(json!({
+                self.send(json!({
                     "id": self.id(),
                     "type": "switch_session",
                     "sessionPath": back,
@@ -2722,7 +2990,7 @@ impl AppUi {
                     .and_then(|pending| pending.return_to);
                 self.status.flash_notice("operation canceled by session switch");
                 if let Some(back) = return_to {
-                    self.rpc.send(json!({
+                    self.send(json!({
                         "id": self.id(),
                         "type": "switch_session",
                         "sessionPath": back,
@@ -2754,7 +3022,7 @@ impl AppUi {
                 pending.step_id = next_id;
                 pending.stage = RemoteStage::Running;
             }
-            self.rpc.send(command);
+            self.send(command);
             return;
         }
 
@@ -2794,7 +3062,7 @@ impl AppUi {
 
         match pending.return_to {
             Some(back) => {
-                self.rpc.send(json!({
+                self.send(json!({
                     "id": self.id(),
                     "type": "switch_session",
                     "sessionPath": back,
@@ -2814,7 +3082,7 @@ impl AppUi {
         };
 
         if open {
-            self.rpc.send(json!({"id": self.id(), "type": "clone"}));
+            self.send(json!({"id": self.id(), "type": "clone"}));
             return;
         }
 
@@ -2859,6 +3127,17 @@ impl AppUi {
     }
 
     fn confirm_delete(self: &Rc<Self>, path: String, open: bool) {
+        if !open
+            && self
+                .activity
+                .borrow()
+                .get(&path)
+                .is_some_and(|entry| entry.running)
+        {
+            self.status
+                .flash_notice("stop the session before deleting it");
+            return;
+        }
         if open {
             *self.pending_delete.borrow_mut() = Some(PendingDelete {
                 path: std::path::PathBuf::from(path),
@@ -2922,7 +3201,7 @@ impl AppUi {
         let destination = destination.to_string_lossy().to_string();
 
         if open {
-            self.rpc.send(json!({
+            self.send(json!({
                 "id": self.id(),
                 "type": "export_html",
                 "outputPath": destination,
@@ -2995,8 +3274,7 @@ impl AppUi {
 
 
     fn ask_fork_messages(&self) {
-        self.rpc
-            .send(json!({"id": self.id(), "type": "get_fork_messages"}));
+        self.send(json!({"id": self.id(), "type": "get_fork_messages"}));
     }
 
     fn show_message_menu(self: &Rc<Self>, anchor: &gtk::Box, text: &str) {
@@ -3022,7 +3300,7 @@ impl AppUi {
     }
 
     fn fork_from(self: &Rc<Self>, entry_id: &str) {
-        self.rpc.send(json!({
+        self.send(json!({
             "id": self.id(),
             "type": "fork",
             "enterId": entry_id,
@@ -3050,8 +3328,7 @@ impl AppUi {
             return;
         }
         self.tree.set_loading();
-        self.rpc
-            .send(json!({"id": self.id(), "type": "get_tree"}));
+        self.send(json!({"id": self.id(), "type": "get_tree"}));
     }
 
 
@@ -3067,7 +3344,7 @@ impl AppUi {
     }
 
     fn copy_last_assistant(&self) {
-        self.rpc.send(json!({
+        self.send(json!({
             "id": self.id(),
             "type": "get_last_assistant_text",
         }));
@@ -3147,7 +3424,7 @@ impl AppUi {
             "provider": provider,
             "modelId": id,
         });
-        self.rpc.send(command);
+        self.send(command);
 
         {
             let mut state = self.state.borrow_mut();
@@ -3168,8 +3445,7 @@ impl AppUi {
     }
 
     fn cycle_model(self: &Rc<Self>) {
-        self.rpc
-            .send(json!({"id": self.id(), "type": "cycle_model"}));
+        self.send(json!({"id": self.id(), "type": "cycle_model"}));
     }
 
     fn set_permission(self: &Rc<Self>, permission: crate::state::Permission) {
@@ -3239,6 +3515,25 @@ impl AppUi {
         {
             self.status
                 .flash_notice("switch to another session before deleting this workspace");
+            return;
+        }
+        let busy = {
+            let state = self.state.borrow();
+            let activity = self.activity.borrow();
+            state
+                .sessions
+                .iter()
+                .filter(|session| session.path.starts_with(&dir))
+                .any(|session| {
+                    activity
+                        .get(&session.path)
+                        .or_else(|| activity.get(&session.session_id))
+                        .is_some_and(|entry| entry.running)
+                })
+        };
+        if busy {
+            self.status
+                .flash_notice("stop running sessions in this workspace before deleting it");
             return;
         }
         let count = paths.len();
@@ -3600,7 +3895,7 @@ impl AppUi {
         }
         self.composer.set_running(false);
         self.composer.set_queue(0);
-        self.rpc.restart(transport);
+        self.rpc.borrow().restart(transport);
         self.refresh_status();
         self.refresh_header();
         self.refresh_sidebar();
@@ -3608,8 +3903,7 @@ impl AppUi {
 
 
     fn ask_thinking_levels(&self) {
-        self.rpc
-            .send(json!({"id": self.id(), "type": "get_available_thinking_levels"}));
+        self.send(json!({"id": self.id(), "type": "get_available_thinking_levels"}));
     }
 
     fn apply_thinking_levels(self: &Rc<Self>, levels: Vec<String>) {
@@ -3624,7 +3918,7 @@ impl AppUi {
             }
         };
         if let Some(level) = fallback {
-            self.rpc.send(json!({
+            self.send(json!({
                 "id": self.id(),
                 "type": "set_thinking_level",
                 "level": level,
@@ -3633,7 +3927,7 @@ impl AppUi {
         if let Some(level) = self.configured_thinking.borrow_mut().take() {
             if levels.iter().any(|candidate| candidate == &level) {
                 self.state.borrow_mut().thinking_level = level.clone();
-                self.rpc.send(json!({
+                self.send(json!({
                     "id": self.id(),
                     "type": "set_thinking_level",
                     "level": level,
@@ -3651,7 +3945,7 @@ impl AppUi {
 
     fn set_thinking_level(self: &Rc<Self>, level: &str) {
         self.state.borrow_mut().thinking_level = level.to_string();
-        self.rpc.send(json!({
+        self.send(json!({
             "id": self.id(),
             "type": "set_thinking_level",
             "level": level,
@@ -3669,8 +3963,7 @@ impl AppUi {
         if !has_levels {
             return;
         }
-        self.rpc
-            .send(json!({"id": self.id(), "type": "cycle_thinking_level"}));
+        self.send(json!({"id": self.id(), "type": "cycle_thinking_level"}));
     }
 
 
@@ -3871,6 +4164,150 @@ impl AppUi {
     }
 
 
+    fn start_event_loop(
+        self: &Rc<Self>,
+        key: SlotKey,
+        events: async_channel::Receiver<RpcEvent>,
+    ) {
+        let me = self.clone();
+        glib::spawn_future_local(async move {
+            while let Ok(event) = events.recv().await {
+                me.on_session_event(&key, event);
+            }
+        });
+    }
+
+    fn on_session_event(self: &Rc<Self>, key: &SlotKey, event: RpcEvent) {
+        let active = self.active_key.borrow().clone();
+        if Rc::ptr_eq(key, &active) {
+            self.on_event(event);
+        } else {
+            self.on_background_event(key, event);
+        }
+    }
+
+    fn on_background_event(self: &Rc<Self>, key: &SlotKey, event: RpcEvent) {
+        let key = key.borrow().clone();
+        match event {
+            RpcEvent::Conn(connection) => {
+                if !connection.is_connected() {
+                    if let Some(activity) = self.activity.borrow_mut().get_mut(&key) {
+                        activity.running = false;
+                        activity.phase = "ERROR".to_string();
+                    }
+                    self.refresh_sidebar();
+                    self.refresh_header();
+                }
+            }
+            RpcEvent::Stderr(_) => {}
+            RpcEvent::Record(record) => {
+                let kind = record.get("type").and_then(Value::as_str).unwrap_or("");
+                let mut changed = false;
+                match kind {
+                    "agent_start" => {
+                        let mut activity = self.activity.borrow_mut();
+                        let entry = activity.entry(key.clone()).or_insert_with(|| SessionActivity {
+                            running: true,
+                            phase: "THINKING".to_string(),
+                            started: Some(Instant::now()),
+                            unread: false,
+                            waiting: false,
+                        });
+                        entry.running = true;
+                        entry.phase = "THINKING".to_string();
+                        entry.started = Some(Instant::now());
+                        entry.unread = false;
+                        entry.waiting = false;
+                        changed = true;
+                    }
+                    "thinking_start" | "auto_retry_start" | "compaction_start" => {
+                        if let Some(activity) = self.activity.borrow_mut().get_mut(&key) {
+                            activity.phase = "THINKING".to_string();
+                            changed = true;
+                        }
+                    }
+                    "tool_execution_start" => {
+                        if let Some(activity) = self.activity.borrow_mut().get_mut(&key) {
+                            activity.phase = "TOOLS".to_string();
+                            changed = true;
+                        }
+                    }
+                    "message_start" | "message_update" => {
+                        let update = record
+                            .get("AssistantMessageEvent")
+                            .and_then(|event| event.get("type"))
+                            .and_then(Value::as_str)
+                            .unwrap_or("");
+                        if update == "text_delta" || kind == "message_start" {
+                            if let Some(activity) = self.activity.borrow_mut().get_mut(&key) {
+                                activity.phase = "WRITING".to_string();
+                                changed = true;
+                            }
+                        }
+                    }
+                    "agent_settled" => {
+                        if let Some(activity) = self.activity.borrow_mut().get_mut(&key) {
+                            activity.running = false;
+                            activity.phase = "DONE".to_string();
+                            activity.unread = true;
+                            activity.waiting = false;
+                        }
+                        self.pool.borrow_mut().remove(&key);
+                        changed = true;
+                    }
+                    "extension_ui_request" => {
+                        if let Some(request) = extension_ui::Request::parse(&record) {
+                            if request.method.is_dialog() {
+                                let was_waiting = self
+                                    .activity
+                                    .borrow()
+                                    .get(&key)
+                                    .map(|activity| activity.waiting)
+                                    .unwrap_or(false);
+                                let mut activity = self.activity.borrow_mut();
+                                let entry = activity.entry(key.clone()).or_insert_with(|| SessionActivity {
+                                    running: true,
+                                    phase: "WAITING".to_string(),
+                                    started: Some(Instant::now()),
+                                    unread: true,
+                                    waiting: true,
+                                });
+                                entry.phase = "WAITING".to_string();
+                                entry.waiting = true;
+                                entry.unread = true;
+                                drop(activity);
+                                let mut requests = self.background_requests.borrow_mut();
+                                let list = requests.entry(key.clone()).or_default();
+                                let id = record.get("id").and_then(Value::as_str).unwrap_or("");
+                                if !list.iter().any(|item| {
+                                    item.get("id").and_then(Value::as_str) == Some(id)
+                                }) {
+                                    list.push(record.clone());
+                                }
+                                if !was_waiting {
+                                    self.status
+                                        .flash_notice("a background session is waiting for approval");
+                                }
+                                changed = true;
+                            }
+                        }
+                    }
+                    "error" => {
+                        if let Some(activity) = self.activity.borrow_mut().get_mut(&key) {
+                            activity.phase = "ERROR".to_string();
+                            changed = true;
+                        }
+                    }
+                    _ => {}
+                }
+                if changed {
+                    self.refresh_sidebar();
+                    self.refresh_header();
+                }
+            }
+        }
+    }
+
     fn on_event(self: &Rc<Self>, event: RpcEvent) {
         match event {
             RpcEvent::Conn(connection) => {
@@ -3910,8 +4347,7 @@ impl AppUi {
                     self.ask_models();
                     self.ask_thinking_levels();
                     if !self.state.borrow().messages_loaded {
-                        self.rpc
-                            .send(json!({"id": self.id(), "type": "get_messages"}));
+                        self.send(json!({"id": self.id(), "type": "get_messages"}));
                     }
                     if self.state.borrow().sessions.is_empty() {
                         self.fetch_history();
@@ -4152,8 +4588,7 @@ impl AppUi {
             let me = self.clone();
             let id = request.id.clone();
             dialog::show(&self.window, &request, move |response| {
-                me.rpc
-                    .send(extension_ui::response_json(&id, &response));
+                me.send(extension_ui::response_json(&id, &response));
             });
             return;
         }
@@ -4389,6 +4824,8 @@ impl AppUi {
                         .and_then(Value::as_str)
                     {
                         state.session_id = id.to_string();
+                        let active = self.active_key.borrow().clone();
+                        *active.borrow_mut() = id.to_string();
                         self.config
                             .borrow_mut()
                             .set_launch_session_id(Some(id.to_string()));
@@ -4666,8 +5103,7 @@ impl AppUi {
                 self.state.borrow_mut().messages_loaded = false;
                 self.ask_state();
                 self.ask_stats();
-                self.rpc
-                    .send(json!({"id": self.id(), "type": "get_messages"}));
+                self.send(json!({"id": self.id(), "type": "get_messages"}));
                 self.fetch_history();
                 if !text.trim().is_empty() {
                     self.composer.set_text(&text);
@@ -4745,8 +5181,7 @@ impl AppUi {
                 self.ask_state();
                 self.ask_stats();
                 self.ask_thinking_levels();
-                self.rpc
-                    .send(json!({"id": self.id(), "type": "get_messages"}));
+                self.send(json!({"id": self.id(), "type": "get_messages"}));
                 self.ask_fork_messages();
             }
             "new_session" => {
@@ -4844,7 +5279,7 @@ impl AppUi {
         };
 
         if needs_set {
-            self.rpc.send(json!({
+            self.send(json!({
                 "id": self.id(),
                 "type": "set_session_name",
                 "name": derived.clone(),
@@ -4914,7 +5349,7 @@ impl AppUi {
                 return;
             }
         }
-        self.rpc.send(json!({
+        self.send(json!({
             "id": self.id(),
             "type": "set_session_name",
             "name": name,
@@ -4935,21 +5370,19 @@ impl AppUi {
     }
 
     fn ask_state(self: &Rc<Self>) {
-        self.rpc.send(json!({"id": self.id(), "type": "get_state"}));
+        self.send(json!({"id": self.id(), "type": "get_state"}));
     }
 
     fn ask_stats(&self) {
-        self.rpc
-            .send(json!({"id": self.id(), "type": "get_session_stats"}));
+        self.send(json!({"id": self.id(), "type": "get_session_stats"}));
     }
 
     fn ask_commands(&self) {
-        self.rpc.send(json!({"id": self.id(), "type": "get_commands"}));
+        self.send(json!({"id": self.id(), "type": "get_commands"}));
     }
 
     fn ask_models(&self) {
-        self.rpc
-            .send(json!({"id": self.id(), "type": "get_available_models"}));
+        self.send(json!({"id": self.id(), "type": "get_available_models"}));
     }
 
 
@@ -5009,6 +5442,7 @@ impl AppUi {
                 phase: state.phase.label().to_string(),
                 started: state.run_started,
                 unread: false,
+                waiting: false,
             };
             for key in keys {
                 activity.insert(key, entry.clone());

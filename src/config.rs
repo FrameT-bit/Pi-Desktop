@@ -281,6 +281,7 @@ pub struct Config {
 
     session_override: Option<String>,
     launch_session_id: Option<String>,
+    session_path: Option<String>,
     workspace_override: Option<String>,
 }
 
@@ -328,6 +329,7 @@ impl Default for Config {
             notify: true,
             session_override: None,
             launch_session_id: None,
+            session_path: None,
             workspace_override: None,
         }
     }
@@ -438,6 +440,21 @@ impl Config {
 
     pub fn set_launch_session_id(&mut self, id: Option<String>) {
         self.launch_session_id = id.filter(|id| !id.trim().is_empty());
+    }
+
+    pub fn for_session(&self, path: Option<&str>, id: Option<&str>) -> Self {
+        let mut config = self.clone();
+        config.session_override = None;
+        config.launch_session_id = id
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .map(str::to_string);
+        config.session_path = path
+            .map(str::trim)
+            .filter(|path| !path.is_empty())
+            .map(str::to_string);
+        config.start_last = false;
+        config
     }
 
     pub fn new_launch_session_id(&self) -> String {
@@ -687,6 +704,9 @@ impl Config {
         let session_id = self.effective_session_id().trim();
         if self.no_session {
             args.push("--no-session".into());
+        } else if let Some(path) = self.session_path.as_deref().filter(|path| !path.is_empty()) {
+            args.push("--session".into());
+            args.push(path.to_string());
         } else if self.start_last
             && self.session_override.is_none()
             && self.launch_session_id.is_none()
