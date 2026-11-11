@@ -12,7 +12,7 @@ use crate::icons::{self, Tone};
 use crate::images::{self, ImageBlock};
 use crate::markdown;
 use crate::state::format_tokens;
-use crate::theme::Theme;
+use crate::theme::{Palette, Theme};
 
 use super::thumb;
 
@@ -43,6 +43,7 @@ pub struct ChatView {
     chat_mode: Cell<bool>,
     tool_rows: RefCell<Vec<ToolRow>>,
     theme: Theme,
+    empty_mark: gtk::Image,
     turn: RefCell<Option<TurnUi>>,
 }
 
@@ -236,11 +237,6 @@ impl ChatView {
         let mark = gtk::Image::new();
         mark.add_css_class("chat-empty-mark");
         mark.set_pixel_size(64);
-        if let Ok(texture) = gtk::gdk::Texture::from_bytes(&glib::Bytes::from_static(include_bytes!(
-            "../../resources/brand/logo-128.png"
-        ))) {
-            mark.set_paintable(Some(&texture));
-        }
         let hint = gtk::Label::new(Some(
             "Enter sends · / commands · Ctrl+K all · Ctrl+F search · Ctrl+/ shortcuts",
         ));
@@ -326,6 +322,7 @@ impl ChatView {
             chat_mode: Cell::new(false),
             tool_rows: RefCell::new(Vec::new()),
             theme: theme.clone(),
+            empty_mark: mark.clone(),
             turn: RefCell::new(None),
             last_think_follow: Cell::new(None),
             find: RefCell::new(Find {
@@ -342,13 +339,27 @@ impl ChatView {
         view.wire_follow();
         view.wire_find();
         view.wire_empty(&empty_buttons);
+        view.sync_empty_mark();
         let weak = Rc::downgrade(&view);
         theme.connect_changed(move || {
             if let Some(view) = weak.upgrade() {
+                view.sync_empty_mark();
                 view.rerender();
             }
         });
         view
+    }
+
+    fn sync_empty_mark(&self) {
+        let bytes = match self.theme.palette() {
+            Palette::Dark => include_bytes!("../../resources/brand/mark-on-dark-64.png").as_slice(),
+            Palette::Light => include_bytes!("../../resources/brand/mark-on-light-64.png").as_slice(),
+        };
+        if let Ok(texture) =
+            gtk::gdk::Texture::from_bytes(&glib::Bytes::from_static(bytes))
+        {
+            self.empty_mark.set_paintable(Some(&texture));
+        }
     }
 
     pub fn set_on_empty_action(&self, callback: impl Fn(&str) + 'static) {

@@ -22,6 +22,26 @@ pub fn provider_slug(provider: &str) -> Option<&'static str> {
         "google" | "googlegemini" | "google-gemini" | "gemini" => "googlegemini",
         "meta" | "llama" => "meta",
         "ollama" => "ollama",
+        "openrouter" => "openrouter",
+        "xai" | "x-ai" => "xai",
+        "cerebras" => "cerebras",
+        "fireworks" | "fireworks-ai" => "fireworks",
+        "together" | "togetherai" => "together",
+        "baseten" => "baseten",
+        "moonshotai" | "moonshotai-cn" | "moonshot" | "kimi" | "kimi-coding" => "moonshotai",
+        "zai" | "z-ai" | "zai-coding-cn" => "zai",
+        "minimax" | "minimax-cn" => "minimax",
+        "qwen"
+        | "qwen-token-plan"
+        | "qwen-token-plan-cn"
+        | "qwen-token-plan-individual" => "qwen",
+        "opencode" | "opencode-go" => "opencode",
+        "vercel" | "vercel-ai-gateway" => "vercel",
+        "huggingface" | "hf" => "huggingface",
+        "github-copilot" | "githubcopilot" | "copilot" => "githubcopilot",
+        "ant-ling" | "antling" => "antling",
+        "xiaomi" | "xiaomi-token-plan-cn" | "xiaomi-token-plan-ams" | "xiaomi-token-plan-sgp" => "xiaomi",
+        "radius" => "radius",
         _ => return None,
     })
 }
@@ -82,3 +102,26 @@ fn fallback(provider: &str) -> gtk::Label {
 }
 
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_known_provider_has_a_logo() {
+        for provider in crate::providers::KNOWN {
+            let slug = provider_slug(provider.id)
+                .unwrap_or_else(|| panic!("no slug for provider {}", provider.id));
+            assert!(
+                logo_bytes(slug, true).is_some(),
+                "missing dark logo for {} ({slug})",
+                provider.id
+            );
+            assert!(
+                logo_bytes(slug, false).is_some(),
+                "missing light logo for {} ({slug})",
+                provider.id
+            );
+        }
+    }
+}

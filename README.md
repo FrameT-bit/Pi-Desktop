@@ -99,6 +99,48 @@ server is embedded.
 - `pi-web-access` — web search and page extraction
 - `pi-subagents` — delegated subagents in the activity rail
 
+## Provider logos
+
+The header model chip and the model list use a 24–28 px pixel mark per
+provider, falling back to the provider initial when no mark exists. Logos are
+generated from `resources/logos/src/` by `tools/gen-logos.sh`, which drives
+`tools/pixelify.py` (block 2: grid 12 renders at 24 px, 14 at 28 px, 10 at
+20 px). Line logos use nearest sampling; filled marks use averaged sampling.
+
+| provider(s) | slug | grid | sampling |
+|---|---|---|---|
+| Anthropic | `anthropic` | 12 | average |
+| OpenAI | `openai` | 14 | nearest |
+| DeepSeek | `deepseek` | 10 | average |
+| Google / Gemini | `googlegemini` | 10 | average |
+| Groq | `groq` | 14 | average |
+| Meta / Llama | `meta` | 10 | average |
+| Mistral | `mistralai` | 12 | average |
+| NVIDIA NIM | `nvidia` | 10 | average |
+| Ollama | `ollama` | 12 | average |
+| OpenRouter | `openrouter` | 14 | nearest |
+| xAI | `xai` | 12 | average |
+| Cerebras | `cerebras` | 14 | average |
+| Fireworks | `fireworks` | 12 | average |
+| Together AI | `together` | 12 | average |
+| Baseten | `baseten` | 12 | average |
+| Moonshot / Kimi | `moonshotai` | 14 | nearest |
+| Z.AI | `zai` | 12 | average |
+| MiniMax | `minimax` | 14 | nearest |
+| Qwen | `qwen` | 14 | nearest |
+| OpenCode | `opencode` | 12 | average |
+| Vercel AI Gateway | `vercel` | 10 | average |
+| Hugging Face | `huggingface` | 14 | nearest |
+| GitHub Copilot | `githubcopilot` | 14 | average |
+| Ant Ling | `antling` | 12 | average |
+| Xiaomi MiMo | `xiaomi` | 14 | nearest |
+| Radius | `radius` | 12 | average |
+
+Sources and licenses are listed in `resources/logos/src/README.md`. The OpenRouter
+and Ant Ling marks are simplified custom glyphs because no usable monochrome
+asset was available; all other marks come from Simple Icons or the provider's
+official favicon/press mark.
+
 ## Layout
 
 ```text

@@ -24,7 +24,10 @@ its original distribution.
   `resources/fonts/JetBrainsMono-OFL.txt`.
 - Pixelarticons: MIT. The icons in `resources/icons/ui` are derived from that set.
 - Provider logos in `resources/logos/`: marks of their respective providers,
-  used only for identification.
+  used only for identification. Simple Icons artwork is CC0-1.0; other marks
+  come from the provider's official favicon or press asset. The OpenRouter and
+  Ant Ling glyphs are simplified custom marks. See
+  `resources/logos/src/README.md` for the per-provider source list.
 - No official Pi logo, mark or press-kit artwork is included.
 
 ## Extensions installed at runtime

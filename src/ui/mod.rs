@@ -1206,6 +1206,22 @@ impl AppUi {
                             glib::ControlFlow::Break
                         });
                     }
+                    "provider-logos" => {
+                        let models: Vec<ModelItem> = crate::providers::KNOWN
+                            .iter()
+                            .map(|provider| ModelItem {
+                                provider: provider.id.to_string(),
+                                id: format!("{}-demo", provider.id),
+                                name: provider.label.to_string(),
+                            })
+                            .collect();
+                        me.state.borrow_mut().models = models.clone();
+                        me.header.set_menu(&models, "", "");
+                        me.header.open_models();
+                        if let Ok(query) = std::env::var("PI_DESKTOP_DEMO_QUERY") {
+                            me.header.filter_models(&query);
+                        }
+                    }
                     "multi-both" => {
                         me.select_nav(2);
                         me.composer.set_text(
