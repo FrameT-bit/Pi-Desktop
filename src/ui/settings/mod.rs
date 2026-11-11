@@ -294,7 +294,7 @@ pub fn show(
         let error = error.clone();
         open.connect_clicked(move |_| {
             let Some(path) = config::config_path() else {
-                error.set_text("I couldn't solve the path of config.ini");
+                error.set_text("cannot resolve the config.ini path");
                 error.set_visible(true);
                 return;
             };
@@ -303,7 +303,7 @@ pub fn show(
             }
             if !path.exists() {
                 if let Err(err) = config::write_atomic(&path, "") {
-                    error.set_text(&format!("failure to create config.ini: {err}"));
+                    error.set_text(&format!("failed to create config.ini: {err}"));
                     error.set_visible(true);
                     return;
                 }
@@ -313,7 +313,7 @@ pub fn show(
                     error.set_visible(false);
                 }
                 Err(err) => {
-                    error.set_text(&format!("failure to open file: {err}"));
+                    error.set_text(&format!("failed to open file: {err}"));
                     error.set_visible(true);
                 }
             }
@@ -344,7 +344,7 @@ pub fn show(
                 }
             };
             if let Err(err) = config.save() {
-                error.set_text(&format!("failure to record config.ini: {err}"));
+                error.set_text(&format!("failed to save config.ini: {err}"));
                 error.set_visible(true);
                 return;
             }

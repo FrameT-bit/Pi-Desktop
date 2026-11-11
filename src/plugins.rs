@@ -10,6 +10,108 @@ use crate::state::{path_with_pi, PluginItem, Transport};
 
 pub const SETTINGS_CMD: &str = "cat ~/.pi/agent/settings.json";
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PluginSettings {
+    Tab(&'static str),
+    Json {
+        title: &'static str,
+        path: &'static str,
+    },
+    Text {
+        title: &'static str,
+        path: &'static str,
+    },
+}
+
+pub fn settings_for(spec: &str) -> Option<PluginSettings> {
+    let slug = plugin_slug(spec);
+    match slug.as_str() {
+        "pi-web-access" => Some(PluginSettings::Tab("CONNECTIONS")),
+        "pi-personas" => Some(PluginSettings::Tab("SOUL")),
+        "pi-memory" => Some(PluginSettings::Tab("MEMORY")),
+        "pi-mcp-adapter" => Some(PluginSettings::Tab("MCP")),
+        "pi-guard" => Some(PluginSettings::Json {
+            title: "pi-guard",
+            path: "~/.pi/agent/guard.json",
+        }),
+        "pi-subagents" => Some(PluginSettings::Json {
+            title: "pi-subagents",
+            path: "~/.pi/agent/extensions/subagent/config.json",
+        }),
+        "openwiki" => Some(PluginSettings::Text {
+            title: "openwiki",
+            path: "~/.openwiki/.env",
+        }),
+        _ => None,
+    }
+}
+
+fn plugin_slug(spec: &str) -> String {
+    let mut value = spec.trim();
+    for prefix in ["npm:", "git:"] {
+        if let Some(rest) = value.strip_prefix(prefix) {
+            value = rest;
+        }
+    }
+    let value = value.trim_end_matches('/');
+    let tail = value.rsplit('/').next().unwrap_or(value);
+    let tail = tail
+        .split(|ch| ch == '@' || ch == '#')
+        .next()
+        .unwrap_or(tail);
+    tail.to_ascii_lowercase()
+}
+
+pub fn read_config(transport: &Transport, path: &str) -> Result<String, String> {
+    match transport {
+        Transport::Local(_) => {
+            let file = config::expand_home(path);
+            match std::fs::read_to_string(&file) {
+                Ok(text) => Ok(text),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(String::new()),
+                Err(error) => Err(format!("{}: {error}", file.display())),
+            }
+        }
+        Transport::Remote { target, .. } => {
+            let quoted = remote_path(path);
+            let output = ssh(
+                target,
+                &format!("if [ -f {quoted} ]; then cat {quoted}; fi"),
+            )?;
+            if !output.status.success() {
+                return Err(command_error(&output));
+            }
+            Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        }
+        Transport::Missing { expected } => Err(format!("not found: {expected}")),
+    }
+}
+
+pub fn write_config(transport: &Transport, path: &str, text: &str) -> Result<(), String> {
+    match transport {
+        Transport::Local(_) => {
+            let file = config::expand_home(path);
+            if let Some(parent) = file.parent() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|error| format!("{}: {error}", parent.display()))?;
+            }
+            std::fs::write(&file, text).map_err(|error| format!("{}: {error}", file.display()))
+        }
+        Transport::Remote { target, .. } => {
+            let quoted = remote_path(path);
+            let dir = path.rsplit_once('/').map(|(dir, _)| dir).unwrap_or(".");
+            let command = format!("mkdir -p {} && cat > {quoted}", remote_path(dir));
+            let output = ssh_write(target, &command, text)?;
+            if output.status.success() {
+                Ok(())
+            } else {
+                Err(command_error(&output))
+            }
+        }
+        Transport::Missing { expected } => Err(format!("not found: {expected}")),
+    }
+}
+
 #[derive(Debug)]
 pub enum PluginEvent {
     List(Result<Vec<PluginItem>, String>),
@@ -49,6 +151,31 @@ pub(crate) fn ssh(target: &str, command: &str) -> Result<Output, String> {
         .arg(command)
         .stdin(Stdio::null())
         .output()
+        .map_err(|err| format!("ssh: {err}"))
+}
+
+fn ssh_write(target: &str, command: &str, text: &str) -> Result<Output, String> {
+    use std::io::Write;
+    let mut child = Command::new("ssh")
+        .arg("-T")
+        .arg("-o")
+        .arg("BatchMode=yes")
+        .arg("-o")
+        .arg("ConnectTimeout=8")
+        .arg(target)
+        .arg(command)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|err| format!("ssh: {err}"))?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(text.as_bytes())
+            .map_err(|err| format!("ssh: {err}"))?;
+    }
+    child
+        .wait_with_output()
         .map_err(|err| format!("ssh: {err}"))
 }
 
@@ -228,8 +355,68 @@ pub fn spawn_remove(
         .ok();
 }
 
+fn remote_path(value: &str) -> String {
+    match value.strip_prefix("~/") {
+        Some(rest) => format!("$HOME/{}", shell_quote(rest)),
+        None => shell_quote(value),
+    }
+}
+
 fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn settings_targets_are_available_for_known_packages() {
+        assert_eq!(
+            settings_for("npm:pi-web-access@0.47.0"),
+            Some(PluginSettings::Tab("CONNECTIONS"))
+        );
+        assert_eq!(
+            settings_for("../packages/pi-memory"),
+            Some(PluginSettings::Tab("MEMORY"))
+        );
+        assert_eq!(
+            settings_for("npm:pi-subagents"),
+            Some(PluginSettings::Json {
+                title: "pi-subagents",
+                path: "~/.pi/agent/extensions/subagent/config.json",
+            })
+        );
+        assert_eq!(
+            settings_for("npm:openwiki"),
+            Some(PluginSettings::Text {
+                title: "openwiki",
+                path: "~/.openwiki/.env",
+            })
+        );
+        assert_eq!(settings_for("npm:pi-checkpoints"), None);
+    }
+}
+
+#[cfg(test)]
+mod config_tests {
+    use super::*;
+    use crate::state::LocalTransport;
+
+    #[test]
+    fn local_config_round_trip() {
+        let transport = Transport::Local(LocalTransport {
+            bin: None,
+            workspace: std::path::PathBuf::from("."),
+            args: Vec::new(),
+        });
+        let path = std::env::temp_dir().join("pi-desktop-plugin-config-test.json");
+        let path_text = path.to_string_lossy().to_string();
+        write_config(&transport, &path_text, "{\n  \"ok\": true\n}\n").unwrap();
+        let text = read_config(&transport, &path_text).unwrap();
+        assert!(text.contains("\"ok\": true"));
+        let _ = std::fs::remove_file(&path);
+    }
+}

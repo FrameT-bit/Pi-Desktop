@@ -10,6 +10,7 @@ use crate::state::{CatalogItem, PluginItem};
 
 pub type InstallFn = Box<dyn Fn(String)>;
 pub type RemoveFn = Box<dyn Fn(String)>;
+pub type ConfigureFn = Box<dyn Fn(String)>;
 pub type SearchFn = Box<dyn Fn(String)>;
 pub type CatalogInstallFn = Box<dyn Fn(String)>;
 pub type MoreFn = Box<dyn Fn()>;
@@ -68,6 +69,7 @@ pub struct PluginsUi {
     catalog_has_more: Cell<bool>,
     on_install: Rc<RefCell<Option<InstallFn>>>,
     on_remove: Rc<RefCell<Option<RemoveFn>>>,
+    on_configure: Rc<RefCell<Option<ConfigureFn>>>,
     on_search: Rc<RefCell<Option<SearchFn>>>,
     on_catalog_install: Rc<RefCell<Option<CatalogInstallFn>>>,
     on_catalog_more: Rc<RefCell<Option<MoreFn>>>,
@@ -283,6 +285,7 @@ impl PluginsUi {
             catalog_has_more: Cell::new(false),
             on_install: Rc::new(RefCell::new(None)),
             on_remove: Rc::new(RefCell::new(None)),
+            on_configure: Rc::new(RefCell::new(None)),
             on_search: Rc::new(RefCell::new(None)),
             on_catalog_install: Rc::new(RefCell::new(None)),
             on_catalog_more: Rc::new(RefCell::new(None)),
@@ -402,6 +405,10 @@ impl PluginsUi {
         *self.on_remove.borrow_mut() = Some(Box::new(callback));
     }
 
+    pub fn set_on_configure(&self, callback: impl Fn(String) + 'static) {
+        *self.on_configure.borrow_mut() = Some(Box::new(callback));
+    }
+
     pub fn set_on_search(&self, callback: impl Fn(String) + 'static) {
         *self.on_search.borrow_mut() = Some(Box::new(callback));
     }
@@ -505,11 +512,34 @@ impl PluginsUi {
                 identity.append(&name);
                 identity.append(&spec);
 
+                let row = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+                row.add_css_class("plugin-item");
+                if index + 1 < items.len() {
+                    row.add_css_class("with-divider");
+                }
+                row.append(&origin);
+                row.append(&identity);
+                if crate::plugins::settings_for(&item.spec).is_some() {
+                    let configure = gtk::Button::new();
+                    configure.add_css_class("plugin-config");
+                    configure.set_valign(gtk::Align::Center);
+                    configure.set_child(Some(&icons::icon("settings", Tone::Muted)));
+                    configure.set_tooltip_text(Some(&format!("configure {}", item.name())));
+                    let on_configure = self.on_configure.clone();
+                    let spec_value = item.spec.clone();
+                    configure.connect_clicked(move |_| {
+                        if let Some(callback) = on_configure.borrow().as_ref() {
+                            callback(spec_value.clone());
+                        }
+                    });
+                    row.append(&configure);
+                }
+
                 let remove = gtk::Button::new();
                 remove.add_css_class("plugin-remove");
                 remove.set_valign(gtk::Align::Center);
                 remove.set_child(Some(&icons::icon("trash", Tone::Muted)));
-                remove.set_tooltip_text(Some(&format!("removed {}", item.spec)));
+                remove.set_tooltip_text(Some(&format!("remove {}", item.name())));
 
                 let on_remove = self.on_remove.clone();
                 let spec_value = item.spec.clone();
@@ -523,13 +553,6 @@ impl PluginsUi {
                     }
                 });
 
-                let row = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-                row.add_css_class("plugin-item");
-                if index + 1 < items.len() {
-                    row.add_css_class("with-divider");
-                }
-                row.append(&origin);
-                row.append(&identity);
                 row.append(&remove);
                 self.list.append(&row);
             }
@@ -1017,7 +1040,7 @@ fn format_downloads(value: u64) -> String {
 
 fn open_url(url: &str) {
     if let Err(error) = std::process::Command::new("xdg-open").arg(url).spawn() {
-        eprintln!("plugins: failure to open {url}: {error}");
+        eprintln!("plugins: failed to open {url}: {error}");
     }
 }
 

@@ -279,3 +279,229 @@ pub fn trash_stamp(now: &glib::DateTime) -> String {
 }
 
 
+
+pub const WORKSPACE_TRASH_DAYS: u64 = 14;
+
+#[derive(Clone)]
+pub struct WorkspaceTrashEntry {
+    pub path: PathBuf,
+    pub original: PathBuf,
+    pub label: String,
+    pub sessions: usize,
+    pub deleted: u64,
+}
+
+pub fn workspace_trash_dir() -> PathBuf {
+    trash_dir().join("workspaces")
+}
+
+pub fn trash_workspace(
+    dir: &Path,
+    label: &str,
+    sessions: usize,
+    stamp: &str,
+) -> std::io::Result<PathBuf> {
+    trash_workspace_in(dir, label, sessions, stamp, &workspace_trash_dir())
+}
+
+fn trash_workspace_in(
+    dir: &Path,
+    label: &str,
+    sessions: usize,
+    stamp: &str,
+    root: &Path,
+) -> std::io::Result<PathBuf> {
+    fs::create_dir_all(root)?;
+    let slug = dir
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("workspace");
+    let mut target = root.join(format!("{slug}.{stamp}"));
+    let mut suffix = 1;
+    while target.exists() {
+        target = root.join(format!("{slug}.{stamp}-{suffix}"));
+        suffix += 1;
+    }
+    move_dir(dir, &target)?;
+    let deleted = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0);
+    let meta = serde_json::json!({
+        "original": dir.to_string_lossy(),
+        "label": label,
+        "sessions": sessions,
+        "deleted": deleted,
+        "stamp": stamp,
+    });
+    if let Err(error) = fs::write(target.join("meta.json"), serde_json::to_vec_pretty(&meta)?) {
+        let _ = move_dir(&target, dir);
+        return Err(error);
+    }
+    Ok(target)
+}
+
+pub fn list_workspace_trash() -> Vec<WorkspaceTrashEntry> {
+    list_workspace_trash_in(&workspace_trash_dir())
+}
+
+fn list_workspace_trash_in(root: &Path) -> Vec<WorkspaceTrashEntry> {
+    let Ok(entries) = fs::read_dir(root) else {
+        return Vec::new();
+    };
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0);
+    let mut out = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let Ok(text) = fs::read_to_string(path.join("meta.json")) else {
+            continue;
+        };
+        let Ok(meta) = serde_json::from_str::<Value>(&text) else {
+            continue;
+        };
+        let Some(original) = meta.get("original").and_then(Value::as_str) else {
+            continue;
+        };
+        let deleted = meta.get("deleted").and_then(Value::as_u64).unwrap_or(0);
+        if deleted > 0 && now.saturating_sub(deleted) > WORKSPACE_TRASH_DAYS * 86_400 {
+            let _ = fs::remove_dir_all(&path);
+            continue;
+        }
+        out.push(WorkspaceTrashEntry {
+            path,
+            original: PathBuf::from(original),
+            label: meta
+                .get("label")
+                .and_then(Value::as_str)
+                .unwrap_or("workspace")
+                .to_string(),
+            sessions: meta
+                .get("sessions")
+                .and_then(Value::as_u64)
+                .unwrap_or(0) as usize,
+            deleted,
+        });
+    }
+    out.sort_by(|a, b| b.deleted.cmp(&a.deleted));
+    out
+}
+
+pub fn restore_workspace(entry: &WorkspaceTrashEntry) -> std::io::Result<()> {
+    if entry.original.exists() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            format!("{} already exists", entry.original.display()),
+        ));
+    }
+    if let Some(parent) = entry.original.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    move_dir(&entry.path, &entry.original)?;
+    let _ = fs::remove_file(entry.original.join("meta.json"));
+    Ok(())
+}
+
+pub fn restore_workspace_path(path: &Path) -> std::io::Result<()> {
+    let text = fs::read_to_string(path.join("meta.json"))?;
+    let meta = serde_json::from_str::<Value>(&text)?;
+    let original = meta
+        .get("original")
+        .and_then(Value::as_str)
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "invalid workspace meta"))?;
+    restore_workspace(&WorkspaceTrashEntry {
+        path: path.to_path_buf(),
+        original: PathBuf::from(original),
+        label: meta
+            .get("label")
+            .and_then(Value::as_str)
+            .unwrap_or("workspace")
+            .to_string(),
+        sessions: meta
+            .get("sessions")
+            .and_then(Value::as_u64)
+            .unwrap_or(0) as usize,
+        deleted: meta.get("deleted").and_then(Value::as_u64).unwrap_or(0),
+    })
+}
+
+fn move_dir(from: &Path, to: &Path) -> std::io::Result<()> {
+    match fs::rename(from, to) {
+        Ok(()) => Ok(()),
+        Err(_) => {
+            copy_dir_all(from, to)?;
+            fs::remove_dir_all(from)
+        }
+    }
+}
+
+fn copy_dir_all(from: &Path, to: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(to)?;
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir_all(&entry.path(), &target)?;
+        } else {
+            fs::copy(entry.path(), &target)?;
+        }
+    }
+    Ok(())
+}
+
+
+#[cfg(test)]
+mod workspace_trash_tests {
+    use super::*;
+
+    #[test]
+    fn workspace_trash_round_trip() {
+        let base = std::env::temp_dir().join(format!(
+            "pi-desktop-workspace-test-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        let workspace = base.join("--tmp-workspace-test--");
+        let trash = base.join("trash");
+        fs::create_dir_all(&workspace).unwrap();
+        fs::write(workspace.join("session.jsonl"), "{}").unwrap();
+
+        let target = trash_workspace_in(&workspace, "test workspace", 1, "stamp", &trash).unwrap();
+        assert!(!workspace.exists());
+        assert!(target.join("meta.json").exists());
+
+        let entries = list_workspace_trash_in(&trash);
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].sessions, 1);
+        restore_workspace(&entries[0]).unwrap();
+        assert!(workspace.join("session.jsonl").exists());
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn workspace_trash_purges_after_fourteen_days() {
+        let base = std::env::temp_dir().join(format!(
+            "pi-desktop-workspace-expiry-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        let workspace = base.join("--tmp-workspace-expiry--");
+        let trash = base.join("trash");
+        fs::create_dir_all(&workspace).unwrap();
+        fs::write(workspace.join("session.jsonl"), "{}").unwrap();
+        let target = trash_workspace_in(&workspace, "expired", 1, "stamp", &trash).unwrap();
+        let meta_path = target.join("meta.json");
+        let mut meta: Value =
+            serde_json::from_str(&fs::read_to_string(&meta_path).unwrap()).unwrap();
+        meta["deleted"] = Value::from(1);
+        fs::write(&meta_path, serde_json::to_vec(&meta).unwrap()).unwrap();
+        assert!(list_workspace_trash_in(&trash).is_empty());
+        assert!(!target.exists());
+        let _ = fs::remove_dir_all(&base);
+    }
+}

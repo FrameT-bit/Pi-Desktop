@@ -163,6 +163,35 @@ fn is_executable(path: &Path) -> bool {
 }
 
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum TurnPhase {
+    Sent,
+    Thinking,
+    Tools,
+    Writing,
+    Done,
+    Error,
+}
+
+impl Default for TurnPhase {
+    fn default() -> Self {
+        Self::Sent
+    }
+}
+
+impl TurnPhase {
+    pub fn label(self) -> &'static str {
+        match self {
+            TurnPhase::Sent => "SENT",
+            TurnPhase::Thinking => "THINKING",
+            TurnPhase::Tools => "TOOLS",
+            TurnPhase::Writing => "WRITING",
+            TurnPhase::Done => "DONE",
+            TurnPhase::Error => "ERROR",
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Permission {
     Ask,
@@ -251,10 +280,18 @@ pub struct PluginItem {
 
 impl PluginItem {
     pub fn name(&self) -> String {
-        self.spec
+        let value = self
+            .spec
             .split_once(':')
-            .map(|(_, rest)| rest.to_string())
-            .unwrap_or_else(|| self.spec.clone())
+            .map(|(_, rest)| rest)
+            .unwrap_or(&self.spec)
+            .trim_end_matches('/');
+        value
+            .rsplit('/')
+            .next()
+            .filter(|name| !name.is_empty())
+            .unwrap_or(value)
+            .to_string()
     }
 }
 
@@ -306,6 +343,22 @@ fn builtin_model_name(id: &str) -> Option<&'static str> {
         "openai/gpt-oss-120b" | "gpt-oss-120b" => Some("GPT OSS 120B"),
         "openai/gpt-oss-20b" | "gpt-oss-20b" => Some("GPT OSS 20B"),
         _ => None,
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SessionActivity {
+    pub running: bool,
+    pub phase: String,
+    pub started: Option<Instant>,
+    pub unread: bool,
+}
+
+impl SessionActivity {
+    pub fn elapsed_label(&self) -> String {
+        self.started
+            .map(|start| format_elapsed(start.elapsed()))
+            .unwrap_or_else(|| "00:00".to_string())
     }
 }
 
@@ -370,6 +423,7 @@ pub struct AppState {
     pub connection: Connection,
     pub conn_detail: String,
     pub running: bool,
+    pub phase: TurnPhase,
     pub tokens_in: u64,
     pub tokens_out: u64,
     pub turn_finished_tokens: u64,
@@ -419,6 +473,7 @@ impl Default for AppState {
             connection: Connection::Connecting,
             conn_detail: String::new(),
             running: false,
+            phase: TurnPhase::Sent,
             tokens_in: 0,
             tokens_out: 0,
             turn_finished_tokens: 0,
@@ -502,6 +557,7 @@ impl AppState {
     }
 
     pub fn reset_turn(&mut self) {
+        self.phase = TurnPhase::Sent;
         self.run_started = Some(Instant::now());
         self.run_elapsed = Duration::ZERO;
         self.streamed_chars = 0;
@@ -610,6 +666,20 @@ pub fn format_cost(cost: f64) -> String {
         format!("${cost:.4}")
     } else {
         format!("${cost:.2}")
+    }
+}
+
+pub fn format_elapsed(d: Duration) -> String {
+    let total = d.as_secs();
+    if total >= 3600 {
+        format!(
+            "{:02}:{:02}:{:02}",
+            total / 3600,
+            (total % 3600) / 60,
+            total % 60
+        )
+    } else {
+        format!("{:02}:{:02}", total / 60, total % 60)
     }
 }
 

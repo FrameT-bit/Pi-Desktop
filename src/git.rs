@@ -253,7 +253,7 @@ pub fn run(repo: &Path, args: &[String]) -> Result<String, String> {
         .env("GIT_TERMINAL_PROMPT", "0")
         .stdin(std::process::Stdio::null())
         .output()
-        .map_err(|err| format!("failure to execute git: {err}"))?;
+        .map_err(|err| format!("failed to run git: {err}"))?;
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     if output.status.success() {
         return Ok(stdout);

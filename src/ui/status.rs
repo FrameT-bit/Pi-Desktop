@@ -9,8 +9,6 @@ use crate::state::Connection;
 pub struct StatusUi {
     pub root: gtk::Box,
     pub target: gtk::Label,
-    pub session: gtk::Label,
-    pub session_sep: gtk::Label,
     pub tokens: gtk::Label,
     pub cost: gtk::Label,
     pub cost_sep: gtk::Label,
@@ -43,11 +41,6 @@ pub fn build() -> StatusUi {
     let target = value_label("LOCAL · ~/projects");
     target.add_css_class("status-target");
     target.set_tooltip_text(Some("LOCAL · ~/projects"));
-
-    let session_sep = separator();
-    let session = value_label("");
-    session_sep.set_visible(false);
-    session.set_visible(false);
 
     let tokens = value_label("0 / 0");
     let cost = value_label("$0");
@@ -129,8 +122,6 @@ pub fn build() -> StatusUi {
     let sep_conn = separator();
 
     root.append(&target);
-    root.append(&session_sep);
-    root.append(&session);
     root.append(&sep_target);
     root.append(&cost_sep);
     root.append(&cost);
@@ -165,8 +156,6 @@ pub fn build() -> StatusUi {
     StatusUi {
         root,
         target,
-        session,
-        session_sep,
         tokens,
         cost,
         cost_sep,
@@ -218,27 +207,6 @@ impl StatusUi {
     pub fn set_target(&self, text: &str) {
         self.target.set_text(text);
         self.target.set_tooltip_text(Some(text));
-    }
-
-    pub fn set_session(&self, id: Option<&str>) {
-        if self.chat_mode.get() {
-            self.session.set_visible(false);
-            self.session_sep.set_visible(false);
-            return;
-        }
-        match id.filter(|id| !id.trim().is_empty()) {
-            Some(id) => {
-                self.session.set_text(&format!("SESSION {id}"));
-                self.session.set_tooltip_text(Some(id));
-                self.session.set_visible(true);
-                self.session_sep.set_visible(true);
-            }
-            None => {
-                self.session.set_text("");
-                self.session.set_visible(false);
-                self.session_sep.set_visible(false);
-            }
-        }
     }
 
     pub fn flash_notice(&self, text: &str) {

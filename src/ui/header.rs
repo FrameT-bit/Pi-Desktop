@@ -1,12 +1,13 @@
 
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use gtk::prelude::*;
 
 use crate::icons::{self, Tone};
 use crate::logos;
-use crate::state::ModelItem;
+use crate::state::{ModelItem, SessionActivity};
 use crate::theme::{Palette, Theme};
 
 use super::popup::Popup;
@@ -372,6 +373,7 @@ impl HeaderUi {
         sessions: &[crate::state::RemoteSession],
         active: Option<usize>,
         closed: &std::collections::HashSet<String>,
+        activity: &HashMap<String, SessionActivity>,
     ) {
         while let Some(child) = self.tabs.first_child() {
             self.tabs.remove(&child);
@@ -397,10 +399,20 @@ impl HeaderUi {
         }
         for index in window {
             let session = &sessions[index];
+            let running = activity
+                .get(&session.session_id)
+                .is_some_and(|activity| activity.running);
             let group = gtk::Box::new(gtk::Orientation::Horizontal, 0);
             group.add_css_class("session-tab-group");
             if Some(index) == active {
                 group.add_css_class("active");
+            }
+            if running {
+                group.add_css_class("running");
+                let dot = gtk::Box::new(gtk::Orientation::Vertical, 0);
+                dot.add_css_class("session-tab-dot");
+                dot.set_valign(gtk::Align::Center);
+                group.append(&dot);
             }
             let label = gtk::Label::new(Some(&elide_middle(&session.title())));
             label.set_ellipsize(gtk::pango::EllipsizeMode::End);

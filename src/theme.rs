@@ -343,6 +343,10 @@ impl Theme {
         self.rgb("border", (1.0, 1.0, 1.0))
     }
 
+    pub fn accent_rgb(&self) -> (f64, f64, f64) {
+        self.rgb("accent", (0.42, 0.62, 0.8))
+    }
+
     fn rgb(&self, key: &str, fallback: (f64, f64, f64)) -> (f64, f64, f64) {
         tokens::lookup(self.inner.palette.get().section(), key)
             .map(|_| tokens::rgb(&tokens::active(key)))

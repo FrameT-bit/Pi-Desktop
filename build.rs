@@ -78,7 +78,7 @@ fn generate_icons(root: &std::path::Path, out: &std::path::Path) -> String {
     let mut entries: Vec<(String, String, bool, u8, PathBuf)> = Vec::new();
     let Ok(read) = fs::read_dir(&dir) else {
         return String::from(
-            "// resources/icons/ui ausente\n\
+            "// resources/icons/ui missing\n\
              pub fn icon_bytes(_: &str, _: &str, _: bool, _: u8) -> Option<&'static [u8]> { None }\n",
         );
     };
@@ -251,7 +251,7 @@ fn check_rules(rules: &str, defined: &BTreeSet<String>) {
             let ends = bytes.get(i + 1 + run).copied();
             let literal = (3..=8).contains(&run)
                 && ends.map_or(true, |next| !next.is_ascii_alphabetic() && next != b'-' && next != b'_');
-            assert!(!literal, "hex literal em {RULES}: cor deve vir de @token");
+            assert!(!literal, "hex literal in {RULES}: colors must come from @token");
             i += 1 + run.max(1);
             continue;
         }

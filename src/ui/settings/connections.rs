@@ -218,7 +218,7 @@ pub fn page() -> (gtk::Box, SaveConnectionsFn) {
             }
             let result = store
                 .save_atomic()
-                .map_err(|err| format!("failure to record web-search.json: {err}"));
+                .map_err(|err| format!("failed to save web-search.json: {err}"));
             if result.is_ok() {
                 for hook in saved_hooks.borrow().iter() {
                     hook();

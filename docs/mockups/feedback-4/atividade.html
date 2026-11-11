@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>03 · Activity — Pi Desktop</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main class="stage">
+
+  <nav class="proto-nav">
+    <span class="brand">PI DESKTOP · FEEDBACK DE IA</span>
+    <a href="index.html">index</a>
+    <a href="pulso.html">01 pulso</a>
+    <a href="trilho.html">02 trilho</a>
+    <a class="on" href="atividade.html">03 atividade</a>
+    <a href="processos.html">04 processos</a>
+  </nav>
+
+  <header class="proto-head">
+    <div>
+      <div class="kicker"><span class="num">03</span> console · current event · expandable log</div>
+      <h1>Activity line</h1>
+      <p class="lead">A 30px strip above the composer shows the latest event — tool, target,
+      duration — and expands into a compact log for the turn. The chat gets no decoration at all.
+      In the sidebar, working sessions leave “recent” and appear in a <b>working</b> section with
+      the last event and a progress track.</p>
+    </div>
+    <button class="sim" data-sim>next event</button>
+  </header>
+
+  <section class="win" aria-label="Prototype 03 — Activity line">
+    <div class="hdr">
+      <div class="wm">
+        <img class="mark" src="../../../resources/brand/mark-on-dark-32.png" alt="">
+        <span class="word">Pi Desktop</span>
+      </div>
+      <button class="hbtn" title="mostrar/ocultar chats"><img src="../../../resources/icons/ui/compact-ink-dark-1x.png" alt=""></button>
+
+      <div class="tabs">
+        <div class="tab-group active running">
+          <button class="tab">kernel</button>
+          <button class="tab-close">×</button>
+        </div>
+        <div class="tab-group running">
+          <button class="tab">rpc</button>
+          <button class="tab-close">×</button>
+        </div>
+        <div class="tab-group">
+          <button class="tab">hi</button>
+          <button class="tab-close">×</button>
+        </div>
+        <div class="tab-group">
+          <button class="tab">fedora 41</button>
+          <button class="tab-close">×</button>
+        </div>
+        <button class="tab-add" title="new session">+</button>
+      </div>
+
+      <div class="hright">
+        <div class="seg"><button class="opt">chat</button><button class="opt on">code</button></div>
+        <button class="model">
+          <img src="../../../resources/logos/deepseek-dark.png" alt="">
+          <span>deepseek v4.1 flash</span><span class="chev">▾</span>
+        </button>
+        <button class="hbtn">?</button>
+        <button class="hbtn" title="settings"><img src="../../../resources/icons/ui/settings-ink-dark-1x.png" alt=""></button>
+        <button class="hbtn" title="theme"><img src="../../../resources/icons/ui/sun-ink-dark-1x.png" alt=""></button>
+        <div class="wctl"><span>–</span><span>□</span><span>×</span></div>
+      </div>
+    </div>
+
+    <div class="body">
+      <aside class="side">
+        <div class="side-top">
+          <button class="new-session"><span class="plus"></span> new session</button>
+          <nav class="nav">
+            <div class="navrow"><img src="../../../resources/icons/ui/box-muted-dark-1x.png" alt="">artifacts<span class="count">303</span></div>
+            <div class="navrow"><img src="../../../resources/icons/ui/check-muted-dark-1x.png" alt="">tasks<span class="count">4</span></div>
+            <div class="navrow active"><img src="../../../resources/icons/ui/list-accent-dark-1x.png" alt="">sessions<span class="count">30</span></div>
+            <div class="navrow"><img src="../../../resources/icons/ui/fork-muted-dark-1x.png" alt="">tree<span class="count">12</span></div>
+            <div class="navrow"><img src="../../../resources/icons/ui/plug-muted-dark-1x.png" alt="">extensions<span class="count">7</span></div>
+            <div class="navrow"><img src="../../../resources/icons/ui/terminal-muted-dark-1x.png" alt="">git</div>
+          </nav>
+        </div>
+
+        <div class="sessions">
+          <div class="section-label"><span>working</span><span class="n">2</span></div>
+
+          <div class="workbox">
+            <div class="w1"><span class="udot live"></span>kernel audit<span class="time">00:12</span></div>
+            <div class="w2">edit · src/state.rs · +12 −3</div>
+            <div class="w3"><i></i></div>
+          </div>
+
+          <div class="workbox" style="margin-top:6px">
+            <div class="w1"><span class="udot live"></span>refactor rpc<span class="time" data-elapsed="23">00:23</span></div>
+            <div class="w2">bash · cargo test · 3/7</div>
+            <div class="w3"><i style="width:64%"></i></div>
+          </div>
+
+          <div class="recent-head" style="padding-left:2px"><span>recent</span><img src="../../../resources/icons/ui/search-muted-dark-1x.png" alt=""></div>
+          <div class="group"><img src="../../../resources/icons/ui/chevron-down-muted-dark-1x.png" alt="">playground<span class="count">18</span></div>
+
+          <div class="srow">
+            <span class="name">hi</span>
+            <span class="meta">—<span class="kdot"></span><span class="age">2 min</span></span>
+          </div>
+          <div class="srow">
+            <span class="name">why my fedora isn't wo…</span>
+            <span class="meta">—<span class="kdot"></span><span class="age">11 h</span></span>
+          </div>
+          <div class="srow">
+            <span class="name">which one is better: mistra…</span>
+            <span class="meta">—<span class="kdot"></span><span class="age">11 h</span></span>
+          </div>
+        </div>
+
+        <div class="side-foot">pi 1.5.0</div>
+      </aside>
+
+      <section class="main">
+        <div class="rail-grip"></div>
+        <div class="pagehead">
+          <div class="page-title">kernel audit</div>
+          <div class="page-sub">deepseek v4.1 flash · $0.012</div>
+        </div>
+
+        <div class="chat">
+          <div class="stamp">12:04</div>
+
+          <div class="user">
+            Run the tests and find out why the RPC handshake hangs after reconnect.
+          </div>
+
+          <div class="prose">
+            The supervisor drops the first frame after reconnect; the suite is confirming
+            whether the error only happens on that path<span class="caret"></span>
+          </div>
+        </div>
+
+        <div class="live-strip">
+          <div class="live-head">
+            <span class="sq"></span>
+            <span class="ev" data-event-tool>bash</span>
+            <span class="where" data-event-where>cargo test --lib</span>
+            <span class="delta" data-event-delta></span>
+            <span class="time">00:12</span>
+            <button class="expand" title="recolher">▴</button>
+          </div>
+          <div class="alog">
+            <div class="alrow live"><span class="st"></span><span class="tool-name">bash</span><span class="what">cargo test --lib</span><span class="dur">running</span></div>
+            <div class="alrow ok"><span class="st"></span><span class="tool-name">edit</span><span class="what">src/state.rs · +12 −3</span><span class="dur">0.2s</span></div>
+            <div class="alrow ok"><span class="st"></span><span class="tool-name">read</span><span class="what">src/rpc.rs · 305 linhas</span><span class="dur">0.4s</span></div>
+            <div class="alrow ok"><span class="st"></span><span class="tool-name">grep</span><span class="what">handshake · 7 matches</span><span class="dur">0.1s</span></div>
+          </div>
+        </div>
+
+        <div class="composer-wrap">
+          <div class="composer">
+            <div class="crow">
+              <div class="cinput">message… <b>(/ commands)</b></div>
+              <button class="icon-btn" title="anexar"><img src="../../../resources/icons/ui/plus-ink-dark-1x.png" alt=""></button>
+              <div class="chip-think high"><i></i>high</div>
+              <button class="icon-btn stop" title="parar"><span></span></button>
+              <button class="icon-btn accent" title="enviar"><span class="mask-ic"></span></button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="statusbar">
+      <span class="key">local</span><span class="sep">·</span><span class="val">~/playground</span><span class="sep">·</span><span class="val">$0.012</span><span class="sep">·</span><span class="key">ctx</span><span class="sep">·</span><span class="val">12%</span>
+      <div class="right">
+        <span class="ok">2 working</span>
+        <span class="sep">·</span><span class="key">permissions:</span><span class="val">smart</span>
+        <span class="sep">·</span><span class="dot"></span><span>connected</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="spec">
+    <div>
+      <h3>where it lives</h3>
+      <p>A fixed strip above the composer with the latest event. Expanded, it shows the turn log:
+      tool, target, duration, and state. Collapsed, only the 30px line remains.</p>
+    </div>
+    <div>
+      <h3>what changes</h3>
+      <p>The chat stays clean; proof of work becomes an <b class="accent">event log</b>, not
+      message decoration. Completed events turn green, the current one blinks, and the log cuts at
+      <b>8 rows</b> with “+N” at the end.</p>
+    </div>
+    <div>
+      <h3>multi-session</h3>
+      <p>Running sessions leave <b>recent</b> and move up to <b class="accent">working</b>, with
+      the last event and progress. When they finish, they return to recent with an unread dot.</p>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span>static prototype · espresso shot theme · 1280px chrome</span>
+    <span>03 / 04</span>
+  </footer>
+</main>
+
+<script>
+const params = new URLSearchParams(location.search);
+const staticshot = params.has('static');
+if (params.has('shot')) document.documentElement.classList.add('shot');
+if (params.has('sim')) window.addEventListener('load', () => document.querySelector('[data-sim]').click());
+const clocks = [...document.querySelectorAll('[data-elapsed]')].map((el) => ({
+  el,
+  value: Number(el.dataset.elapsed) || 0
+}));
+
+if (!staticshot) {
+  setInterval(() => {
+    clocks.forEach((clock) => {
+      clock.value += 1;
+      clock.el.textContent =
+        String(Math.floor(clock.value / 60)).padStart(2, '0') + ':' +
+        String(clock.value % 60).padStart(2, '0');
+    });
+  }, 1000);
+}
+
+const events = [
+  { tool: 'bash', where: 'cargo test --lib', delta: '', dur: 'running', time: '00:12' },
+  { tool: 'edit', where: 'src/state.rs', delta: '+12 −3', dur: '0.2s', time: '00:03' },
+  { tool: 'read', where: 'src/rpc.rs', delta: '305 linhas', dur: '0.4s', time: '0.4s' },
+  { tool: 'grep', where: 'handshake', delta: '7 matches', dur: '0.1s', time: '0.1s' }
+];
+let index = 0;
+
+function renderEvent() {
+  const head = document.querySelector('.live-head');
+  head.querySelector('[data-event-tool]').textContent = events[0].tool;
+  head.querySelector('[data-event-where]').textContent = events[0].where;
+  head.querySelector('[data-event-delta]').textContent = events[0].delta;
+  head.querySelector('.time').textContent = events[0].time;
+
+  document.querySelector('.alog').innerHTML = events.map((event, position) => `
+    <div class="alrow ${position === 0 ? 'live' : 'ok'}">
+      <span class="st"></span>
+      <span class="tool-name">${event.tool}</span>
+      <span class="what">${event.where}${event.delta ? ' · ' + event.delta : ''}</span>
+      <span class="dur">${event.dur}</span>
+    </div>`).join('');
+}
+
+document.querySelector('[data-sim]').addEventListener('click', (event) => {
+  document.documentElement.classList.toggle('sim-running');
+  event.currentTarget.classList.toggle('on');
+  index = (index + 1) % events.length;
+  events.push(events.shift());
+  renderEvent();
+});
+</script>
+</body>
+</html>

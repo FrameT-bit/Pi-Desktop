@@ -151,7 +151,7 @@ pub enum Thinking {
 impl Thinking {
     pub fn parse(value: &str) -> Option<Self> {
         match value.trim().to_ascii_lowercase().as_str() {
-            "" | "default" | "padrao" | "standard" => Some(Thinking::Unset),
+            "" | "default" | "standard" => Some(Thinking::Unset),
             "off" => Some(Thinking::Off),
             "minimal" => Some(Thinking::Minimal),
             "low" => Some(Thinking::Low),

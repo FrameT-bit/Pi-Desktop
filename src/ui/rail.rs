@@ -25,7 +25,7 @@ struct Activity {
     running: Rc<std::cell::Cell<bool>>,
     output: gtk::Label,
     expanded: Rc<std::cell::Cell<bool>>,
-    marker: gtk::Label,
+    marker: gtk::Image,
 }
 
 pub struct RailUi {
@@ -129,7 +129,7 @@ impl RailUi {
         open.set_halign(gtk::Align::Start);
         preview.append(&open);
         let preview_empty = gtk::Label::new(Some(
-            "image, markdown or workspace text appears here — the agent sees the way",
+            "images, Markdown, and workspace text appear here",
         ));
         preview_empty.add_css_class("rail-empty");
         preview_empty.set_xalign(0.0);
@@ -391,9 +391,9 @@ impl RailUi {
         outer.add_css_class("rail-activity");
         let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
         row.set_cursor_from_name(Some("pointer"));
-        let dot = icons::icon("loading", Tone::Accent);
-        dot.add_css_class("rail-pulse");
-        row.append(&dot);
+        let marker = icons::icon("chevron-right", Tone::Muted);
+        marker.set_valign(gtk::Align::Center);
+        row.append(&marker);
         let label = gtk::Label::new(Some(name));
         label.add_css_class("rail-activity-name");
         label.set_xalign(0.0);
@@ -406,10 +406,6 @@ impl RailUi {
         let state = gtk::Label::new(Some("running"));
         state.add_css_class("rail-activity-state");
         row.append(&state);
-        let marker = gtk::Label::new(Some("›"));
-        marker.add_css_class("rail-activity-marker");
-        marker.set_visible(false);
-        row.append(&marker);
         outer.append(&row);
         let output = gtk::Label::new(None);
         output.add_css_class("rail-activity-output");
@@ -434,7 +430,11 @@ impl RailUi {
                 let next = !expanded.get();
                 expanded.set(next);
                 output.set_visible(next);
-                marker.set_text(if next { "⌄" } else { "›" });
+                icons::set_icon(
+                    &marker,
+                    if next { "chevron-down" } else { "chevron-right" },
+                    Tone::Muted,
+                );
             });
             row.add_controller(click);
         }
@@ -494,7 +494,7 @@ impl RailUi {
                 if is_error {
                     activity.expanded.set(true);
                     activity.output.set_visible(true);
-                    activity.marker.set_text("⌄");
+                    icons::set_icon(&activity.marker, "chevron-down", Tone::Muted);
                 }
             }
         }
@@ -531,7 +531,7 @@ impl RailUi {
 
     pub fn set_queue(&self, count: usize) {
         self.queue.set_visible(count > 0);
-        self.queue.set_text(&format!("{count} na fila"));
+        self.queue.set_text(&format!("{count} queued"));
     }
 
     pub fn set_stats(

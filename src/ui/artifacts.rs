@@ -300,7 +300,7 @@ fn row(artifact: &Artifact) -> gtk::Box {
             .arg(&value)
             .spawn()
         {
-            eprintln!("artifacts: failure to open {value}: {error}");
+            eprintln!("artifacts: failed to open {value}: {error}");
         }
     });
     row.append(&open);

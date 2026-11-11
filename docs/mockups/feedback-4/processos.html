@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>04 · Processes — Pi Desktop</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main class="stage">
+
+  <nav class="proto-nav">
+    <span class="brand">PI DESKTOP · FEEDBACK DE IA</span>
+    <a href="index.html">index</a>
+    <a href="pulso.html">01 pulso</a>
+    <a href="trilho.html">02 trilho</a>
+    <a href="atividade.html">03 atividade</a>
+    <a class="on" href="processos.html">04 processos</a>
+  </nav>
+
+  <header class="proto-head">
+    <div>
+      <div class="kicker"><span class="num">04</span> control room · states · attention</div>
+      <h1>Sessions as processes</h1>
+      <p class="lead">The sidebar becomes a process list: <b>run</b>, <b>wait</b>, <b>done</b>,
+      time, and an activity sparkline. The session that needs you moves into <b>active</b> with
+      amber; the rest stays in recent. In chat, a “now” card shows the current tool, and an
+      approval strip brings the background session forward without switching tabs.</p>
+    </div>
+    <button class="sim" data-sim>simulate approval</button>
+  </header>
+
+  <section class="win" aria-label="Prototype 04 — Sessions as processes">
+    <div class="hdr">
+      <div class="wm">
+        <img class="mark" src="../../../resources/brand/mark-on-dark-32.png" alt="">
+        <span class="word">Pi Desktop</span>
+      </div>
+      <button class="hbtn" title="mostrar/ocultar chats"><img src="../../../resources/icons/ui/compact-ink-dark-1x.png" alt=""></button>
+
+      <div class="tabs">
+        <div class="tab-group active running">
+          <button class="tab">kernel</button>
+          <button class="tab-close">×</button>
+        </div>
+        <div class="tab-group waiting" data-approval>
+          <button class="tab">rpc</button>
+          <button class="tab-close">×</button>
+        </div>
+        <div class="tab-group running">
+          <button class="tab">index</button>
+          <button class="tab-close">×</button>
+        </div>
+        <div class="tab-group">
+          <button class="tab">hi</button>
+          <button class="tab-close">×</button>
+        </div>
+        <button class="tab-add" title="new session">+</button>
+      </div>
+
+      <div class="hright">
+        <div class="seg"><button class="opt">chat</button><button class="opt on">code</button></div>
+        <button class="model">
+          <img src="../../../resources/logos/deepseek-dark.png" alt="">
+          <span>deepseek v4.1 flash</span><span class="chev">▾</span>
+        </button>
+        <button class="hbtn">?</button>
+        <button class="hbtn" title="settings"><img src="../../../resources/icons/ui/settings-ink-dark-1x.png" alt=""></button>
+        <button class="hbtn" title="theme"><img src="../../../resources/icons/ui/sun-ink-dark-1x.png" alt=""></button>
+        <div class="wctl"><span>–</span><span>□</span><span>×</span></div>
+      </div>
+    </div>
+
+    <div class="body">
+      <aside class="side">
+        <div class="side-top">
+          <button class="new-session"><span class="plus"></span> new session</button>
+          <nav class="nav">
+            <div class="navrow"><img src="../../../resources/icons/ui/box-muted-dark-1x.png" alt="">artifacts<span class="count">303</span></div>
+            <div class="navrow"><img src="../../../resources/icons/ui/check-muted-dark-1x.png" alt="">tasks<span class="count">4</span></div>
+            <div class="navrow active"><img src="../../../resources/icons/ui/list-accent-dark-1x.png" alt="">sessions<span class="count">30</span></div>
+            <div class="navrow"><img src="../../../resources/icons/ui/fork-muted-dark-1x.png" alt="">tree<span class="count">12</span></div>
+            <div class="navrow"><img src="../../../resources/icons/ui/plug-muted-dark-1x.png" alt="">extensions<span class="count">7</span></div>
+            <div class="navrow"><img src="../../../resources/icons/ui/terminal-muted-dark-1x.png" alt="">git</div>
+          </nav>
+        </div>
+
+        <div class="side-summary">
+          <span class="n" data-summary-run>2 running</span><span class="sep">·</span><span class="w" data-summary-need>1 needs you</span>
+        </div>
+
+        <div class="sessions">
+          <div class="section-label"><span>active</span><span class="n">3</span></div>
+
+          <div class="proc run active">
+            <div class="p1">
+              <span class="state">run</span>
+              <span class="pname">kernel audit</span>
+              <span class="spark"><i style="height:4px"></i><i style="height:9px"></i><i style="height:5px"></i><i style="height:11px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:4px"></i><i style="height:10px"></i><i style="height:6px"></i><i style="height:3px"></i></span>
+              <span class="ptime" data-elapsed="12">00:12</span>
+            </div>
+            <div class="p2"><span class="what">bash · cargo test</span></div>
+          </div>
+
+          <div class="proc wait" data-approval>
+            <div class="p1">
+              <span class="state">wait</span>
+              <span class="pname">refactor rpc</span>
+              <span class="spark"><i style="height:8px"></i><i style="height:5px"></i><i style="height:9px"></i><i style="height:4px"></i><i style="height:7px"></i><i style="height:3px"></i><i style="height:6px"></i><i style="height:2px"></i><i style="height:3px"></i><i style="height:2px"></i></span>
+              <span class="ptime" data-elapsed="23">00:23</span>
+            </div>
+            <div class="p2"><span class="what">approval · write src/rpc.rs</span></div>
+          </div>
+
+          <div class="proc run">
+            <div class="p1">
+              <span class="state">run</span>
+              <span class="pname">index docs</span>
+              <span class="spark"><i style="height:3px"></i><i style="height:6px"></i><i style="height:4px"></i><i style="height:9px"></i><i style="height:5px"></i><i style="height:7px"></i><i style="height:4px"></i><i style="height:8px"></i><i style="height:3px"></i><i style="height:5px"></i></span>
+              <span class="ptime" data-elapsed="4">00:04</span>
+            </div>
+            <div class="p2"><span class="what">read · docs/rpc.md</span></div>
+          </div>
+
+          <div class="recent-head" style="padding-left:2px"><span>recent</span><img src="../../../resources/icons/ui/search-muted-dark-1x.png" alt=""></div>
+          <div class="group"><img src="../../../resources/icons/ui/chevron-down-muted-dark-1x.png" alt="">playground<span class="count">17</span></div>
+
+          <div class="srow">
+            <span class="name">hi</span>
+            <span class="meta"><span class="udot ok"></span><span class="done">done</span><span class="kdot"></span><span class="age">2 min</span></span>
+          </div>
+          <div class="srow">
+            <span class="name">why my fedora isn't wo…</span>
+            <span class="meta">—<span class="kdot"></span><span class="age">11 h</span></span>
+          </div>
+          <div class="srow">
+            <span class="name">which one is better: mistra…</span>
+            <span class="meta">—<span class="kdot"></span><span class="age">11 h</span></span>
+          </div>
+        </div>
+
+        <div class="side-foot">pi 1.5.0</div>
+      </aside>
+
+      <section class="main">
+        <div class="rail-grip"></div>
+        <div class="pagehead">
+          <div class="page-title">kernel audit</div>
+          <div class="page-sub">deepseek v4.1 flash · $0.012</div>
+        </div>
+
+        <div class="chat">
+          <div class="stamp">12:04</div>
+
+          <div class="user">
+            Run the tests and find out why the RPC handshake hangs after reconnect.
+          </div>
+
+          <div class="nowcard">
+            <div class="n1"><span class="who">agent</span><span>working</span><span class="time" data-elapsed="12">00:12</span></div>
+            <div class="n2"><span class="tool">bash</span><span class="what">cargo test --lib</span><span class="dur" data-elapsed="7">00:07</span></div>
+            <div class="n3">+ read src/rpc.rs · + grep handshake · + read src/protocol.rs</div>
+          </div>
+
+          <div class="prose">
+            I am isolating the exact point where the supervisor drops the first frame; the suite
+            already covers the reconnect path<span class="caret"></span>
+          </div>
+        </div>
+
+        <div class="approval">
+          <span class="udot"></span>
+          <span>refactor rpc needs you:</span>
+          <span class="msg">write src/rpc.rs · replace the handshake parser</span>
+          <button class="go">open</button>
+        </div>
+
+        <div class="composer-wrap">
+          <div class="composer">
+            <div class="crow">
+              <div class="cinput">message… <b>(/ commands)</b></div>
+              <button class="icon-btn" title="anexar"><img src="../../../resources/icons/ui/plus-ink-dark-1x.png" alt=""></button>
+              <div class="chip-think high"><i></i>high</div>
+              <button class="icon-btn stop" title="parar"><span></span></button>
+              <button class="icon-btn accent" title="enviar"><span class="mask-ic"></span></button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="statusbar">
+      <span class="key">local</span><span class="sep">·</span><span class="val">~/playground</span><span class="sep">·</span><span class="val">$0.012</span><span class="sep">·</span><span class="key">ctx</span><span class="sep">·</span><span class="val">12%</span>
+      <div class="right">
+        <span class="key">permissions:</span><span class="val">smart</span>
+        <span class="sep">·</span><span class="dot"></span><span>connected</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="spec">
+    <div>
+      <h3>where it lives</h3>
+      <p>Sidebar: summary, an <b>active</b> section with state, sparkline, and time, plus <b>recent</b>
+      with unread items. In chat: a “now” card with the current tool and the approval strip.</p>
+    </div>
+    <div>
+      <h3>what changes</h3>
+      <p>State is explicit: <b class="accent">run</b>, <b class="warn">wait</b>,
+      <b class="ok">done</b>. The session that needs you is the only amber thing on screen; the
+      rest stays quiet. The card collapses into the receipt when the turn closes.</p>
+    </div>
+    <div>
+      <h3>multi-session</h3>
+      <p>This concept is built for parallelism: three active sessions, one waiting for permission.
+      The approval strip brings the background session forward without switching tabs; the waiting
+      tab gets “!”.</p>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span>static prototype · espresso shot theme · 1280px chrome</span>
+    <span>04 / 04</span>
+  </footer>
+</main>
+
+<script>
+const params = new URLSearchParams(location.search);
+const staticshot = params.has('static');
+if (params.has('shot')) document.documentElement.classList.add('shot');
+if (params.has('sim')) window.addEventListener('load', () => document.querySelector('[data-sim]').click());
+const clocks = [...document.querySelectorAll('[data-elapsed]')].map((el) => ({
+  el,
+  value: Number(el.dataset.elapsed) || 0
+}));
+
+if (!staticshot) {
+  setInterval(() => {
+    clocks.forEach((clock) => {
+      clock.value += 1;
+      clock.el.textContent =
+        String(Math.floor(clock.value / 60)).padStart(2, '0') + ':' +
+        String(clock.value % 60).padStart(2, '0');
+    });
+  }, 1000);
+}
+
+document.querySelector('[data-sim]').addEventListener('click', (event) => {
+  document.documentElement.classList.toggle('sim-running');
+  event.currentTarget.classList.toggle('on');
+
+  const waiting = document.querySelector('.proc.wait, .proc.run[data-approval]');
+  const banner = document.querySelector('.approval');
+  const tab = document.querySelector('.tab-group.waiting, .tab-group.running[data-approval]');
+  const approved = waiting.classList.contains('run');
+
+  waiting.classList.toggle('run', !approved);
+  waiting.classList.toggle('wait', approved);
+  waiting.querySelector('.state').textContent = approved ? 'wait' : 'run';
+  waiting.querySelector('.what').textContent = approved
+    ? 'approval · write src/rpc.rs'
+    : 'bash · cargo test';
+
+  banner.style.display = approved ? '' : 'none';
+  tab.classList.toggle('waiting', approved);
+  tab.classList.toggle('running', !approved);
+
+  document.querySelector('[data-summary-run]').textContent = approved ? '2 running' : '3 running';
+  document.querySelector('[data-summary-need]').textContent = approved ? '1 needs you' : '0 needs you';
+});
+</script>
+</body>
+</html>

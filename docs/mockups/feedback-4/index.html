@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pi Desktop — 4 AI feedback ideas</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  .intro { max-width: 92ch; margin: 0 0 28px; color: var(--text-base); font-size: 16px; line-height: 1.55; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: max-content; align-items: start; gap: 22px 20px; }
+  .card {
+    border: 1px solid var(--panel);
+    background: var(--canvas);
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    align-self: start;
+  }
+  .card a.shot { display: block; border-bottom: 1px solid var(--panel); background: var(--page); overflow: hidden; }
+  .card img { width: 100%; height: auto; display: block; }
+  .card .cbody { padding: 13px 15px 15px; display: flex; flex-direction: column; gap: 7px; }
+  .card .top { display: flex; align-items: baseline; gap: 9px; }
+  .card .num {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .08em;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 1px 5px;
+  }
+  .card h2 { margin: 0; font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+  .card .where { margin-left: auto; font-family: var(--mono); font-size: 9px; letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+  .card p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--text-base); }
+  .card .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px; }
+  .card .tags span {
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--hairline);
+    padding: 1px 5px;
+  }
+  .card .open {
+    margin-top: 4px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .card .open:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  .compare { margin-top: 40px; }
+  .compare h2, .pick h2 {
+    margin: 0 0 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td {
+    border-top: 1px solid var(--hairline);
+    padding: 9px 12px 9px 0;
+    text-align: left;
+    vertical-align: top;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-base);
+  }
+  th {
+    font-family: var(--mono);
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--dim);
+    border-top: 0;
+    padding-top: 0;
+  }
+  td:first-child { width: 150px; font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--text); }
+  td:nth-child(2) { width: 30%; }
+  td:nth-child(3) { width: 26%; }
+  td:nth-child(4) { width: 16%; }
+  td:nth-child(5) { width: 14%; }
+  td .accent { color: var(--accent); }
+  td .ok { color: var(--success); }
+  td .warn { color: var(--warning); }
+
+  .pick {
+    margin-top: 34px;
+    border: 1px solid var(--accent);
+    background: var(--canvas);
+    padding: 14px 16px;
+  }
+  .pick p { margin: 0; font-size: 15px; line-height: 1.55; color: var(--text-base); max-width: 100ch; }
+  .pick b { color: var(--text); font-weight: 500; }
+  .note { margin-top: 18px; font-family: var(--mono); font-size: 9px; line-height: 1.7; letter-spacing: .05em; text-transform: uppercase; color: var(--dim); }
+</style>
+</head>
+<body>
+<main class="stage">
+
+  <nav class="proto-nav">
+    <span class="brand">PI DESKTOP · FEEDBACK DE IA</span>
+    <a class="on" href="index.html">index</a>
+    <a href="pulso.html">01 pulse</a>
+    <a href="trilho.html">02 track</a>
+    <a href="atividade.html">03 activity</a>
+    <a href="processos.html">04 processes</a>
+  </nav>
+
+  <header class="proto-head">
+    <div>
+      <div class="kicker"><span class="num">UX</span> four mechanisms · same window · same palette</div>
+      <h1>Four ways to see the AI working</h1>
+      <p class="lead">The problem is not “missing spinner”: the gap between sending and receiving has
+      no visible beginning, middle, or end. Each prototype solves that in a different place and
+      carries the same state into the sidebar, so you know — without switching tabs — which parallel
+      session is working, waiting for you, or finished.</p>
+    </div>
+  </header>
+
+  <p class="intro">All four start from the same scene: one session running the suite, one background
+  session refactoring the RPC, and a third waiting for permission. The chrome, fonts, tokens, and
+  dimensions are the app’s (Espresso Shot, 1280px). What changes is where the proof of work lives.</p>
+
+  <section class="grid">
+    <article class="card">
+      <a class="shot" href="pulso.html"><img src="shots/pulso.png" alt="Pulse prototype"></a>
+      <div class="cbody">
+        <div class="top"><span class="num">01</span><h2>Pulse</h2><span class="where">on the message</span></div>
+        <p>The sent block’s edge becomes a 1px track and the receipt below reports phase and time.
+        In the sidebar, the background session breathes and shows the phase where the model used to be.</p>
+        <div class="tags"><span>1px</span><span>no new space</span><span>chat mode</span><span>low cost</span></div>
+        <a class="open" href="pulso.html">open prototype →</a>
+      </div>
+    </article>
+
+    <article class="card">
+      <a class="shot" href="trilho.html"><img src="shots/trilho.png" alt="Turn track prototype"></a>
+      <div class="cbody">
+        <div class="top"><span class="num">02</span><h2>Turn track</h2><span class="where">between messages</span></div>
+        <p>Four stations — sent, think, tools, write — with the current action below. It collapses
+        into a receipt when the turn closes. The sidebar repeats the track in miniature per session.</p>
+        <div class="tags"><span>4 phases</span><span>code mode</span><span>long turns</span><span>medium cost</span></div>
+        <a class="open" href="trilho.html">open prototype →</a>
+      </div>
+    </article>
+
+    <article class="card">
+      <a class="shot" href="atividade.html"><img src="shots/atividade.png" alt="Activity line prototype"></a>
+      <div class="cbody">
+        <div class="top"><span class="num">03</span><h2>Activity line</h2><span class="where">above the composer</span></div>
+        <p>A 30px strip shows the current event and expands into a tool log. The chat stays clean;
+        running sessions leave “recent” and move up to “working”.</p>
+        <div class="tags"><span>events</span><span>log</span><span>many tools</span><span>medium cost</span></div>
+        <a class="open" href="atividade.html">open prototype →</a>
+      </div>
+    </article>
+
+    <article class="card">
+      <a class="shot" href="processos.html"><img src="shots/processos.png" alt="Sessions as processes prototype"></a>
+      <div class="cbody">
+        <div class="top"><span class="num">04</span><h2>Sessions as processes</h2><span class="where">in the sidebar</span></div>
+        <p>The list becomes a control room: run, wait, done, sparkline, and time. The session that
+        needs you is the only amber thing on screen; an approval strip brings it forward.</p>
+        <div class="tags"><span>parallelism</span><span>attention</span><span>approval</span><span>high cost</span></div>
+        <a class="open" href="processos.html">open prototype →</a>
+      </div>
+    </article>
+  </section>
+
+  <section class="compare">
+    <h2>Direct comparison</h2>
+    <table>
+      <thead>
+        <tr><th>idea</th><th>chat feedback</th><th>sidebar</th><th>best for</th><th>cost</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>01 pulse</td>
+          <td>1px track on the message + <span class="accent">thinking · 00:07</span> receipt.</td>
+          <td>Breathing bar, phase instead of model, its own clock; tab with a dot.</td>
+          <td>Daily use in chat and code; wants a signal without taking space.</td>
+          <td>Low</td>
+        </tr>
+        <tr>
+          <td>02 track</td>
+          <td>Four stations and current action; collapses into a receipt on completion.</td>
+          <td>4-segment micro-track + phase per session.</td>
+          <td>Long turns with tools; code mode.</td>
+          <td>Medium</td>
+        </tr>
+        <tr>
+          <td>03 activity</td>
+          <td>30px strip with the current event; expandable tool log.</td>
+          <td><b>working</b> section with last event and progress bar.</td>
+          <td>Many tools and a need to audit what ran.</td>
+          <td>Medium</td>
+        </tr>
+        <tr>
+          <td>04 processes</td>
+          <td>“now” card with tool and time; approval strip.</td>
+          <td>run / wait / done list with sparkline, time, and unread items.</td>
+          <td>Several parallel sessions and permission requests.</td>
+          <td>High</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="pick">
+    <h2>If you pick one path</h2>
+    <p><b>01 as the base</b> for the turn (lowest cost and covers “nothing happens” without
+    clutter), with the <b>sidebar from 04</b> for multiple sessions — because the parallelism problem
+    is not showing progress, it is showing <b>who needs you</b>. The track from 02 and the log from 03
+    can land later as an expandable detail of the same state, without duplicating the fact on screen.</p>
+  </section>
+
+  <p class="note">Open the HTML files individually to see the animations (breathing bar, marching
+  track, rolling log, sparkline). The PNGs in <b>shots/</b> are only the static state. Every prototype
+  uses the Espresso Shot flavor tokens and the app’s real assets.</p>
+
+  <footer class="foot">
+    <span>prototypes · pi desktop 1.4.0 · 1280px chrome</span>
+    <span>index</span>
+  </footer>
+</main>
+</body>
+</html>

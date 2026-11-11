@@ -347,6 +347,62 @@ separator {
   background-color: @accent;
 }
 
+.session-item.running {
+  background-color: alpha(@accent, 0.05);
+}
+
+.session-item.running:not(.active) .nav-indicator {
+  background-color: @accent;
+  animation: session-breathe 1.6s ease-in-out infinite;
+}
+
+.session-item.running .session-name {
+  color: @text;
+}
+
+.session-phase {
+  color: @warning;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.session-done {
+  color: @success;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.session-pulse {
+  min-height: 9px;
+}
+
+.session-pulse-bar {
+  min-width: 2px;
+  min-height: 9px;
+  background-color: @accent;
+  animation: session-bar 1s ease-in-out infinite;
+}
+
+.session-pulse-bar.p2 {
+  animation-delay: 0.16s;
+}
+
+.session-pulse-bar.p3 {
+  animation-delay: 0.32s;
+}
+
+@keyframes session-breathe {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+@keyframes session-bar {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
 .session-name {
   font-family: "JetBrains Mono", monospace;
   font-size: 12px;
@@ -460,6 +516,39 @@ separator {
   border: 1px solid @user_message_border;
   border-radius: 0;
   padding: 10px 12px;
+}
+
+.turn-track {
+  min-height: 1px;
+  background-color: @border_muted;
+}
+
+.turn-receipt {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.turn-phase {
+  color: @warning;
+}
+
+.turn-phase.done {
+  color: @success;
+}
+
+.turn-phase.error {
+  color: @error;
+}
+
+.turn-sep {
+  color: @dim;
+}
+
+.turn-detail {
+  color: @muted;
 }
 
 .user-image {
@@ -1302,6 +1391,115 @@ entry.plugin-entry:focus-within {
   border-color: @error;
 }
 
+.plugin-config {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  color: @muted;
+  min-width: 28px;
+  min-height: 24px;
+  padding: 0 6px;
+  box-shadow: none;
+}
+
+.plugin-config:hover {
+  color: @accent;
+  border-color: @accent;
+}
+
+.plugin-config-window {
+  background-color: @page_bg;
+}
+
+.plugin-config-path {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: @muted;
+}
+
+.plugin-config-text,
+.plugin-config-text text {
+  background-color: @canvas;
+  color: @text;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+}
+
+.plugin-config-status {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.plugin-config-status.error {
+  color: @error;
+}
+
+.trash-window,
+.trash-window scrolledwindow,
+.trash-window viewport,
+.trash-list {
+  background-color: @page_bg;
+}
+
+.trash-scroll {
+  background-color: @page_bg;
+}
+
+.trash-list {
+  padding: 4px 0;
+}
+
+.trash-row {
+  padding: 12px 16px;
+  border-bottom: 1px solid alpha(@border, 0.45);
+}
+
+.trash-name {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @text;
+}
+
+.trash-path {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: @text_base;
+}
+
+.trash-meta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: @muted;
+}
+
+.trash-empty {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  line-height: 1.7;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.trash-status {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: @muted;
+}
+
+.trash-status.error {
+  color: @error;
+}
+
 .plugin-remove:disabled {
   color: @dim;
   border-color: @border;
@@ -2106,6 +2304,33 @@ window.pi-settings > decoration,
 }
 
 .settings-save:hover {
+  border-color: @accent;
+  color: @accent;
+}
+
+.settings-cancel {
+  background-color: transparent;
+  background-image: none;
+  color: @text;
+  border: 1px solid @border;
+  border-radius: 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  min-height: 30px;
+  padding: 0 14px;
+  box-shadow: none;
+}
+
+.settings-cancel label {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+}
+
+.settings-cancel:hover {
   border-color: @accent;
   color: @accent;
 }
@@ -2939,6 +3164,14 @@ entry placeholder {
   margin-top: 1px;
 }
 
+.session-tab-dot {
+  min-width: 5px;
+  min-height: 5px;
+  margin: 0 4px 0 7px;
+  background-color: @accent;
+  animation: session-breathe 1.3s ease-in-out infinite;
+}
+
 .session-tab {
   background: none;
   background-image: none;
@@ -2973,25 +3206,12 @@ entry placeholder {
   padding: 0 7px;
 }
 
-.page-head {
-  padding: 16px 24px 2px 24px;
-}
-
 .page-title {
   font-family: "Pixelify Sans", serif;
   font-size: 27px;
   font-weight: 500;
   letter-spacing: -0.01em;
   color: @text;
-}
-
-.page-sub {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 9px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: @muted;
-  padding-top: 2px;
 }
 
 
@@ -3101,15 +3321,6 @@ entry placeholder {
 
 .rail-activity-error {
   color: @error;
-}
-
-.rail-pulse {
-  animation: rail-pulse 1.3s ease-in-out infinite;
-}
-
-@keyframes rail-pulse {
-  0%, 100% { opacity: .45; }
-  50% { opacity: 1; }
 }
 
 .rail-block-title {
@@ -3274,11 +3485,34 @@ entry placeholder {
 
 
 .rail-handle {
-  min-width: 6px;
+  min-width: 18px;
   background-color: transparent;
 }
 
-.rail-handle:hover {
+.rail-handle.closed {
+  border-left: 1px solid @border;
+}
+
+.rail-toggle {
+  min-width: 18px;
+  min-height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  background-image: none;
+}
+
+.rail-toggle:hover {
+  border-color: @border;
+  background-color: alpha(@accent, 0.08);
+}
+
+.rail-grip {
+  min-width: 18px;
+  background-color: transparent;
+}
+
+.rail-grip:hover {
   background-color: alpha(@accent, 0.18);
 }
 
@@ -3719,12 +3953,6 @@ entry placeholder {
 }
 
 
-
-.rail-activity-marker {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 13px;
-  color: @dim;
-}
 
 .rail-activity-output {
   font-family: "JetBrains Mono", monospace;

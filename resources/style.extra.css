@@ -162,6 +162,14 @@ entry placeholder {
   margin-top: 1px;
 }
 
+.session-tab-dot {
+  min-width: 5px;
+  min-height: 5px;
+  margin: 0 4px 0 7px;
+  background-color: @accent;
+  animation: session-breathe 1.3s ease-in-out infinite;
+}
+
 .session-tab {
   background: none;
   background-image: none;
@@ -196,25 +204,12 @@ entry placeholder {
   padding: 0 7px;
 }
 
-.page-head {
-  padding: 16px 24px 2px 24px;
-}
-
 .page-title {
   font-family: "Pixelify Sans", serif;
   font-size: 27px;
   font-weight: 500;
   letter-spacing: -0.01em;
   color: @text;
-}
-
-.page-sub {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 9px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: @muted;
-  padding-top: 2px;
 }
 
 
@@ -324,15 +319,6 @@ entry placeholder {
 
 .rail-activity-error {
   color: @error;
-}
-
-.rail-pulse {
-  animation: rail-pulse 1.3s ease-in-out infinite;
-}
-
-@keyframes rail-pulse {
-  0%, 100% { opacity: .45; }
-  50% { opacity: 1; }
 }
 
 .rail-block-title {
@@ -497,11 +483,34 @@ entry placeholder {
 
 
 .rail-handle {
-  min-width: 6px;
+  min-width: 18px;
   background-color: transparent;
 }
 
-.rail-handle:hover {
+.rail-handle.closed {
+  border-left: 1px solid @border;
+}
+
+.rail-toggle {
+  min-width: 18px;
+  min-height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  background-image: none;
+}
+
+.rail-toggle:hover {
+  border-color: @border;
+  background-color: alpha(@accent, 0.08);
+}
+
+.rail-grip {
+  min-width: 18px;
+  background-color: transparent;
+}
+
+.rail-grip:hover {
   background-color: alpha(@accent, 0.18);
 }
 
@@ -942,12 +951,6 @@ entry placeholder {
 }
 
 
-
-.rail-activity-marker {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 13px;
-  color: @dim;
-}
 
 .rail-activity-output {
   font-family: "JetBrains Mono", monospace;

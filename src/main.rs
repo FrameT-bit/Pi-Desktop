@@ -56,11 +56,11 @@ fn main() -> glib::ExitCode {
             || arg.starts_with("./");
         if looks_like_path {
             eprintln!(
-                "pi-desktop: unknown file argument (Pi read by way): {}",
+                "pi-desktop: unrecognized file argument: {}",
                 path.display()
             );
         } else {
-            eprintln!("pi-desktop: unknown unknown argument: {arg}");
+            eprintln!("pi-desktop: unrecognized argument: {arg}");
         }
     }
 

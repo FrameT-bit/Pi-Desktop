@@ -2,6 +2,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::time::Duration;
 
 use gtk::prelude::*;
 use serde_json::{json, Value};
@@ -10,6 +11,7 @@ use crate::diff;
 use crate::icons::{self, Tone};
 use crate::images::{self, ImageBlock};
 use crate::markdown;
+use crate::state::format_tokens;
 use crate::theme::Theme;
 
 use super::thumb;
@@ -40,6 +42,8 @@ pub struct ChatView {
     on_empty_action: RefCell<Option<Box<dyn Fn(&str)>>>,
     chat_mode: Cell<bool>,
     tool_rows: RefCell<Vec<ToolRow>>,
+    theme: Theme,
+    turn: RefCell<Option<TurnUi>>,
 }
 
 struct Find {
@@ -84,6 +88,130 @@ struct Stream {
     label: gtk::Label,
     text: String,
     rendered: usize,
+}
+
+struct TurnUi {
+    root: gtk::Box,
+    phase: gtk::Label,
+    detail: gtk::Label,
+    track: gtk::DrawingArea,
+    running: Rc<Cell<bool>>,
+    offset: Rc<Cell<i32>>,
+    source: RefCell<Option<glib::SourceId>>,
+}
+
+impl TurnUi {
+    fn new(bubble: gtk::Box, theme: &Theme) -> Self {
+        bubble.set_halign(gtk::Align::Fill);
+
+        let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        root.set_halign(gtk::Align::End);
+        root.set_valign(gtk::Align::Start);
+
+        let track = gtk::DrawingArea::new();
+        track.add_css_class("turn-track");
+        track.set_height_request(1);
+        track.set_hexpand(true);
+        track.set_halign(gtk::Align::Fill);
+        let offset = Rc::new(Cell::new(-72));
+        let draw_offset = offset.clone();
+        let draw_theme = theme.clone();
+        track.set_draw_func(move |_, cr, width, height| {
+            let (br, bg, bb) = draw_theme.border_rgb();
+            cr.set_source_rgba(br, bg, bb, 0.25);
+            cr.rectangle(0.0, 0.0, width as f64, height as f64);
+            let _ = cr.fill();
+            let (ar, ag, ab) = draw_theme.accent_rgb();
+            cr.set_source_rgb(ar, ag, ab);
+            cr.rectangle(draw_offset.get() as f64, 0.0, 72.0, height as f64);
+            let _ = cr.fill();
+        });
+
+        let receipt = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        receipt.add_css_class("turn-receipt");
+        receipt.set_halign(gtk::Align::End);
+        receipt.set_margin_top(4);
+        let phase = gtk::Label::new(Some("SENT"));
+        phase.add_css_class("turn-phase");
+        let sep = gtk::Label::new(Some("·"));
+        sep.add_css_class("turn-sep");
+        let detail = gtk::Label::new(Some("00:00 · 0 tok"));
+        detail.add_css_class("turn-detail");
+        receipt.append(&phase);
+        receipt.append(&sep);
+        receipt.append(&detail);
+
+        root.append(&bubble);
+        root.append(&track);
+        root.append(&receipt);
+
+        let turn = Self {
+            root,
+            phase,
+            detail,
+            track,
+            running: Rc::new(Cell::new(false)),
+            offset,
+            source: RefCell::new(None),
+        };
+        turn.start();
+        turn
+    }
+
+    fn start(&self) {
+        if self.source.borrow().is_some() {
+            return;
+        }
+        self.running.set(true);
+        let running = self.running.clone();
+        let track = self.track.clone();
+        let offset = self.offset.clone();
+        let id = glib::timeout_add_local(Duration::from_millis(40), move || {
+            if !running.get() {
+                return glib::ControlFlow::Break;
+            }
+            let width = track.width().max(1);
+            let span = width + 72;
+            let next = (offset.get() + 5) % span;
+            offset.set(next);
+            track.queue_draw();
+            glib::ControlFlow::Continue
+        });
+        *self.source.borrow_mut() = Some(id);
+    }
+
+    fn stop(&self) {
+        self.running.set(false);
+        if let Some(id) = self.source.borrow_mut().take() {
+            id.remove();
+        }
+        self.offset.set(-72);
+        self.track.queue_draw();
+    }
+
+    fn set(&self, phase: &str, elapsed: &str, tokens: u64, running: bool) {
+        self.phase.set_text(phase);
+        self.phase.remove_css_class("done");
+        self.phase.remove_css_class("error");
+        if phase == "DONE" {
+            self.phase.add_css_class("done");
+        } else if phase == "ERROR" || phase == "STOPPED" {
+            self.phase.add_css_class("error");
+        }
+        self.detail
+            .set_text(&format!("{elapsed} · {} tok", format_tokens(tokens)));
+        if running {
+            self.start();
+        } else {
+            self.stop();
+        }
+    }
+}
+
+impl Drop for TurnUi {
+    fn drop(&mut self) {
+        self.stop();
+    }
 }
 
 impl ChatView {
@@ -197,6 +325,8 @@ impl ChatView {
             on_empty_action: RefCell::new(None),
             chat_mode: Cell::new(false),
             tool_rows: RefCell::new(Vec::new()),
+            theme: theme.clone(),
+            turn: RefCell::new(None),
             last_think_follow: Cell::new(None),
             find: RefCell::new(Find {
                 entry: find_entry,
@@ -574,7 +704,27 @@ impl ChatView {
         self.messages.borrow_mut().push(message);
         let block = user_block(text, mark, self.width.get(), images);
         self.wire_user_menu(&block, text);
-        self.push_stamped(&block);
+        if mark.is_none() && !text.trim().is_empty() {
+            let turn = TurnUi::new(block, &self.theme);
+            let root = turn.root.clone();
+            *self.turn.borrow_mut() = Some(turn);
+            self.push_stamped(&root);
+        } else {
+            self.push_stamped(&block);
+        }
+    }
+
+    pub fn turn_update(&self, phase: &str, elapsed: &str, tokens: u64) {
+        if let Some(turn) = self.turn.borrow().as_ref() {
+            let running = phase != "DONE" && phase != "ERROR" && phase != "STOPPED";
+            turn.set(phase, elapsed, tokens, running);
+        }
+    }
+
+    pub fn turn_finish(&self, phase: &str, elapsed: &str, tokens: u64) {
+        if let Some(turn) = self.turn.borrow().as_ref() {
+            turn.set(phase, elapsed, tokens, false);
+        }
     }
 
     pub fn append_user_record(&self, message: &Value) {
@@ -912,7 +1062,7 @@ impl ChatView {
         let ok = !cancelled && exit_code.unwrap_or(1) == 0;
         row.set_state(if ok { "success" } else { "error" });
         let meta = if cancelled {
-            "cancelado".to_string()
+            "canceled".to_string()
         } else {
             let mut meta = match exit_code {
                 Some(code) => format!("output {code}"),
@@ -992,6 +1142,7 @@ impl ChatView {
 
     pub fn clear(&self) {
         self.find_reset();
+        self.turn.borrow_mut().take();
         while let Some(child) = self.list.first_child() {
             self.list.remove(&child);
         }

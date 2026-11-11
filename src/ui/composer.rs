@@ -239,7 +239,7 @@ impl Composer {
         stop.add_css_class("composer-stop");
         let stop_icon = icons::icon("stop", Tone::Accent);
         stop.set_child(Some(&stop_icon));
-        stop.set_tooltip_text(Some("Stop (stop) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ."));
+        stop.set_tooltip_text(Some("Stop the running turn (Esc)"));
         stop.set_valign(gtk::Align::End);
         stop.set_visible(false);
 
@@ -1135,9 +1135,9 @@ impl Composer {
         let bash = self.bash_running.get();
         self.stop.set_visible(running || bash);
         let tooltip = if bash {
-            "Stop bash (abort_bash)"
+            "Stop the bash command"
         } else {
-            "Stop (stop) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ."
+            "Stop the running turn (Esc)"
         };
         self.stop.set_tooltip_text(Some(tooltip));
     }
@@ -1148,9 +1148,9 @@ impl Composer {
             return;
         }
         self.queue.set_text(&if count == 1 {
-            "1 IN THE FILA".to_string()
+            "1 QUEUED".to_string()
         } else {
-            format!("{count} IN QUEUE")
+            format!("{count} QUEUED")
         });
         self.queue.set_visible(true);
     }

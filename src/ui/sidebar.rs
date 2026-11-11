@@ -1,6 +1,6 @@
 
 use std::cell::{Cell, RefCell};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Duration;
@@ -9,13 +9,14 @@ use gtk::prelude::*;
 
 use crate::icons::{self, Tone};
 use crate::session_ops::{project_label, session_slug};
-use crate::state::{AppState, ModelItem, RemoteSession, PI_VERSION};
+use crate::state::{AppState, ModelItem, RemoteSession, SessionActivity, PI_VERSION};
 
 use super::menu;
 
 pub type SelectFn = Box<dyn Fn(usize)>;
 pub type RowFn = Box<dyn Fn(usize)>;
 pub type RenameFn = Box<dyn Fn(usize, String)>;
+pub type WorkspaceFn = Box<dyn Fn(String, String, Vec<String>)>;
 
 const SEARCH_DEBOUNCE_MS: u64 = 150;
 const CLICK_DELAY_MS: u64 = 200;
@@ -42,6 +43,7 @@ pub struct SidebarInner {
     section_label: gtk::Label,
     divider: gtk::Separator,
     footer: gtk::Box,
+    trash_button: gtk::Button,
     pub session_list: gtk::Box,
     pub session_scroll: gtk::ScrolledWindow,
     pub search_entry: gtk::Entry,
@@ -52,15 +54,19 @@ pub struct SidebarInner {
     on_delete: RefCell<Option<RowFn>>,
     on_export: RefCell<Option<RowFn>>,
     on_open_side: RefCell<Option<RowFn>>,
+    on_delete_workspace: Rc<RefCell<Option<WorkspaceFn>>>,
+    on_open_trash: RefCell<Option<Box<dyn Fn()>>>,
     current_session: RefCell<String>,
     all: RefCell<Vec<(usize, RemoteSession)>>,
     models: RefCell<Vec<ModelItem>>,
+    activity: RefCell<HashMap<String, SessionActivity>>,
     active: Cell<Option<usize>>,
     collapsed: RefCell<HashSet<String>>,
     query: RefCell<String>,
     debounce: RefCell<Option<glib::SourceId>>,
     pending_select: RefCell<Option<glib::SourceId>>,
     row_widgets: RefCell<Vec<(usize, gtk::Box, gtk::Box, gtk::Label, String)>>,
+    age_labels: RefCell<Vec<(String, gtk::Label)>>,
 }
 
 impl Deref for SidebarUi {
@@ -172,8 +178,15 @@ impl SidebarUi {
         let spacer_footer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         spacer_footer.set_hexpand(true);
 
+        let trash_button = gtk::Button::new();
+        trash_button.add_css_class("sidebar-trash");
+        trash_button.set_child(Some(&icons::icon("trash", Tone::Muted)));
+        trash_button.set_valign(gtk::Align::Center);
+        trash_button.set_tooltip_text(Some("deleted workspaces"));
+
         footer.append(&version);
         footer.append(&spacer_footer);
+        footer.append(&trash_button);
         root.append(&footer);
 
         let inner = Rc::new(SidebarInner {
@@ -185,6 +198,7 @@ impl SidebarUi {
             section_label: section,
             divider,
             footer,
+            trash_button,
             session_list,
             session_scroll,
             search_entry,
@@ -195,20 +209,37 @@ impl SidebarUi {
             on_delete: RefCell::new(None),
             on_export: RefCell::new(None),
             on_open_side: RefCell::new(None),
+            on_delete_workspace: Rc::new(RefCell::new(None)),
+            on_open_trash: RefCell::new(None),
             current_session: RefCell::new(String::new()),
             all: RefCell::new(Vec::new()),
             models: RefCell::new(Vec::new()),
+            activity: RefCell::new(HashMap::new()),
             active: Cell::new(None),
             collapsed: RefCell::new(HashSet::new()),
             query: RefCell::new(String::new()),
             debounce: RefCell::new(None),
             pending_select: RefCell::new(None),
             row_widgets: RefCell::new(Vec::new()),
+            age_labels: RefCell::new(Vec::new()),
         });
         let sidebar = Self { inner };
+        {
+            let inner = sidebar.inner.clone();
+            sidebar.trash_button.connect_clicked(move |_| {
+                if let Some(callback) = inner.on_open_trash.borrow().as_ref() {
+                    callback();
+                }
+            });
+        }
         sidebar.set_active(2);
         sidebar.wire_search();
-        sidebar.set_sessions(&state.sessions, state.active_session, &state.models);
+        sidebar.set_sessions(
+            &state.sessions,
+            state.active_session,
+            &state.models,
+            &HashMap::new(),
+        );
         sidebar
     }
 
@@ -289,8 +320,26 @@ impl SidebarUi {
         *self.on_open_side.borrow_mut() = Some(Box::new(callback));
     }
 
+    pub fn set_on_delete_workspace(&self, callback: impl Fn(String, String, Vec<String>) + 'static) {
+        *self.on_delete_workspace.borrow_mut() = Some(Box::new(callback));
+    }
+
+    pub fn set_on_open_trash(&self, callback: impl Fn() + 'static) {
+        *self.on_open_trash.borrow_mut() = Some(Box::new(callback));
+    }
+
     pub fn set_current_session(&self, id: &str) {
         *self.current_session.borrow_mut() = id.to_string();
+    }
+
+    pub fn tick_activity(&self, activity: &HashMap<String, SessionActivity>) {
+        for (id, label) in self.age_labels.borrow().iter() {
+            if let Some(entry) = activity.get(id) {
+                if entry.running {
+                    label.set_text(&entry.elapsed_label());
+                }
+            }
+        }
     }
 
     pub fn set_sessions(
@@ -298,9 +347,11 @@ impl SidebarUi {
         sessions: &[RemoteSession],
         active: Option<usize>,
         models: &[ModelItem],
+        activity: &HashMap<String, SessionActivity>,
     ) {
         *self.all.borrow_mut() = sessions.iter().cloned().enumerate().collect();
         *self.models.borrow_mut() = models.to_vec();
+        *self.activity.borrow_mut() = activity.clone();
         self.active.set(active);
         self.inner.rebuild();
     }
@@ -401,6 +452,7 @@ impl SidebarInner {
             self.session_list.remove(&child);
         }
         self.row_widgets.borrow_mut().clear();
+        self.age_labels.borrow_mut().clear();
 
         let models = self.models.borrow();
         let query = self.query.borrow().trim().to_lowercase();
@@ -448,6 +500,36 @@ impl SidebarInner {
                 self.session_list.append(&row);
             }
         }
+    }
+
+    fn show_group_menu(self: &Rc<Self>, anchor: &gtk::Button, slug: &str) {
+        let label = project_label(slug);
+        let paths: Vec<String> = self
+            .all
+            .borrow()
+            .iter()
+            .filter(|(_, session)| session_slug(&session.path) == slug)
+            .map(|(_, session)| session.path.clone())
+            .collect();
+        if paths.is_empty() {
+            return;
+        }
+        let dir = std::path::Path::new(&paths[0])
+            .parent()
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let callback = self.on_delete_workspace.clone();
+        let label_c = label.clone();
+        let dir_c = dir.clone();
+        let paths_c = paths.clone();
+        menu::show_items(
+            anchor,
+            vec![menu::Item::new("Delete workspace…", move || {
+                if let Some(callback) = callback.borrow().as_ref() {
+                    callback(label_c.clone(), dir_c.clone(), paths_c.clone());
+                }
+            })],
+        );
     }
 
     fn list_message(&self, text: &str) {
@@ -516,6 +598,9 @@ impl SidebarInner {
         button.add_css_class("session-group");
         button.set_halign(gtk::Align::Fill);
         button.set_child(Some(&body));
+        button.set_tooltip_text(Some(&format!(
+            "{label} · right-click for workspace actions"
+        )));
 
         let key = slug.to_string();
         let inner = self.clone();
@@ -525,6 +610,17 @@ impl SidebarInner {
             }
             inner.rebuild();
         });
+
+        let inner = self.clone();
+        let anchor = button.clone();
+        let key = slug.to_string();
+        let menu_gesture = gtk::GestureClick::new();
+        menu_gesture.set_button(gtk::gdk::BUTTON_SECONDARY);
+        menu_gesture.connect_pressed(move |gesture, _, _, _| {
+            gesture.set_state(gtk::EventSequenceState::Claimed);
+            inner.show_group_menu(&anchor, &key);
+        });
+        button.add_controller(menu_gesture);
         button
     }
 
@@ -537,10 +633,23 @@ impl SidebarInner {
         let is_active = self.active.get() == Some(index);
         let title = session.title();
 
+        let activity = self.activity.borrow().get(&session.session_id).cloned();
+        let running = activity.as_ref().is_some_and(|activity| activity.running);
+        let unread = activity.as_ref().is_some_and(|activity| activity.unread);
+        let phase = activity
+            .as_ref()
+            .map(|activity| activity.phase.clone())
+            .filter(|phase| !phase.trim().is_empty())
+            .unwrap_or_else(|| "RUNNING".to_string());
+        let elapsed = activity
+            .as_ref()
+            .map(|activity| activity.elapsed_label())
+            .unwrap_or_default();
+
         let indicator = gtk::Box::new(gtk::Orientation::Vertical, 0);
         indicator.add_css_class("nav-indicator");
         indicator.set_valign(gtk::Align::Fill);
-        indicator.set_visible(is_active);
+        indicator.set_visible(is_active || running);
 
         let name = gtk::Label::new(Some(&title));
         name.add_css_class("session-name");
@@ -549,21 +658,47 @@ impl SidebarInner {
         name.set_lines(1);
         name.set_tooltip_text(Some(&title));
 
-        let meta = gtk::Label::new(Some(&session.model_label(models)));
+        let model_label = session.model_label(models);
+        let meta_text = if running { &phase } else { &model_label };
+        let meta = gtk::Label::new(Some(meta_text));
         meta.add_css_class("session-meta");
+        if running {
+            meta.add_css_class("session-phase");
+        }
         meta.set_xalign(0.0);
         meta.set_ellipsize(gtk::pango::EllipsizeMode::End);
         meta.set_lines(1);
         meta.set_hexpand(true);
 
-        let age = gtk::Label::new(Some(&session.age()));
+        let age_text = if running { elapsed.clone() } else { session.age() };
+        let age = gtk::Label::new(Some(&age_text));
         age.add_css_class("session-age");
+        self.age_labels
+            .borrow_mut()
+            .push((session.session_id.clone(), age.clone()));
         age.set_xalign(1.0);
         age.set_valign(gtk::Align::End);
 
         let meta_row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
         meta_row.set_hexpand(true);
+        if running && !is_active {
+            let pulse = gtk::Box::new(gtk::Orientation::Horizontal, 1);
+            pulse.add_css_class("session-pulse");
+            for index in 1..=3 {
+                let bar = gtk::Box::new(gtk::Orientation::Vertical, 0);
+                bar.add_css_class("session-pulse-bar");
+                bar.add_css_class(&format!("p{index}"));
+                bar.set_size_request(2, 9);
+                pulse.append(&bar);
+            }
+            meta_row.append(&pulse);
+        }
         meta_row.append(&meta);
+        if unread && !running {
+            let done = gtk::Label::new(Some("DONE"));
+            done.add_css_class("session-done");
+            meta_row.append(&done);
+        }
         if !age.text().is_empty() {
             meta_row.append(&key_dot());
             meta_row.append(&age);
@@ -584,7 +719,15 @@ impl SidebarInner {
             row.add_css_class("active");
         }
         row.set_cursor_from_name(Some("pointer"));
-        row.set_tooltip_text(Some(&format!("{} · {}", title, session.age())));
+        if running {
+            row.add_css_class("running");
+        }
+        let tooltip = if running {
+            format!("{title} · {} · {elapsed}", phase.to_ascii_uppercase())
+        } else {
+            format!("{title} · {}", session.age())
+        };
+        row.set_tooltip_text(Some(&tooltip));
         self.row_widgets.borrow_mut().push((
             index,
             row.clone(),
@@ -775,7 +918,7 @@ impl SidebarInner {
             if session_id.is_empty() {
                 items.push(menu::Item::disabled(
                     "Open Next",
-                    "session without id — can't open next door",
+                    "session has no id — cannot open in a new window",
                 ));
             } else if session_id == *self.current_session.borrow() {
                 items.push(menu::Item::disabled(

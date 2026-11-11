@@ -13,7 +13,17 @@ describe compatibility with the Pi coding agent.
 ## Features
 
 - Chat and code modes in one app, switched from the header.
+- Live turn feedback: a 1px pulse under the sent message and a receipt with
+  phase (sent, thinking, tools, writing, done), elapsed time and tokens.
+- Running-session indicators in the sidebar and session tabs.
 - Sessions, search, tree, artifacts, jobs and Pi extensions.
+- Configure installed extensions when they expose settings: search, memory,
+  personas and MCP open their settings page; guard, subagents and openwiki
+  open their config file (JSON or .env).
+- Workspace cleanup: right-click a project group to move all its sessions to
+  the trash. Five or more sessions require three confirmations. The trash
+  button in the sidebar footer restores them for 14 days. The project folder
+  itself is never deleted; workspace cleanup is local-session only for now.
 - 50 food themes, light and dark, searchable in Settings → Personalization.
 - Personalization tab for theme, typeface (Pixelify/JetBrains, Adwaita or system)
   and font size.

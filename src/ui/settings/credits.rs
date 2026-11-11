@@ -107,7 +107,7 @@ pub fn page() -> gtk::Box {
         });
     }
 
-    let plugins = block(&page, "PRE- INSTALLATED EXTENSIONS");
+    let plugins = block(&page, "PREINSTALLED EXTENSIONS");
     let plugin_rows = gtk::Box::new(gtk::Orientation::Vertical, 0);
     plugin_rows.add_css_class("settings-rows");
     plugins.append(&plugin_rows);
@@ -118,15 +118,15 @@ pub fn page() -> gtk::Box {
         plugin_rows.append(&row(name, description, &value));
     }
 
-    let licenses = block(&page, "LICENCES OF THIRD PARTIES");
+    let licenses = block(&page, "THIRD-PARTY LICENSES");
     let license_rows = gtk::Box::new(gtk::Orientation::Vertical, 0);
     license_rows.add_css_class("settings-rows");
     licenses.append(&license_rows);
     for (name, license) in [
         ("pixelarticons", "MIT"),
-        ("GTK4 / libadwaite", "LGPL-2.1-or-later"),
+        ("GTK4 / libadwaita", "LGPL-2.1-or-later"),
         ("Pixelify Sans / JetBrains Mono", "SIL Open Font License 1.1"),
-        ("pi-web-access and Pi packages", "licences of the respective projects"),
+        ("pi-web-access and Pi packages", "licenses of the respective projects"),
     ] {
         let value = gtk::Label::new(Some(license));
         value.add_css_class("settings-row-desc");
