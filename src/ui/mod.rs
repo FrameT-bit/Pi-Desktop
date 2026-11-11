@@ -1206,6 +1206,19 @@ impl AppUi {
                             glib::ControlFlow::Break
                         });
                     }
+                    "compact-result" => {
+                        me.chat.note("compacting context...", false);
+                        me.on_compaction_end(&json!({
+                            "type": "compaction_end",
+                            "reason": "manual",
+                            "result": {
+                                "tokensBefore": 150000,
+                                "estimatedTokensAfter": 32000
+                            },
+                            "aborted": false,
+                            "willRetry": false
+                        }));
+                    }
                     "provider-logos" => {
                         let models: Vec<ModelItem> = crate::providers::KNOWN
                             .iter()
@@ -2110,8 +2123,31 @@ impl AppUi {
                 self.copy_last_assistant();
                 true
             }
+            "/compact" => {
+                self.handle_compact(argument);
+                true
+            }
             _ => false,
         }
+    }
+
+    fn handle_compact(self: &Rc<Self>, argument: &str) {
+        if !self.state.borrow().connection.is_connected() {
+            self.chat
+                .note("no connection to Pi — compact not sent", true);
+            return;
+        }
+        if self.state.borrow().running {
+            self.chat
+                .note("compact · stop the current turn first", true);
+            return;
+        }
+        let instructions = argument.trim();
+        let mut request = json!({"id": self.id(), "type": "compact"});
+        if !instructions.is_empty() {
+            request["customInstructions"] = Value::String(instructions.to_string());
+        }
+        self.send(request);
     }
 
     fn handle_loop(self: &Rc<Self>, argument: &str) {
@@ -4581,6 +4617,7 @@ impl AppUi {
                     .note(&format!("retry {attempt}/{max} — {error}"), false);
             }
             "compaction_start" => self.chat.note("compacting context...", false),
+            "compaction_end" => self.on_compaction_end(record),
             "extension_error" => {
                 let error = record
                     .get("error")
@@ -4594,6 +4631,40 @@ impl AppUi {
         }
     }
 
+    fn on_compaction_end(&self, record: &Value) {
+        let aborted = record
+            .get("aborted")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        if aborted {
+            self.chat.note("compaction aborted", false);
+            return;
+        }
+        if let Some(result) = record.get("result") {
+            let reason = record
+                .get("reason")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            self.chat.note(&compaction_result_note(reason, result), false);
+            if let Some(after) = result
+                .get("estimatedTokensAfter")
+                .and_then(Value::as_u64)
+            {
+                let mut state = self.state.borrow_mut();
+                state.context_tokens = Some(after);
+                state.context_percent = state
+                    .context_window
+                    .filter(|window| *window > 0)
+                    .map(|window| after as f64 * 100.0 / window as f64);
+            }
+            self.refresh_status();
+            return;
+        }
+        if let Some(error) = record.get("errorMessage").and_then(Value::as_str) {
+            self.show_error_banner(error);
+            self.chat.note(error, true);
+        }
+    }
 
     fn on_extension_ui(self: &Rc<Self>, record: &Value) {
         let Some(request) = extension_ui::Request::parse(record) else {
@@ -4755,6 +4826,11 @@ impl AppUi {
         }
 
         if !success {
+            // A failed compaction is reported by compaction_end, which carries
+            // the same message and avoids a duplicate note here.
+            if command == "compact" {
+                return;
+            }
             let error = record
                 .get("error")
                 .and_then(Value::as_str)
@@ -4975,7 +5051,14 @@ impl AppUi {
                 self.refresh_sidebar();
             }
             "get_commands" => {
-                let items = parse_commands(data);
+                let mut items = parse_commands(data);
+                if !items.iter().any(|item| item.name == "compact") {
+                    items.push(CommandItem {
+                        name: "compact".to_string(),
+                        description: "Summarize old context and report tokens saved".to_string(),
+                        source: "local".to_string(),
+                    });
+                }
                 self.state.borrow_mut().commands = items.clone();
                 self.composer.set_commands(items);
             }
@@ -5656,8 +5739,38 @@ fn local_command(text: &str) -> Option<(&str, &str)> {
         None => (trimmed, ""),
     };
     match command {
-        "/loop" | "/steer" | "/queue" | "/copy" => Some((command, argument)),
+        "/loop" | "/steer" | "/queue" | "/copy" | "/compact" => Some((command, argument)),
         _ => None,
+    }
+}
+
+fn compaction_result_note(reason: &str, result: &Value) -> String {
+    let before = result.get("tokensBefore").and_then(Value::as_u64);
+    let after = result
+        .get("estimatedTokensAfter")
+        .and_then(Value::as_u64);
+    let prefix = if reason == "manual" {
+        "compacted"
+    } else {
+        "auto-compacted"
+    };
+    match (before, after) {
+        (Some(before), Some(after)) => {
+            let saved = before.saturating_sub(after);
+            let percent = if before > 0 {
+                (saved as f64 * 100.0 / before as f64).round() as u64
+            } else {
+                0
+            };
+            format!(
+                "{prefix} · {} → {} tokens (est.) · {} saved ({percent}%)",
+                format_tokens(before),
+                format_tokens(after),
+                format_tokens(saved)
+            )
+        }
+        (Some(before), None) => format!("{prefix} · {} tokens summarized", format_tokens(before)),
+        _ => format!("{prefix} · context summarized"),
     }
 }
 
@@ -5891,6 +6004,43 @@ fn str_of(record: &Value, key: &str) -> String {
         .and_then(Value::as_str)
         .unwrap_or("")
         .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compact_is_a_local_command() {
+        assert_eq!(
+            local_command("/compact focus on the API"),
+            Some(("/compact", "focus on the API"))
+        );
+    }
+
+    #[test]
+    fn compaction_note_reports_tokens_saved() {
+        let result = json!({
+            "tokensBefore": 150000,
+            "estimatedTokensAfter": 32000,
+        });
+        assert_eq!(
+            compaction_result_note("manual", &result),
+            "compacted · 150k → 32.0k tokens (est.) · 118k saved (79%)"
+        );
+    }
+
+    #[test]
+    fn compaction_note_distinguishes_automatic_runs() {
+        let result = json!({
+            "tokensBefore": 20000,
+            "estimatedTokensAfter": 15000,
+        });
+        assert_eq!(
+            compaction_result_note("threshold", &result),
+            "auto-compacted · 20.0k → 15.0k tokens (est.) · 5.0k saved (25%)"
+        );
+    }
 }
 
 

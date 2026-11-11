@@ -15,6 +15,9 @@ describe compatibility with the Pi coding agent.
 - Chat and code modes in one app, switched from the header.
 - Live turn feedback: a 1px pulse under the sent message and a receipt with
   phase (sent, thinking, tools, writing, done), elapsed time and tokens.
+- Manual `/compact [focus]` instruction in the composer: summarizes old context
+  and reports the estimated tokens saved. Pi's automatic compaction stays
+  enabled by default.
 - Sessions run in separate Pi RPC processes: New Session while a turn is
   running keeps the old turn alive in the background, and switching back
   attaches to that running process. Running-session indicators live in the
