@@ -8,13 +8,13 @@ const HEIGHT: i32 = 46;
 
 pub fn level_label(level: &str) -> String {
     match level.trim().to_ascii_lowercase().as_str() {
-        "off" => "I don't know.".to_string(),
-        "minimal" => "Minus.".to_string(),
-        "low" => "NEIGHBOR".to_string(),
-        "medium" => "MEDIUM".to_string(),
+        "off" => "OFF".to_string(),
+        "minimal" => "MIN".to_string(),
+        "low" => "LOW".to_string(),
+        "medium" => "MED".to_string(),
         "high" => "HIGH".to_string(),
-        "xhigh" => "Mr High".to_string(),
-        "max" => "Max.".to_string(),
+        "xhigh" => "XHIGH".to_string(),
+        "max" => "MAX".to_string(),
         _ => level.to_uppercase(),
     }
 }

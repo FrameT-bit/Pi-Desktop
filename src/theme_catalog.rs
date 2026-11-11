@@ -133,37 +133,46 @@ pub fn tokens(index: usize) -> Vec<(String, String)> {
     };
     let (page, canvas, card, ink, _, _, dark) = theme.category.palette();
     let accent = theme.category.accent(theme.variant);
-    let text_base = mix_hex(ink, page, 0.18);
-    let muted = mix_hex(ink, page, 0.44);
-    let dim = mix_hex(ink, page, 0.62);
-    let border = mix_hex(ink, page, 0.20);
-    let border_muted = mix_hex(ink, page, 0.12);
-    let panel = mix_hex(ink, page, 0.36);
-    let selected = mix_hex(card, &accent, if dark { 0.26 } else { 0.16 });
-    let user_bg = mix_hex(card, &accent, if dark { 0.06 } else { 0.035 });
-    let user_border = mix_hex(card, &accent, if dark { 0.28 } else { 0.18 });
-    let tool_success = mix_hex(card, "#35704a", if dark { 0.22 } else { 0.10 });
-    let tool_error = mix_hex(card, "#a34428", if dark { 0.22 } else { 0.10 });
-    let code_block = mix_hex(card, ink, if dark { 0.14 } else { 0.06 });
+    let variant = theme.variant as f32;
+    let (page_strength, card_strength) = if dark {
+        (0.04 + 0.035 * variant, 0.03 + 0.03 * variant)
+    } else {
+        (0.025 + 0.025 * variant, 0.015 + 0.025 * variant)
+    };
+    let page = mix_hex(page, &accent, page_strength);
+    let canvas = mix_hex(canvas, &accent, page_strength * 0.72);
+    let card = mix_hex(&card, &accent, card_strength);
+    let text_base = mix_hex(ink, &page, 0.18);
+    let muted = mix_hex(ink, &page, 0.44);
+    let dim = mix_hex(ink, &page, 0.62);
+    let border = mix_hex(ink, &page, 0.20);
+    let border_muted = mix_hex(ink, &page, 0.12);
+    let panel = mix_hex(ink, &page, 0.36);
+    let selected = mix_hex(&card, &accent, if dark { 0.26 } else { 0.16 });
+    let user_bg = mix_hex(&card, &accent, if dark { 0.06 } else { 0.035 });
+    let user_border = mix_hex(&card, &accent, if dark { 0.28 } else { 0.18 });
+    let tool_success = mix_hex(&card, "#35704a", if dark { 0.22 } else { 0.10 });
+    let tool_error = mix_hex(&card, "#a34428", if dark { 0.22 } else { 0.10 });
+    let code_block = mix_hex(&card, ink, if dark { 0.14 } else { 0.06 });
     let mut out = vec![
         ("accent".into(), accent.clone()),
-        ("pageBg".into(), page.into()),
-        ("canvas".into(), canvas.into()),
-        ("cardBg".into(), card.into()),
-        ("cardBgSoft".into(), mix_hex(card, &accent, 0.06)),
-        ("InfoBg".into(), mix_hex(card, &accent, 0.04)),
+        ("pageBg".into(), page.clone()),
+        ("canvas".into(), canvas.clone()),
+        ("cardBg".into(), card.clone()),
+        ("cardBgSoft".into(), mix_hex(&card, &accent, 0.06)),
+        ("infoBg".into(), mix_hex(&card, &accent, 0.04)),
         ("userMessageBg".into(), user_bg),
         ("userMessageBorder".into(), user_border),
-        ("customMessageBg".into(), mix_hex(card, &accent, 0.045)),
-        ("toolPendingBg".into(), card.into()),
+        ("customMessageBg".into(), mix_hex(&card, &accent, 0.045)),
+        ("toolPendingBg".into(), card.clone()),
         ("toolSuccessBg".into(), tool_success),
         ("toolErrorBg".into(), tool_error),
         ("toolTitle".into(), ink.into()),
-        ("ToolOut".into(), muted.clone()),
+        ("toolOutput".into(), muted.clone()),
         ("mdHeading".into(), ink.into()),
         ("mdLink".into(), accent.clone()),
         ("mdCode".into(), ink.into()),
-        ("mdCodeBlock".into(), mix_hex(card, ink, 0.08)),
+        ("mdCodeBlock".into(), mix_hex(&card, ink, 0.08)),
         ("mdCodeBlockBorder".into(), border_muted.clone()),
         ("mdQuote".into(), muted.clone()),
         ("mdQuoteBorder".into(), border_muted.clone()),
@@ -171,11 +180,11 @@ pub fn tokens(index: usize) -> Vec<(String, String)> {
         ("mdListBullet".into(), accent.clone()),
         ("toolDiffContext".into(), muted.clone()),
         ("text".into(), ink.into()),
-        ("TextBase".into(), text_base.clone()),
+        ("textBase".into(), text_base.clone()),
         ("muted".into(), muted.clone()),
         ("dim".into(), dim),
         ("selectedBg".into(), selected),
-        ("scrollbarTrack".into(), page.into()),
+        ("scrollbarTrack".into(), page.clone()),
         ("scrollbarThumb".into(), border.clone()),
         ("searchMatchBg".into(), with_alpha(&accent, 0x26)),
         ("searchMatchText".into(), ink.into()),
@@ -186,8 +195,8 @@ pub fn tokens(index: usize) -> Vec<(String, String)> {
         ("thinkingMedium".into(), accent.clone()),
         ("border".into(), border),
         ("borderAccent".into(), accent.clone()),
-        ("borderMute".into(), border_muted),
-        ("PanelBorder".into(), panel),
+        ("borderMuted".into(), border_muted),
+        ("panelBorder".into(), panel),
         ("threadBlue".into(), accent),
     ];
     if let Some(entry) = out.iter_mut().find(|(key, _)| key == "mdCodeBlock") {

@@ -202,7 +202,7 @@ pub fn diff_args(file: &GitFile, staged: bool) -> Vec<String> {
 }
 
 pub fn add_all_args() -> Vec<String> {
-    vec!["add".to_string(), "- The".to_string()]
+    vec!["add".to_string(), "-A".to_string()]
 }
 
 pub fn add_args(file: &GitFile) -> Vec<String> {

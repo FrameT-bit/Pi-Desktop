@@ -30,7 +30,7 @@ mod websearch;
 
 use gtk::prelude::*;
 
-const APP_ID: &str = "i.github.FrameT.PiDesktop";
+const APP_ID: &str = "io.github.FrameT.PiDesktop";
 
 fn main() -> glib::ExitCode {
     let argv: Vec<String> = std::env::args().skip(1).collect();

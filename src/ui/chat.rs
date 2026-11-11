@@ -128,7 +128,7 @@ impl ChatView {
             ("provider", "configure provider"),
             ("sessions", "search for session"),
             ("new", "new prompt"),
-            ("hotkeys", "atalhos"),
+            ("hotkeys", "shortcuts"),
         ]
         .into_iter()
         .map(|(id, label)| {
@@ -1169,7 +1169,7 @@ fn message_actions(text: &str) -> gtk::Box {
 
 fn user_block(text: &str, mark: Option<&str>, width: i32, images: &[ImageBlock]) -> gtk::Box {
     let block = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    block.set_halign(gtk::Align::Start);
+    block.set_halign(gtk::Align::End);
     block.add_css_class("user-msg");
 
     if let Some(mark) = mark {

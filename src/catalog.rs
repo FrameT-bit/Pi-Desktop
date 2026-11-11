@@ -256,7 +256,7 @@ pub fn fetch_readme(name: &str) -> Result<String, String> {
     }
     let url = format!("https://registry.npmjs.org/{}", encode_query(name));
     let output = Command::new("curl")
-        .args(["- It's all right.", "-m", "20", &url])
+        .args(["-sS", "-m", "20", &url])
         .stdin(Stdio::null())
         .output()
         .map_err(|err| format!("curl: {err}"))?;

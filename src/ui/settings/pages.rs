@@ -312,7 +312,7 @@ pub fn model_cycle(config: &Config, form: &mut Form, agent_dir: &std::path::Path
     push_text(form, "models", models.clone());
     rows.append(&row(
         "scope of models",
-        "paragraph-separated globes (Ctrl+P): anthropogenic/*, *sonnet*",
+        "paragraph-separated globes (Ctrl+P): anthropic/*, *sonnet*",
         &models,
     ));
 

@@ -115,3 +115,14 @@ the corresponding source code. The GPL does not prohibit selling copies.
 
 The Pi Desktop name, icon and banner live in `resources/brand/` and `design/`.
 No official pi.dev logo is included. See `TRADEMARKS.md`.
+
+
+## AppImage
+
+Build a portable x86_64 AppImage with:
+
+```sh
+packaging/build-appimage.sh
+```
+
+The artifact is written to `dist/Pi-Desktop-1.2.1-x86_64.AppImage`.

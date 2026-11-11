@@ -99,9 +99,7 @@ pub fn build() -> StatusUi {
     let perm = value_label("Smart");
     let perm_button = gtk::Button::new();
     perm_button.add_css_class("status-button");
-    perm_button.set_tooltip_text(Some(
-        "Pi approved mode: click to open settings (valid when reconnecting)",
-    ));
+    perm_button.set_tooltip_text(Some("change permission mode"));
     let perm_body = gtk::Box::new(gtk::Orientation::Horizontal, 4);
     perm_body.append(&key_label("Permissions:"));
     perm_body.append(&perm);

@@ -687,8 +687,31 @@ impl AppUi {
         self.chat
             .set_on_assistant_menu(move |anchor| me.show_assistant_menu(&anchor));
 
-        let me = self.clone();
-        self.status.perm_button.connect_clicked(move |_| me.cycle_permission());
+        {
+            let me = self.clone();
+            let button = self.status.perm_button.clone();
+            let popover = gtk::Popover::new();
+            popover.add_css_class("permission-popover");
+            popover.set_has_arrow(true);
+            popover.set_position(gtk::PositionType::Top);
+            popover.set_parent(&button);
+            let menu = gtk::Box::new(gtk::Orientation::Vertical, 0);
+            menu.add_css_class("permission-menu");
+            for permission in crate::state::Permission::all() {
+                let item = gtk::Button::with_label(permission.label());
+                item.add_css_class("permission-option");
+                item.set_halign(gtk::Align::Fill);
+                let me_item = me.clone();
+                let popover_item = popover.clone();
+                item.connect_clicked(move |_| {
+                    popover_item.popdown();
+                    me_item.set_permission(permission);
+                });
+                menu.append(&item);
+            }
+            popover.set_child(Some(&menu));
+            button.connect_clicked(move |_| popover.popup());
+        }
 
         let me = self.clone();
         let (provider, id) = {
@@ -728,7 +751,7 @@ impl AppUi {
             if !ctrl
                 && !state.contains(gtk::gdk::ModifierType::ALT_MASK)
                 && shift
-                && key == gtk::gdk::Key::Tab
+                && matches!(key, gtk::gdk::Key::Tab | gtk::gdk::Key::ISO_Left_Tab)
             {
                 me.send_extension_command_text("/persona");
                 return glib::Propagation::Stop;
@@ -1986,7 +2009,7 @@ impl AppUi {
                 "-a",
                 "Pi Desktop",
                 "-i",
-                "i.github.FrameT.PiDesktop",
+                "io.github.FrameT.PiDesktop",
                 &summary,
                 "completed shift",
             ])
@@ -2397,7 +2420,7 @@ impl AppUi {
         self.rpc.send(json!({
             "id": self.id(),
             "type": "switch_session",
-            "SessionPath": path,
+            "sessionPath": path,
         }));
         self.stack.set_visible_child_name("chat");
     }
@@ -2475,7 +2498,7 @@ impl AppUi {
         self.rpc.send(json!({
             "id": id,
             "type": "switch_session",
-            "SessionPath": path,
+            "sessionPath": path,
         }));
     }
 
@@ -2510,7 +2533,7 @@ impl AppUi {
                 self.rpc.send(json!({
                     "id": self.id(),
                     "type": "switch_session",
-                    "SessionPath": back,
+                    "sessionPath": back,
                 }));
             }
             return;
@@ -2533,7 +2556,7 @@ impl AppUi {
                     self.rpc.send(json!({
                         "id": self.id(),
                         "type": "switch_session",
-                        "SessionPath": back,
+                        "sessionPath": back,
                     }));
                 }
                 return;
@@ -2605,7 +2628,7 @@ impl AppUi {
                 self.rpc.send(json!({
                     "id": self.id(),
                     "type": "switch_session",
-                    "SessionPath": back,
+                    "sessionPath": back,
                 }));
             }
             None => self.fetch_history(),
@@ -2975,8 +2998,25 @@ impl AppUi {
             .send(json!({"id": self.id(), "type": "cycle_model"}));
     }
 
-    fn cycle_permission(self: &Rc<Self>) {
-        self.open_settings();
+    fn set_permission(self: &Rc<Self>, permission: crate::state::Permission) {
+        let config = {
+            let mut config = self.config.borrow_mut();
+            config.approve = permission.to_approve();
+            config.clone()
+        };
+        if let Err(error) = config.save() {
+            self.status.flash_notice(&format!("saving permissions: {error}"));
+            return;
+        }
+        {
+            let mut state = self.state.borrow_mut();
+            state.permission = permission;
+        }
+        self.status.perm.set_text(permission.label());
+        self.status
+            .perm_button
+            .set_tooltip_text(Some(permission.hint()));
+        self.reconnect(config);
     }
 
 
@@ -3179,7 +3219,7 @@ impl AppUi {
             let hint = session.model.clone().unwrap_or_else(|| "Session".to_string());
             let name = session.title();
             let me = self.clone();
-            items.push(Item::new(name, hint, "SITTING", move || {
+            items.push(Item::new(name, hint, "SESSIONS", move || {
                 me.select_session(index)
             }));
         }

@@ -985,18 +985,18 @@ pub fn discover_models(base_url: &str, api: &str, api_key: &str) -> Result<Vec<S
     validate_url(base_url)?;
     let url = models_url_for(base_url, api);
     let mut command = std::process::Command::new("curl");
-    command.args(["- It's all right.", "--max-time", "12"]);
+    command.args(["-sS", "--max-time", "12"]);
     if api == "anthropic-messages" {
-        command.args(["- H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H", "anthropogenic version: 2023-06-01"]);
+        command.args(["-H", "anthropic-version: 2023-06-01"]);
         if !api_key.trim().is_empty() {
-            command.args(["- H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H", &format!("x-api-key: {}", api_key.trim())]);
+            command.args(["-H", &format!("x-api-key: {}", api_key.trim())]);
         }
     } else if api == "google-generative-ai" {
         if !api_key.trim().is_empty() {
-            command.args(["- H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H", &format!("x-goog-api-key: {}", api_key.trim())]);
+            command.args(["-H", &format!("x-goog-api-key: {}", api_key.trim())]);
         }
     } else if !api_key.trim().is_empty() {
-        command.args(["- H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H", &format!("Authorization: Bearer {}", api_key.trim())]);
+        command.args(["-H", &format!("Authorization: Bearer {}", api_key.trim())]);
     }
     command.args(["-w", "\n%{http_code}", &url]);
     let output = command

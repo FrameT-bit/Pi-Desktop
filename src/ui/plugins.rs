@@ -864,7 +864,7 @@ impl PluginsUi {
                 let path = thumb_cache_path(&url);
                 let ok = std::process::Command::new("curl")
                     .args([
-                        "- L",
+                        "-L",
                         "--fail",
                         "--silent",
                         "--show-error",

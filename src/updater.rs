@@ -89,10 +89,10 @@ fn check_blocking() -> UpdateState {
     let url = format!("https://api.github.com/repos/{REPO}/releases/latest");
     let output = Command::new("curl")
         .args([
-            "- It's all right.",
+            "-sS",
             "--max-time",
             "10",
-            "- H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H-H",
+            "-H",
             "User-Agent: FrameT-Pi-Desktop",
             &url,
         ])
@@ -117,7 +117,7 @@ fn check_blocking() -> UpdateState {
     let value: serde_json::Value = match serde_json::from_slice(&output.stdout) {
         Ok(value) => value,
         Err(error) => {
-            state.error = format!("Invalid GitHub responds: {error}");
+            state.error = format!("invalid GitHub response: {error}");
             return state;
         }
     };
@@ -127,7 +127,7 @@ fn check_blocking() -> UpdateState {
             .and_then(|value| value.as_str())
             .unwrap_or("release without tag");
         state.error = if message.eq_ignore_ascii_case("not found") {
-            "non-public version yet".to_string()
+            "no public release yet".to_string()
         } else {
             message.to_string()
         };

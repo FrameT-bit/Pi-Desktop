@@ -117,33 +117,45 @@ fn is_executable(path: &Path) -> bool {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Permission {
-    SkipAll,
+    Ask,
     Smart,
-    Manual,
+    Off,
 }
 
 impl Permission {
+    pub fn all() -> [Self; 3] {
+        [Permission::Ask, Permission::Smart, Permission::Off]
+    }
+
     pub fn label(self) -> &'static str {
         match self {
-            Permission::SkipAll => "ALLOW",
-            Permission::Smart => "ASK",
-            Permission::Manual => "DENY",
+            Permission::Ask => "ASK",
+            Permission::Smart => "SMART",
+            Permission::Off => "OFF",
         }
     }
 
     pub fn from_approve(approve: crate::config::Approve) -> Self {
         match approve {
-            crate::config::Approve::Yes => Permission::SkipAll,
+            crate::config::Approve::No => Permission::Ask,
             crate::config::Approve::Ask => Permission::Smart,
-            crate::config::Approve::No => Permission::Manual,
+            crate::config::Approve::Yes => Permission::Off,
+        }
+    }
+
+    pub fn to_approve(self) -> crate::config::Approve {
+        match self {
+            Permission::Ask => crate::config::Approve::No,
+            Permission::Smart => crate::config::Approve::Ask,
+            Permission::Off => crate::config::Approve::Yes,
         }
     }
 
     pub fn hint(self) -> &'static str {
         match self {
-            Permission::SkipAll => "--approve: accepts tools without asking",
-            Permission::Smart => "without flag: Pi decide when to ask",
-            Permission::Manual => "--no-approve: denies what would need approval",
+            Permission::Ask => "ask before privileged tools run",
+            Permission::Smart => "Pi decides; non-dangerous tools pass",
+            Permission::Off => "tools run without permission prompts",
         }
     }
 }
@@ -158,9 +170,9 @@ pub enum Connection {
 impl Connection {
     pub fn label(&self) -> &'static str {
         match self {
-            Connection::Connecting => "conectando",
+            Connection::Connecting => "connecting",
             Connection::Connected => "Connected",
-            Connection::Disconnected(_) => "desconectado",
+            Connection::Disconnected(_) => "disconnected",
         }
     }
 

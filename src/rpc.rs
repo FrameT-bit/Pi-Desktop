@@ -50,6 +50,15 @@ pub fn spawn(transport: Transport) -> RpcHandle {
     }
 }
 
+fn io_error_text(error: &std::io::Error) -> String {
+    match error.raw_os_error() {
+        Some(2) => "No such file or directory".to_string(),
+        Some(13) => "Permission denied".to_string(),
+        Some(111) => "Connection refused".to_string(),
+        _ => error.to_string(),
+    }
+}
+
 fn build_command(transport: &Transport) -> Result<Command, String> {
     match transport {
         Transport::Local(local) => {
@@ -132,7 +141,7 @@ fn supervisor(
                     .stdout(Stdio::piped())
                     .stderr(Stdio::piped())
                     .spawn()
-                    .map_err(|err| format!("Pi process: {err}"))
+                    .map_err(|err| format!("Pi process: {}", io_error_text(&err)))
             });
 
         let mut child = match spawned {

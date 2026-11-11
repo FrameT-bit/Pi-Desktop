@@ -33,3 +33,7 @@ Thumbs.db
 
 # Archives
 *.zip
+# Packaging tools and local AppImage output
+.tools/
+build/
+dist/
