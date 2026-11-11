@@ -935,6 +935,16 @@ separator {
   padding: 0;
 }
 
+.composer-scroll {
+  background-color: transparent;
+  border: none;
+}
+
+.composer-scroll undershoot,
+.composer-scroll overshoot {
+  background: none;
+}
+
 .composer-input text {
   padding: 0;
 }

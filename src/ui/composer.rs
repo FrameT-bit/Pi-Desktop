@@ -212,7 +212,18 @@ impl Composer {
         text.set_top_margin(0);
         text.set_bottom_margin(0);
         text.set_hexpand(true);
-        text.set_size_request(-1, 40);
+
+        let scroll = gtk::ScrolledWindow::builder()
+            .hscrollbar_policy(gtk::PolicyType::Never)
+            .vscrollbar_policy(gtk::PolicyType::Automatic)
+            .child(&text)
+            .build();
+        scroll.add_css_class("composer-scroll");
+        scroll.set_propagate_natural_height(true);
+        scroll.set_min_content_height(40);
+        scroll.set_max_content_height(340);
+        scroll.set_hexpand(true);
+        scroll.set_overlay_scrolling(false);
 
         let placeholder = gtk::Label::new(Some("message... (/ commands)"));
         placeholder.add_css_class("composer-placeholder");
@@ -222,7 +233,7 @@ impl Composer {
         placeholder.set_can_target(false);
 
         let overlay = gtk::Overlay::new();
-        overlay.set_child(Some(&text));
+        overlay.set_child(Some(&scroll));
         overlay.add_overlay(&placeholder);
         overlay.set_hexpand(true);
 

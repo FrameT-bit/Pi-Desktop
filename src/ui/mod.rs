@@ -1195,6 +1195,14 @@ impl AppUi {
                             glib::ControlFlow::Break
                         });
                     }
+                    "big-prompt" => {
+                        let text = (1..=40)
+                            .map(|line| format!("line {line}: a long prompt that should scroll"))
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        me.composer.set_text(&text);
+                        me.composer.focus();
+                    }
                     "workspace-trash" => {
                         me.show_trash();
                     }
