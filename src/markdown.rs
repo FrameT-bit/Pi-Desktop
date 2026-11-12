@@ -476,6 +476,16 @@ fn attach_links(label: &gtk::Label, links: &[String]) {
         open_uri(uri);
         gtk::glib::Propagation::Stop
     });
+
+    // The label's built-in context menu still offers Copy even without
+    // selection. Claim secondary clicks so right-click does nothing here.
+    let suppress = gtk::GestureClick::new();
+    suppress.set_button(gtk::gdk::BUTTON_SECONDARY);
+    suppress.set_propagation_phase(gtk::PropagationPhase::Capture);
+    suppress.connect_pressed(|gesture, _, _, _| {
+        gesture.set_state(gtk::EventSequenceState::Claimed);
+    });
+    label.add_controller(suppress);
 }
 
 fn open_uri(uri: &str) {
