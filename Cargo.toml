@@ -1,6 +1,6 @@
 [package]
 name = "pi-desktop"
-version = "1.6.2"
+version = "1.6.3"
 edition = "2021"
 description = "Native GTK4 + libadwaita client for talking to Pi over RPC"
 authors = ["FrameT"]

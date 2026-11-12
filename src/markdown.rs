@@ -474,29 +474,13 @@ fn attach_links(label: &gtk::Label, inline: &Inline) {
     };
     label.set_tooltip_text(Some(tooltip));
 
+    label.connect_activate_link(|_, uri| {
+        open_uri(uri);
+        gtk::glib::Propagation::Stop
+    });
+
     let links = inline.links.clone();
     let plain = inline.plain.clone();
-
-    let open_gesture = gtk::GestureClick::new();
-    open_gesture.set_button(gtk::gdk::BUTTON_PRIMARY);
-    open_gesture.set_propagation_phase(gtk::PropagationPhase::Capture);
-    let label_weak = label.downgrade();
-    let open_links = links.clone();
-    let open_plain = plain.clone();
-    open_gesture.connect_pressed(move |gesture, n_press, x, y| {
-        if n_press != 1 {
-            return;
-        }
-        let Some(label) = label_weak.upgrade() else {
-            return;
-        };
-        let Some(link) = link_at(&label, x, y, &open_links, &open_plain) else {
-            return;
-        };
-        gesture.set_state(gtk::EventSequenceState::Claimed);
-        open_uri(&link.url);
-    });
-    label.add_controller(open_gesture);
 
     let menu_gesture = gtk::GestureClick::new();
     menu_gesture.set_button(gtk::gdk::BUTTON_SECONDARY);
@@ -506,13 +490,16 @@ fn attach_links(label: &gtk::Label, inline: &Inline) {
         let Some(label) = label_weak.upgrade() else {
             return;
         };
-        let Some(link) = link_at(&label, x, y, &links, &plain) else {
+        let Some(url) = link_at(&label, x, y, &links, &plain)
+            .map(|link| link.url)
+            .or_else(|| label.current_uri().map(|uri| uri.to_string()))
+        else {
             return;
         };
         gesture.set_state(gtk::EventSequenceState::Claimed);
 
-        let copy_url = link.url.clone();
-        let open_url = link.url;
+        let copy_url = url.clone();
+        let open_url = url;
         crate::ui::menu::show(
             &label,
             vec![
@@ -654,8 +641,9 @@ pub fn inline(text: &str) -> Inline {
                     plain.push_str(&label);
                     let end = plain.len();
                     out.push_str(&format!(
-                        "<span foreground='{}' underline='single'>{}</span>",
-                        t::active("mdLink"),
+                        "<a href=\"{}\" title=\"{}\">{}</a>",
+                        escape(&url),
+                        escape(&url),
                         escape(&label)
                     ));
                     links.push(Link { url, start, end });
@@ -737,7 +725,7 @@ mod tests {
         assert_eq!(&inline.plain[inline.links[1].start..inline.links[1].end], "Pi");
         assert_eq!(inline.links[0].url, "https://openai.com");
         assert_eq!(inline.links[1].url, "https://pi.dev");
-        assert!(inline.markup.contains("underline='single'"));
+        assert!(inline.markup.contains("<a href=\"https://openai.com\" title="));
     }
 
     #[test]
