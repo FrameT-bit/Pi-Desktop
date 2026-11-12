@@ -3,8 +3,7 @@
 # Pi Desktop
 
 A native Rust (GTK4 + libadwaita) desktop client for talking to Pi over RPC.
-Local-first, two columns, three rows, no cloud dependency. SSH is optional for
-running Pi on another machine.
+Local-first, no cloud dependency. SSH is optional for running Pi on another machine.
 
 Pi Desktop is an independent project by FrameT. It is not affiliated with,
 endorsed by, or sponsored by Earendil Inc. The name "Pi" is used only to
