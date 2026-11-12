@@ -165,7 +165,7 @@ fn paragraph(text: &str) -> gtk::Widget {
         "<span line_height='{LINE_HEIGHT}'>{}</span>",
         inline.markup
     ));
-    attach_links(&label, &inline.links);
+    attach_links(&label, &inline);
     label.upcast()
 }
 
@@ -174,7 +174,7 @@ fn heading(level: usize, text: &str) -> gtk::Widget {
     label.add_css_class(&format!("md-h{level}"));
     let inline = inline(text);
     label.set_markup(&inline.markup);
-    attach_links(&label, &inline.links);
+    attach_links(&label, &inline);
     label.upcast()
 }
 
@@ -186,7 +186,7 @@ fn quote(text: &str) -> gtk::Widget {
         "<span line_height='{LINE_HEIGHT}'>{}</span>",
         inline.markup
     ));
-    attach_links(&label, &inline.links);
+    attach_links(&label, &inline);
     label.upcast()
 }
 
@@ -212,7 +212,7 @@ fn bullet(indent: usize, marker: &str, text: &str) -> gtk::Widget {
         "<span line_height='{LINE_HEIGHT}'>{}</span>",
         inline.markup
     ));
-    attach_links(&label, &inline.links);
+    attach_links(&label, &inline);
 
     row.append(&bullet);
     row.append(&label);
@@ -455,38 +455,132 @@ fn table_cell(
     if separator {
         label.add_css_class("md-table-sep");
     }
-    attach_links(&label, &inline.links);
+    attach_links(&label, &inline);
     if text.chars().count() > 24 {
         label.set_tooltip_text(Some(text));
     }
     label
 }
 
-fn attach_links(label: &gtk::Label, links: &[String]) {
-    let Some(first) = links.first().cloned() else {
+fn attach_links(label: &gtk::Label, inline: &Inline) {
+    if inline.links.is_empty() {
         return;
+    }
+
+    let tooltip = if inline.links.len() == 1 {
+        inline.links[0].url.as_str()
+    } else {
+        "right-click a link to copy or open"
     };
-    label.set_tooltip_text(Some(&first));
-    let gesture = gtk::GestureClick::new();
+    label.set_tooltip_text(Some(tooltip));
+
+    let links = inline.links.clone();
+    let plain = inline.plain.clone();
+
+    let open_gesture = gtk::GestureClick::new();
+    open_gesture.set_button(gtk::gdk::BUTTON_PRIMARY);
+    open_gesture.set_propagation_phase(gtk::PropagationPhase::Capture);
     let label_weak = label.downgrade();
-    gesture.connect_released(move |gesture, _, _, _| {
-        if let Some(label) = label_weak.upgrade() {
-            let _ = gtk::gio::AppInfo::launch_default_for_uri(&first, None::<&gtk::gio::AppLaunchContext>);
-            let _ = &label;
-            gesture.set_state(gtk::EventSequenceState::Claimed);
+    let open_links = links.clone();
+    let open_plain = plain.clone();
+    open_gesture.connect_pressed(move |gesture, n_press, x, y| {
+        if n_press != 1 {
+            return;
         }
+        let Some(label) = label_weak.upgrade() else {
+            return;
+        };
+        let Some(link) = link_at(&label, x, y, &open_links, &open_plain) else {
+            return;
+        };
+        gesture.set_state(gtk::EventSequenceState::Claimed);
+        open_uri(&link.url);
     });
-    label.add_controller(gesture);
+    label.add_controller(open_gesture);
+
+    let menu_gesture = gtk::GestureClick::new();
+    menu_gesture.set_button(gtk::gdk::BUTTON_SECONDARY);
+    menu_gesture.set_propagation_phase(gtk::PropagationPhase::Capture);
+    let label_weak = label.downgrade();
+    menu_gesture.connect_pressed(move |gesture, _, x, y| {
+        let Some(label) = label_weak.upgrade() else {
+            return;
+        };
+        let Some(link) = link_at(&label, x, y, &links, &plain) else {
+            return;
+        };
+        gesture.set_state(gtk::EventSequenceState::Claimed);
+
+        let copy_url = link.url.clone();
+        let open_url = link.url;
+        crate::ui::menu::show(
+            &label,
+            vec![
+                (
+                    "Copy link",
+                    std::rc::Rc::new(move || copy_text(&copy_url)),
+                ),
+                (
+                    "Open in browser",
+                    std::rc::Rc::new(move || open_uri(&open_url)),
+                ),
+            ],
+        );
+    });
+    label.add_controller(menu_gesture);
+}
+
+fn link_at(label: &gtk::Label, x: f64, y: f64, links: &[Link], plain: &str) -> Option<Link> {
+    if plain.is_empty() {
+        return None;
+    }
+    let (offset_x, offset_y) = label.layout_offsets();
+    let (inside, index, _) = label
+        .layout()
+        .xy_to_index(x as i32 - offset_x, y as i32 - offset_y);
+    if !inside {
+        return None;
+    }
+    let index = index as usize;
+    links
+        .iter()
+        .find(|link| index >= link.start && index < link.end)
+        .cloned()
+}
+
+fn copy_text(text: &str) {
+    if let Some(display) = gtk::gdk::Display::default() {
+        display.clipboard().set_text(text);
+    }
+}
+
+fn open_uri(uri: &str) {
+    let _ = gtk::gio::AppInfo::launch_default_for_uri(
+        uri,
+        None::<&gtk::gio::AppLaunchContext>,
+    );
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Link {
+    pub url: String,
+    /// Byte offset of the first visible character in `plain`.
+    pub start: usize,
+    /// Byte offset one past the last visible character in `plain`.
+    pub end: usize,
 }
 
 pub struct Inline {
     pub markup: String,
-    pub links: Vec<String>,
+    /// Visible text of the label, without markup or Markdown syntax.
+    pub plain: String,
+    pub links: Vec<Link>,
 }
 
 pub fn inline(text: &str) -> Inline {
     let chars: Vec<char> = text.chars().collect();
     let mut out = String::with_capacity(text.len() + 16);
+    let mut plain = String::with_capacity(text.len());
     let mut links = Vec::new();
     let mut i = 0;
 
@@ -495,18 +589,22 @@ pub fn inline(text: &str) -> Inline {
         match c {
             '&' => {
                 out.push_str("&amp;");
+                plain.push('&');
                 i += 1;
             }
             '<' => {
                 out.push_str("&lt;");
+                plain.push('<');
                 i += 1;
             }
             '>' => {
                 out.push_str("&gt;");
+                plain.push('>');
                 i += 1;
             }
             '"' => {
                 out.push_str("&quot;");
+                plain.push('"');
                 i += 1;
             }
             '`' => {
@@ -519,9 +617,11 @@ pub fn inline(text: &str) -> Inline {
                         t::active("cardBg"),
                         escape(&code)
                     ));
+                    plain.push_str(&code);
                     i = end + 1;
                 } else {
                     out.push('`');
+                    plain.push('`');
                     i += 1;
                 }
             }
@@ -530,6 +630,7 @@ pub fn inline(text: &str) -> Inline {
                     if let Some(end) = find_seq(&chars, i + 2, "**") {
                         let inner: String = chars[i + 2..end].iter().collect();
                         out.push_str(&format!("<b>{}</b>", escape(&inner)));
+                        plain.push_str(&inner);
                         i = end + 2;
                         continue;
                     }
@@ -538,35 +639,46 @@ pub fn inline(text: &str) -> Inline {
                     if end > i + 1 {
                         let inner: String = chars[i + 1..end].iter().collect();
                         out.push_str(&format!("<i>{}</i>", escape(&inner)));
+                        plain.push_str(&inner);
                         i = end + 1;
                         continue;
                     }
                 }
                 out.push('*');
+                plain.push('*');
                 i += 1;
             }
             '[' => {
                 if let Some((label, url, next)) = parse_link(&chars, i) {
+                    let start = plain.len();
+                    plain.push_str(&label);
+                    let end = plain.len();
                     out.push_str(&format!(
                         "<span foreground='{}' underline='single'>{}</span>",
                         t::active("mdLink"),
                         escape(&label)
                     ));
-                    links.push(url);
+                    links.push(Link { url, start, end });
                     i = next;
                 } else {
                     out.push('[');
+                    plain.push('[');
                     i += 1;
                 }
             }
             _ => {
                 out.push(c);
+                plain.push(c);
                 i += 1;
             }
         }
     }
 
-    Inline { markup: out, links }
+    Inline {
+        markup: out,
+        plain,
+        links,
+    }
 }
 
 fn find_char(chars: &[char], from: usize, needle: char) -> Option<usize> {
@@ -603,7 +715,7 @@ pub fn escape(text: &str) -> String {
             '<' => out.push_str("&lt;"),
             '>' => out.push_str("&gt;"),
             '"' => out.push_str("&quot;"),
-            '\'' => out.push_str("After;"),
+            '\'' => out.push_str("&#39;"),
             _ => out.push(c),
         }
     }
@@ -611,3 +723,27 @@ pub fn escape(text: &str) -> String {
 }
 
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn inline_links_map_visible_text_to_urls() {
+        let inline = inline("See [OpenAI](https://openai.com) and [Pi](https://pi.dev).");
+        assert_eq!(inline.plain, "See OpenAI and Pi.");
+        assert_eq!(inline.links.len(), 2);
+        assert_eq!(&inline.plain[inline.links[0].start..inline.links[0].end], "OpenAI");
+        assert_eq!(&inline.plain[inline.links[1].start..inline.links[1].end], "Pi");
+        assert_eq!(inline.links[0].url, "https://openai.com");
+        assert_eq!(inline.links[1].url, "https://pi.dev");
+        assert!(inline.markup.contains("underline='single'"));
+    }
+
+    #[test]
+    fn inline_links_keep_offsets_after_formatting() {
+        let inline = inline("**Docs:** [Pi](https://pi.dev)");
+        assert_eq!(inline.plain, "Docs: Pi");
+        assert_eq!(&inline.plain[inline.links[0].start..inline.links[0].end], "Pi");
+    }
+}

@@ -3430,6 +3430,9 @@ impl AppUi {
             ]},
             {"role": "assistant", "content": [
                 {"type": "text", "text": "Provider catalog:\n\n-Provider . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ."}
+            ]},
+            {"role": "assistant", "content": [
+                {"type": "text", "text": "Links: [Pi docs](https://pi.dev) · [OpenAI](https://openai.com)"}
             ]}
         ]);
         if let Some(messages) = messages.as_array() {

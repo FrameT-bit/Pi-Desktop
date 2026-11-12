@@ -17,6 +17,8 @@ describe compatibility with the Pi coding agent.
 - Manual `/compact [focus]` instruction in the composer: summarizes old context
   and reports the estimated tokens saved. Pi's automatic compaction stays
   enabled by default.
+- Clickable Markdown links: left-click opens the browser; right-click shows
+  Copy link and Open in browser.
 - Sessions run in separate Pi RPC processes: New Session while a turn is
   running keeps the old turn alive in the background, and switching back
   attaches to that running process. Running-session indicators live in the
