@@ -30,6 +30,15 @@ impl Item {
 }
 
 pub fn show(anchor: &impl IsA<gtk::Widget>, items: Vec<(&str, Action)>) {
+    show_at(anchor, None, items);
+}
+
+/// Opens a menu anchored to `anchor`, pointing at `(x, y)` in anchor coordinates.
+pub fn show_at(
+    anchor: &impl IsA<gtk::Widget>,
+    point: Option<(f64, f64)>,
+    items: Vec<(&str, Action)>,
+) {
     let items = items
         .into_iter()
         .map(|(label, action)| Item {
@@ -38,10 +47,18 @@ pub fn show(anchor: &impl IsA<gtk::Widget>, items: Vec<(&str, Action)>) {
             tooltip: None,
         })
         .collect();
-    show_items(anchor, items);
+    show_items_at(anchor, point, items);
 }
 
 pub fn show_items(anchor: &impl IsA<gtk::Widget>, items: Vec<Item>) {
+    show_items_at(anchor, None, items);
+}
+
+fn show_items_at(
+    anchor: &impl IsA<gtk::Widget>,
+    point: Option<(f64, f64)>,
+    items: Vec<Item>,
+) {
     if items.is_empty() {
         return;
     }
@@ -50,6 +67,15 @@ pub fn show_items(anchor: &impl IsA<gtk::Widget>, items: Vec<Item>) {
     popover.add_css_class("context-popover");
     popover.set_has_arrow(false);
     popover.set_autohide(true);
+    if let Some((x, y)) = point {
+        popover.set_position(gtk::PositionType::Bottom);
+        popover.set_pointing_to(Some(&gtk::gdk::Rectangle::new(
+            x.max(0.0) as i32,
+            y.max(0.0) as i32,
+            1,
+            1,
+        )));
+    }
 
     let list = gtk::Box::new(gtk::Orientation::Vertical, 0);
     list.add_css_class("context-list");

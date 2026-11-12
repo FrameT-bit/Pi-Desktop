@@ -493,6 +493,7 @@ fn attach_links(label: &gtk::Label, inline: &Inline) {
         let Some(url) = link_at(&label, x, y, &links, &plain)
             .map(|link| link.url)
             .or_else(|| label.current_uri().map(|uri| uri.to_string()))
+            .or_else(|| (links.len() == 1).then(|| links[0].url.clone()))
         else {
             return;
         };
@@ -500,8 +501,9 @@ fn attach_links(label: &gtk::Label, inline: &Inline) {
 
         let copy_url = url.clone();
         let open_url = url;
-        crate::ui::menu::show(
+        crate::ui::menu::show_at(
             &label,
+            Some((x, y)),
             vec![
                 (
                     "Copy link",
