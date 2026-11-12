@@ -744,10 +744,6 @@ impl AppUi {
             me.show_message_menu(&anchor, &text)
         });
 
-        let me = self.clone();
-        self.chat
-            .set_on_assistant_menu(move |anchor| me.show_assistant_menu(&anchor));
-
         {
             let me = self.clone();
             let button = self.status.perm_button.clone();
@@ -3383,17 +3379,6 @@ impl AppUi {
         self.send(json!({"id": self.id(), "type": "get_tree"}));
     }
 
-
-    fn show_assistant_menu(self: &Rc<Self>, anchor: &gtk::Box) {
-        let me = self.clone();
-        context_menu::show(
-            anchor,
-            vec![(
-                "Copy",
-                std::rc::Rc::new(move || me.copy_last_assistant()),
-            )],
-        );
-    }
 
     fn copy_last_assistant(&self) {
         self.send(json!({

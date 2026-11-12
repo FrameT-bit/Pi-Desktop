@@ -35,7 +35,6 @@ pub struct ChatView {
     thinking_rows: RefCell<Vec<ThinkingRow>>,
     width: Cell<i32>,
     on_user_menu: RefCell<Option<Rc<dyn Fn(gtk::Box, String)>>>,
-    on_assistant_menu: RefCell<Option<Rc<dyn Fn(gtk::Box)>>>,
     diff_cards: RefCell<Vec<std::rc::Weak<DiffState>>>,
     find: RefCell<Find>,
     last_think_follow: Cell<Option<std::time::Instant>>,
@@ -316,7 +315,6 @@ impl ChatView {
             thinking_rows: RefCell::new(Vec::new()),
             width: Cell::new(78),
             on_user_menu: RefCell::new(None),
-            on_assistant_menu: RefCell::new(None),
             diff_cards: RefCell::new(Vec::new()),
             on_empty_action: RefCell::new(None),
             chat_mode: Cell::new(false),
@@ -777,21 +775,13 @@ impl ChatView {
         block.add_controller(gesture);
     }
 
-    pub fn set_on_assistant_menu(&self, callback: impl Fn(gtk::Box) + 'static) {
-        *self.on_assistant_menu.borrow_mut() = Some(Rc::new(callback));
-    }
-
-    fn wire_assistant_menu(&self, block: &gtk::Box) {
-        let Some(callback) = self.on_assistant_menu.borrow().as_ref().cloned() else {
-            return;
-        };
-        let block_c = block.clone();
+    fn wire_assistant_right_click(&self, block: &gtk::Box) {
+        // Copy lives in the per-message action button. Right-click has no menu.
         let gesture = gtk::GestureClick::new();
         gesture.set_button(gtk::gdk::BUTTON_SECONDARY);
         gesture.set_propagation_phase(gtk::PropagationPhase::Capture);
-        gesture.connect_pressed(move |gesture, _, _, _| {
+        gesture.connect_pressed(|gesture, _, _, _| {
             gesture.set_state(gtk::EventSequenceState::Claimed);
-            callback(block_c.clone());
         });
         block.add_controller(gesture);
     }
@@ -846,7 +836,7 @@ impl ChatView {
         label.set_halign(gtk::Align::Start);
         label.set_selectable(true);
         label.set_max_width_chars(self.width.get());
-        self.wire_assistant_menu(&wrapper);
+        self.wire_assistant_right_click(&wrapper);
         if let Some(stamp) = self.stamp() {
             wrapper.append(&stamp);
         }
@@ -1284,7 +1274,7 @@ impl ChatView {
         let wrapper = gtk::Box::new(gtk::Orientation::Vertical, 8);
         wrapper.set_halign(gtk::Align::Fill);
         wrapper.add_css_class("assistant-msg");
-        self.wire_assistant_menu(&wrapper);
+        self.wire_assistant_right_click(&wrapper);
         for widget in markdown::render(text) {
             wrapper.append(&widget);
         }
