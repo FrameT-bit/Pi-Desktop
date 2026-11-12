@@ -473,6 +473,9 @@ fn attach_links(label: &gtk::Label, inline: &Inline) {
         "right-click a link to copy or open"
     };
     label.set_tooltip_text(Some(tooltip));
+    // Selectable labels install their own copy menu and selection gesture,
+    // which can swallow clicks on links. Link labels use the link menu below.
+    label.set_selectable(false);
 
     label.connect_activate_link(|_, uri| {
         open_uri(uri);
@@ -527,13 +530,28 @@ fn link_at(label: &gtk::Label, x: f64, y: f64, links: &[Link], plain: &str) -> O
     let (inside, index, _) = label
         .layout()
         .xy_to_index(x as i32 - offset_x, y as i32 - offset_y);
-    if !inside {
-        return None;
-    }
     let index = index as usize;
+    if inside {
+        if let Some(link) = links
+            .iter()
+            .find(|link| index >= link.start && index < link.end)
+        {
+            return Some(link.clone());
+        }
+    }
+
+    // Selectable labels can report an index outside the link run even when
+    // the pointer is on it. Fall back to the nearest link start so a
+    // right-click still targets the link the user aimed at.
+    let layout = label.layout();
     links
         .iter()
-        .find(|link| index >= link.start && index < link.end)
+        .min_by_key(|link| {
+            let rect = layout.index_to_pos(link.start as i32);
+            let dx = (x as i32 - offset_x) - rect.x();
+            let dy = (y as i32 - offset_y) - rect.y();
+            dx * dx + dy * dy
+        })
         .cloned()
 }
 
