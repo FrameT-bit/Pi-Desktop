@@ -165,7 +165,7 @@ fn paragraph(text: &str) -> gtk::Widget {
         "<span line_height='{LINE_HEIGHT}'>{}</span>",
         inline.markup
     ));
-    attach_links(&label, &inline);
+    attach_links(&label, &inline.links);
     label.upcast()
 }
 
@@ -174,7 +174,7 @@ fn heading(level: usize, text: &str) -> gtk::Widget {
     label.add_css_class(&format!("md-h{level}"));
     let inline = inline(text);
     label.set_markup(&inline.markup);
-    attach_links(&label, &inline);
+    attach_links(&label, &inline.links);
     label.upcast()
 }
 
@@ -186,7 +186,7 @@ fn quote(text: &str) -> gtk::Widget {
         "<span line_height='{LINE_HEIGHT}'>{}</span>",
         inline.markup
     ));
-    attach_links(&label, &inline);
+    attach_links(&label, &inline.links);
     label.upcast()
 }
 
@@ -212,7 +212,7 @@ fn bullet(indent: usize, marker: &str, text: &str) -> gtk::Widget {
         "<span line_height='{LINE_HEIGHT}'>{}</span>",
         inline.markup
     ));
-    attach_links(&label, &inline);
+    attach_links(&label, &inline.links);
 
     row.append(&bullet);
     row.append(&label);
@@ -455,110 +455,27 @@ fn table_cell(
     if separator {
         label.add_css_class("md-table-sep");
     }
-    attach_links(&label, &inline);
+    attach_links(&label, &inline.links);
     if text.chars().count() > 24 {
         label.set_tooltip_text(Some(text));
     }
     label
 }
 
-fn attach_links(label: &gtk::Label, inline: &Inline) {
-    if inline.links.is_empty() {
+fn attach_links(label: &gtk::Label, links: &[String]) {
+    let Some(first) = links.first() else {
         return;
-    }
-
-    let tooltip = if inline.links.len() == 1 {
-        inline.links[0].url.as_str()
-    } else {
-        "right-click a link to copy or open"
     };
-    label.set_tooltip_text(Some(tooltip));
-    // Selectable labels install their own copy menu and selection gesture,
-    // which can swallow clicks on links. Link labels use the link menu below.
+    if links.len() == 1 {
+        label.set_tooltip_text(Some(first));
+    }
+    // Selectable labels install their own selection controller and copy
+    // menu, which can swallow clicks on links.
     label.set_selectable(false);
-
     label.connect_activate_link(|_, uri| {
         open_uri(uri);
         gtk::glib::Propagation::Stop
     });
-
-    let links = inline.links.clone();
-    let plain = inline.plain.clone();
-
-    let menu_gesture = gtk::GestureClick::new();
-    menu_gesture.set_button(gtk::gdk::BUTTON_SECONDARY);
-    menu_gesture.set_propagation_phase(gtk::PropagationPhase::Capture);
-    let label_weak = label.downgrade();
-    menu_gesture.connect_pressed(move |gesture, _, x, y| {
-        let Some(label) = label_weak.upgrade() else {
-            return;
-        };
-        let Some(url) = link_at(&label, x, y, &links, &plain)
-            .map(|link| link.url)
-            .or_else(|| label.current_uri().map(|uri| uri.to_string()))
-            .or_else(|| (links.len() == 1).then(|| links[0].url.clone()))
-        else {
-            return;
-        };
-        gesture.set_state(gtk::EventSequenceState::Claimed);
-
-        let copy_url = url.clone();
-        let open_url = url;
-        crate::ui::menu::show_at(
-            &label,
-            Some((x, y)),
-            vec![
-                (
-                    "Copy link",
-                    std::rc::Rc::new(move || copy_text(&copy_url)),
-                ),
-                (
-                    "Open in browser",
-                    std::rc::Rc::new(move || open_uri(&open_url)),
-                ),
-            ],
-        );
-    });
-    label.add_controller(menu_gesture);
-}
-
-fn link_at(label: &gtk::Label, x: f64, y: f64, links: &[Link], plain: &str) -> Option<Link> {
-    if plain.is_empty() {
-        return None;
-    }
-    let (offset_x, offset_y) = label.layout_offsets();
-    let (inside, index, _) = label
-        .layout()
-        .xy_to_index(x as i32 - offset_x, y as i32 - offset_y);
-    let index = index as usize;
-    if inside {
-        if let Some(link) = links
-            .iter()
-            .find(|link| index >= link.start && index < link.end)
-        {
-            return Some(link.clone());
-        }
-    }
-
-    // Selectable labels can report an index outside the link run even when
-    // the pointer is on it. Fall back to the nearest link start so a
-    // right-click still targets the link the user aimed at.
-    let layout = label.layout();
-    links
-        .iter()
-        .min_by_key(|link| {
-            let rect = layout.index_to_pos(link.start as i32);
-            let dx = (x as i32 - offset_x) - rect.x();
-            let dy = (y as i32 - offset_y) - rect.y();
-            dx * dx + dy * dy
-        })
-        .cloned()
-}
-
-fn copy_text(text: &str) {
-    if let Some(display) = gtk::gdk::Display::default() {
-        display.clipboard().set_text(text);
-    }
 }
 
 fn open_uri(uri: &str) {
@@ -568,26 +485,14 @@ fn open_uri(uri: &str) {
     );
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Link {
-    pub url: String,
-    /// Byte offset of the first visible character in `plain`.
-    pub start: usize,
-    /// Byte offset one past the last visible character in `plain`.
-    pub end: usize,
-}
-
 pub struct Inline {
     pub markup: String,
-    /// Visible text of the label, without markup or Markdown syntax.
-    pub plain: String,
-    pub links: Vec<Link>,
+    pub links: Vec<String>,
 }
 
 pub fn inline(text: &str) -> Inline {
     let chars: Vec<char> = text.chars().collect();
     let mut out = String::with_capacity(text.len() + 16);
-    let mut plain = String::with_capacity(text.len());
     let mut links = Vec::new();
     let mut i = 0;
 
@@ -596,22 +501,18 @@ pub fn inline(text: &str) -> Inline {
         match c {
             '&' => {
                 out.push_str("&amp;");
-                plain.push('&');
                 i += 1;
             }
             '<' => {
                 out.push_str("&lt;");
-                plain.push('<');
                 i += 1;
             }
             '>' => {
                 out.push_str("&gt;");
-                plain.push('>');
                 i += 1;
             }
             '"' => {
                 out.push_str("&quot;");
-                plain.push('"');
                 i += 1;
             }
             '`' => {
@@ -624,11 +525,9 @@ pub fn inline(text: &str) -> Inline {
                         t::active("cardBg"),
                         escape(&code)
                     ));
-                    plain.push_str(&code);
                     i = end + 1;
                 } else {
                     out.push('`');
-                    plain.push('`');
                     i += 1;
                 }
             }
@@ -637,7 +536,6 @@ pub fn inline(text: &str) -> Inline {
                     if let Some(end) = find_seq(&chars, i + 2, "**") {
                         let inner: String = chars[i + 2..end].iter().collect();
                         out.push_str(&format!("<b>{}</b>", escape(&inner)));
-                        plain.push_str(&inner);
                         i = end + 2;
                         continue;
                     }
@@ -646,47 +544,36 @@ pub fn inline(text: &str) -> Inline {
                     if end > i + 1 {
                         let inner: String = chars[i + 1..end].iter().collect();
                         out.push_str(&format!("<i>{}</i>", escape(&inner)));
-                        plain.push_str(&inner);
                         i = end + 1;
                         continue;
                     }
                 }
                 out.push('*');
-                plain.push('*');
                 i += 1;
             }
             '[' => {
                 if let Some((label, url, next)) = parse_link(&chars, i) {
-                    let start = plain.len();
-                    plain.push_str(&label);
-                    let end = plain.len();
                     out.push_str(&format!(
                         "<a href=\"{}\" title=\"{}\">{}</a>",
                         escape(&url),
                         escape(&url),
                         escape(&label)
                     ));
-                    links.push(Link { url, start, end });
+                    links.push(url);
                     i = next;
                 } else {
                     out.push('[');
-                    plain.push('[');
                     i += 1;
                 }
             }
             _ => {
                 out.push(c);
-                plain.push(c);
                 i += 1;
             }
         }
     }
 
-    Inline {
-        markup: out,
-        plain,
-        links,
-    }
+    Inline { markup: out, links }
 }
 
 fn find_char(chars: &[char], from: usize, needle: char) -> Option<usize> {
@@ -737,21 +624,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn inline_links_map_visible_text_to_urls() {
+    fn inline_links_keep_urls() {
         let inline = inline("See [OpenAI](https://openai.com) and [Pi](https://pi.dev).");
-        assert_eq!(inline.plain, "See OpenAI and Pi.");
-        assert_eq!(inline.links.len(), 2);
-        assert_eq!(&inline.plain[inline.links[0].start..inline.links[0].end], "OpenAI");
-        assert_eq!(&inline.plain[inline.links[1].start..inline.links[1].end], "Pi");
-        assert_eq!(inline.links[0].url, "https://openai.com");
-        assert_eq!(inline.links[1].url, "https://pi.dev");
+        assert_eq!(
+            inline.links,
+            vec!["https://openai.com".to_string(), "https://pi.dev".to_string()]
+        );
         assert!(inline.markup.contains("<a href=\"https://openai.com\" title="));
-    }
-
-    #[test]
-    fn inline_links_keep_offsets_after_formatting() {
-        let inline = inline("**Docs:** [Pi](https://pi.dev)");
-        assert_eq!(inline.plain, "Docs: Pi");
-        assert_eq!(&inline.plain[inline.links[0].start..inline.links[0].end], "Pi");
+        assert!(inline.markup.contains("<a href=\"https://pi.dev\" title="));
     }
 }
