@@ -2,14 +2,21 @@
 
 # Pi Desktop
 
-A native Rust (GTK4 + libadwaita) desktop client for talking to Pi over RPC.
-Local-first, no cloud dependency. SSH is optional for running Pi on another machine.
+A native desktop app for working with Pi, built with Rust, GTK4 and libadwaita.
+It connects to Pi over RPC. Everything can run locally; SSH is optional if Pi
+runs on another machine.
+
+[![Built with DeepSeek](https://img.shields.io/badge/Built%20with-DeepSeek-4D6BFF?style=flat-square)](https://www.deepseek.com/)
+[![Built with Codex](https://img.shields.io/badge/Built%20with-Codex-111111?style=flat-square)](https://openai.com/codex/)
+
+DeepSeek and Codex were used as development tools to help make Pi Desktop a
+working project. Neither is needed to build or run the app.
 
 Pi Desktop is an independent project by FrameT. It is not affiliated with,
 endorsed by, or sponsored by Earendil Inc. The name "Pi" is used only to
 describe compatibility with the Pi coding agent.
 
-## Features
+## What it does
 
 - Chat and code modes in one app, switched from the header.
 - Live turn feedback: a 1px pulse under the sent message and a receipt with
