@@ -11,14 +11,40 @@ use serde_json::Value;
 use crate::config;
 use crate::state::{RemoteSession, Transport};
 
-pub const HISTORY_CMD: &str = concat!(
-    "ls -1t -- ~/.pi/agent/sessions/*/*.jsonl 2>/dev/null | head -30 | ",
-    "while IFS= read -r f; do ",
-    "mt=$(stat -c %Y \"$f\" 2>/dev/null || echo 0);",
-    "sid=$(sed -n '1s/.*\"id\":\"\\([^\"]*\\)\".*/\\1/p' \"$f\");",
-    "printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' \"$f\" \"$mt\" \"$mi\" \"$nm\" \"$pv\" \"$sid\";",
-    "done"
-);
+// Return only the metadata needed by SessionFields, never full tool output.
+pub const HISTORY_CMD: &str = r#"python3 - <<'PY'
+import json
+from pathlib import Path
+files = []
+for path in (Path.home() / '.pi/agent/sessions').glob('*/*.jsonl'):
+    try:
+        files.append((int(path.stat().st_mtime), path))
+    except OSError:
+        continue
+for mtime, path in sorted(files, reverse=True)[:30]:
+    records = []
+    has_preview = False
+    try:
+        with path.open() as stream:
+            for line in stream:
+                try:
+                    entry = json.loads(line)
+                except ValueError:
+                    continue
+                if entry.get('type') in ('session', 'session_info', 'model_change'):
+                    records.append(entry)
+                elif entry.get('type') == 'message':
+                    message = entry.get('message', {})
+                    if message.get('role') == 'user' and not has_preview:
+                        records.append(entry)
+                        has_preview = bool(message.get('content'))
+                    elif message.get('role') == 'assistant':
+                        message = {key: message[key] for key in ('role','provider','model','modelId','timestamp') if key in message}
+                        records.append({'type':'message','timestamp':entry.get('timestamp'),'message':message})
+    except OSError:
+        continue
+    print(json.dumps({'path':str(path),'mtime':mtime,'records':records}))
+PY"#;
 
 pub fn spawn_fetch(transport: Transport, tx: async_channel::Sender<Vec<RemoteSession>>) {
     thread::Builder::new()
@@ -100,6 +126,8 @@ struct SessionFields {
     session_id: String,
     name: Option<String>,
     model: Option<String>,
+    last_model: Option<String>,
+    last_response: Option<i64>,
     preview: Option<String>,
     has_user: bool,
 }
@@ -123,25 +151,34 @@ impl SessionFields {
             }
             "model_change" => {
                 let provider = record.get("provider").and_then(Value::as_str);
-                let model_id = record.get("Model").and_then(Value::as_str);
+                let model_id = record.get("modelId").or_else(|| record.get("Model")).and_then(Value::as_str);
                 if let (Some(provider), Some(model_id)) = (provider, model_id) {
                     self.model = Some(format!("{provider}/{model_id}"));
                 }
             }
             "message" => {
-                if self.preview.is_some() {
+                let message = record.get("message").unwrap_or(record);
+                if message.get("role").and_then(Value::as_str) == Some("assistant") {
+                    if let Some(model) = message.get("model").or_else(|| message.get("modelId")).and_then(Value::as_str) {
+                        let provider = message.get("provider").and_then(Value::as_str).unwrap_or("");
+                        self.last_model = Some(if provider.is_empty() { model.to_string() } else { format!("{provider}/{model}") });
+                    }
+                    self.last_response = record.get("timestamp").and_then(timestamp_seconds)
+                        .or_else(|| message.get("timestamp").and_then(timestamp_seconds))
+                        .or(self.last_response);
                     return;
                 }
-                let message = record.get("message").unwrap_or(record);
                 if message.get("role").and_then(Value::as_str) != Some("user") {
                     return;
                 }
                 self.has_user = true;
-                if let Some(text) = content_text(message.get("content")) {
+                if self.preview.is_none() {
+                  if let Some(text) = content_text(message.get("content")) {
                     let text = text.trim();
                     if !text.is_empty() {
                         self.preview = Some(text.to_string());
                     }
+                  }
                 }
             }
             _ => {}
@@ -155,12 +192,20 @@ impl SessionFields {
         Some(RemoteSession {
             path,
             name: self.name,
-            model: self.model,
+            model: self.last_model.or(self.model),
             preview: self.preview,
             session_id: self.session_id,
             mtime,
+            last_response: self.last_response,
         })
     }
+}
+
+fn timestamp_seconds(value: &Value) -> Option<i64> {
+    if let Some(millis) = value.as_i64() {
+        return Some(millis / 1000);
+    }
+    glib::DateTime::from_iso8601(value.as_str()?, None).ok().map(|time| time.to_unix())
 }
 
 fn content_text(content: Option<&Value>) -> Option<String> {
@@ -217,42 +262,56 @@ fn remote_sessions(target: &str) -> Vec<RemoteSession> {
         return Vec::new();
     };
     let text = String::from_utf8_lossy(&output.stdout);
-    let mut sessions = Vec::new();
-    for line in text.lines() {
-        let mut fields = line.split('\t');
-        let Some(path) = fields.next() else { continue };
-        if path.trim().is_empty() {
-            continue;
-        }
-        let mtime = fields
-            .next()
-            .and_then(|value| value.trim().parse::<i64>().ok())
-            .unwrap_or(0);
-        let model = clean(fields.next());
-        let name = clean(fields.next());
-        let preview = clean(fields.next());
-        if preview.is_none() {
-            continue;
-        }
-        let session_id = clean(fields.next()).unwrap_or_default();
-        sessions.push(RemoteSession {
-            path: path.to_string(),
-            name,
-            model,
-            preview,
-            session_id,
-            mtime,
-        });
-    }
-    sessions
+    text.lines().filter_map(parse_remote_session).collect()
 }
 
-fn clean(value: Option<&str>) -> Option<String> {
-    let value = value?.trim();
-    if value.is_empty() {
-        return None;
-    }
-    Some(value.replace("\\\"", "\"").replace("\\n", " "))
+fn parse_remote_session(line: &str) -> Option<RemoteSession> {
+    let data: Value = serde_json::from_str(line).ok()?;
+    let mut session = SessionFields::default();
+    for record in data.get("records")?.as_array()? { session.consume(record); }
+    session.finish(data.get("path")?.as_str()?.to_string(), data.get("mtime")?.as_i64()?)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
 
+    #[test]
+    fn history_tracks_the_last_response_model_and_time_after_the_preview() {
+        let mut session = SessionFields::default();
+        for record in [
+            json!({"type":"session", "id":"session-1"}),
+            json!({"type":"model_change", "provider":"openai", "modelId":"old"}),
+            json!({"type":"message", "message":{"role":"user", "content":"First prompt"}}),
+            json!({"type":"message", "timestamp":"2026-11-12T10:00:00Z", "message":{"role":"assistant", "provider":"openai", "model":"old"}}),
+            json!({"type":"message", "timestamp":"2026-11-12T11:00:00Z", "message":{"role":"assistant", "provider":"anthropic", "model":"latest"}}),
+            json!({"type":"model_change", "provider":"google", "modelId":"selected-but-unused"}),
+        ] { session.consume(&record); }
+        let session = session.finish("/test.jsonl".into(), 1).unwrap();
+        assert_eq!(session.model.as_deref(), Some("anthropic/latest"));
+        assert_eq!(session.preview.as_deref(), Some("First prompt"));
+        assert_eq!(session.last_response, Some(1794481200));
+    }
+
+    #[test]
+    fn model_id_is_used_when_no_assistant_reply_exists() {
+        let mut session = SessionFields::default();
+        session.consume(&json!({"type":"model_change", "provider":"openai", "modelId":"gpt-6.1-sol"}));
+        session.consume(&json!({"type":"message", "message":{"role":"user", "content":"Hi"}}));
+        assert_eq!(session.finish("/test.jsonl".into(), 1).unwrap().model.as_deref(), Some("openai/gpt-6.1-sol"));
+    }
+
+    #[test]
+    fn remote_history_uses_the_same_metadata_parser() {
+        let data = json!({"path":"/remote/session.jsonl", "mtime":12, "records":[
+            {"type":"session", "id":"remote"},
+            {"type":"message", "message":{"role":"user","content":"A prompt with\ttabs"}},
+            {"type":"message", "message":{"role":"assistant","model":"latest","provider":"openai","timestamp":1794481200000_i64}}
+        ]});
+        let session = parse_remote_session(&data.to_string()).unwrap();
+        assert_eq!(session.model.as_deref(), Some("openai/latest"));
+        assert_eq!(session.last_response, Some(1794481200));
+        assert_eq!(session.preview.as_deref(), Some("A prompt with\ttabs"));
+    }
+}

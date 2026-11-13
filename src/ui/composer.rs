@@ -11,8 +11,7 @@ use crate::mentions::{self, Mention};
 use crate::prompt_history::PromptHistory;
 use crate::state::CommandItem;
 
-use super::level_slider::{level_label, LevelSlider};
-use super::particles::Particles;
+use super::reasoning::{level_label, LevelPicker};
 use super::popup::InlineList;
 use super::thumb;
 
@@ -165,21 +164,19 @@ pub struct Composer {
     syncing: Cell<bool>,
     queue: gtk::Label,
     attach: gtk::Button,
-    chat_think: gtk::ToggleButton,
+    chat_think: gtk::Button,
+    chat_think_label: gtk::Label,
     chat_search: gtk::ToggleButton,
     chat_tools: gtk::Box,
     chat_mode: Cell<bool>,
-    chat_toggle_guard: Cell<bool>,
     think: gtk::Button,
     think_label: gtk::Label,
     think_popover: gtk::Popover,
     think_body: gtk::Box,
-    think_slider: RefCell<Option<Rc<LevelSlider>>>,
+    think_picker: RefCell<Option<Rc<LevelPicker>>>,
     think_levels: RefCell<Vec<String>>,
     think_active: RefCell<Vec<String>>,
     think_index: Cell<usize>,
-    think_turbo: Cell<bool>,
-    particles: Rc<Particles>,
     on_thinking: Rc<RefCell<Option<ThinkingFn>>>,
     on_search_toggle: Rc<RefCell<Option<SearchToggleFn>>>,
     loop_chip: gtk::Button,
@@ -289,31 +286,25 @@ impl Composer {
         think.set_visible(false);
         think.set_tooltip_text(Some("model reasoning level"));
 
-        let particles = Particles::new();
         let think_body = gtk::Box::new(gtk::Orientation::Vertical, 6);
         think_body.add_css_class("think-popover-body");
-        let think_shell = gtk::Overlay::new();
-        think_shell.set_child(Some(&think_body));
-        think_shell.add_overlay(&particles.area);
-        think_shell.set_measure_overlay(&particles.area, false);
-        particles.area.set_halign(gtk::Align::Fill);
-        particles.area.set_valign(gtk::Align::Fill);
         let think_popover = gtk::Popover::new();
         think_popover.add_css_class("think-popover");
         think_popover.set_has_arrow(false);
         think_popover.set_position(gtk::PositionType::Top);
-        think_popover.set_child(Some(&think_shell));
+        think_popover.set_child(Some(&think_body));
         think_popover.set_parent(&think);
 
-        let chat_think = gtk::ToggleButton::new();
+        let chat_think = gtk::Button::new();
         chat_think.add_css_class("composer-chip");
         let chat_think_body = gtk::Box::new(gtk::Orientation::Horizontal, 5);
         chat_think_body.append(&icons::icon("sliders", Tone::Muted));
-        chat_think_body.append(&gtk::Label::new(Some("Thinking")));
+        let chat_think_label = gtk::Label::new(Some("Reasoning"));
+        chat_think_body.append(&chat_think_label);
         chat_think.set_child(Some(&chat_think_body));
         chat_think.set_valign(gtk::Align::End);
         chat_think.set_visible(false);
-        chat_think.set_tooltip_text(Some("turn on/off the model's reasoning"));
+        chat_think.set_tooltip_text(Some("Choose the model's reasoning level"));
 
         let chat_search = gtk::ToggleButton::new();
         chat_search.add_css_class("composer-chip");
@@ -430,20 +421,18 @@ impl Composer {
             queue,
             attach,
             chat_think,
+            chat_think_label,
             chat_search,
             chat_tools,
             chat_mode: Cell::new(false),
-            chat_toggle_guard: Cell::new(false),
             think,
             think_label,
             think_popover,
             think_body,
-            think_slider: RefCell::new(None),
+            think_picker: RefCell::new(None),
             think_levels: RefCell::new(Vec::new()),
             think_active: RefCell::new(Vec::new()),
             think_index: Cell::new(0),
-            think_turbo: Cell::new(false),
-            particles,
             on_thinking: Rc::new(RefCell::new(None)),
             on_search_toggle: Rc::new(RefCell::new(None)),
             loop_chip,
@@ -467,24 +456,9 @@ impl Composer {
 
     fn wire(self: &Rc<Self>) {
         let me = self.clone();
-        self.chat_think.connect_toggled(move |button| {
-            if me.chat_toggle_guard.get() {
-                return;
-            }
-            if !me.chat_mode.get() {
-                return;
-            }
-            if button.is_active() {
-                let len = me.think_active.borrow().len();
-                if len == 0 {
-                    me.set_chat_think_active(false);
-                    return;
-                }
-                let index = me.think_index.get().min(len - 1);
-                me.apply_think_level(index, true);
-            } else {
-                me.apply_off(true);
-            }
+        self.chat_think.connect_clicked(move |_| {
+            if me.think_popover.is_visible() { me.think_popover.popdown(); }
+            else { me.open_thinking(); }
         });
 
         let me = self.clone();
@@ -715,7 +689,7 @@ impl Composer {
     }
 
     pub fn open_thinking(&self) {
-        if !self.think.get_visible() {
+        if self.think_active.borrow().is_empty() {
             return;
         }
         self.think_popover.popup();
@@ -731,8 +705,11 @@ impl Composer {
 
     pub fn set_chat_mode(&self, chat: bool) {
         self.chat_mode.set(chat);
-        if chat {
+        let anchor = if chat { self.chat_think.upcast_ref::<gtk::Widget>() } else { self.think.upcast_ref::<gtk::Widget>() };
+        if self.think_popover.parent().as_ref() != Some(anchor) {
             self.think_popover.popdown();
+            self.think_popover.unparent();
+            self.think_popover.set_parent(anchor);
         }
         let has_thinking = !self.think_active.borrow().is_empty();
         self.think.set_visible(!chat && has_thinking);
@@ -751,12 +728,12 @@ impl Composer {
     }
 
     fn set_chat_think_active(&self, active: bool) {
-        self.chat_toggle_guard.set(true);
-        self.chat_think.set_active(active);
-        self.chat_toggle_guard.set(false);
+        if active { self.chat_think.add_css_class("active"); }
+        else { self.chat_think.remove_css_class("active"); }
     }
 
     pub fn set_thinking_levels(self: &Rc<Self>, levels: &[String], current: &str) {
+        let changed = self.think_picker.borrow().is_none() || self.think_levels.borrow().as_slice() != levels;
         *self.think_levels.borrow_mut() = levels.to_vec();
         let active: Vec<String> = levels
             .iter()
@@ -769,10 +746,9 @@ impl Composer {
             .set_visible(self.chat_mode.get() && !active.is_empty());
         if active.is_empty() {
             self.think_popover.popdown();
-            self.particles.set_active(false);
             return;
         }
-        self.rebuild_think(&active);
+        if changed { self.rebuild_think(); }
         if current == "off" {
             self.apply_off(false);
         } else {
@@ -784,7 +760,7 @@ impl Composer {
         }
     }
 
-    fn rebuild_think(self: &Rc<Self>, levels: &[String]) {
+    fn rebuild_think(self: &Rc<Self>) {
         while let Some(child) = self.think_body.first_child() {
             self.think_body.remove(&child);
         }
@@ -794,41 +770,26 @@ impl Composer {
         title.set_xalign(0.0);
         self.think_body.append(&title);
 
-        let slider = LevelSlider::new(levels.to_vec());
+        let picker = LevelPicker::new(&self.think_levels.borrow());
         let me = self.clone();
-        slider.set_on_change(move |index| me.apply_think_level(index, true));
-        *self.think_slider.borrow_mut() = Some(slider.clone());
-        let slider_wrap = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        slider_wrap.add_css_class("think-slider-wrap");
-        slider_wrap.set_hexpand(true);
-        slider_wrap.set_size_request(-1, 64);
-        slider_wrap.append(&slider.area);
-        slider.track_on(&slider_wrap);
-        self.think_body.append(&slider_wrap);
-
-        let off = gtk::Button::with_label("turn off reasoning");
-        off.add_css_class("rail-open");
-        off.set_halign(gtk::Align::Start);
-        let me = self.clone();
-        off.connect_clicked(move |_| me.apply_off(true));
-        self.think_body.append(&off);
-
-        let hint = gtk::Label::new(Some("the last level enables turbo"));
-        hint.add_css_class("palette-desc");
-        hint.set_xalign(0.0);
-        self.think_body.append(&hint);
+        picker.set_on_change(move |level| {
+            if level == "off" { me.apply_off(true); }
+            else {
+                let index = me.think_active.borrow().iter().position(|value| *value == level);
+                if let Some(index) = index { me.apply_think_level(index, true); }
+            }
+        });
+        self.think_body.append(&picker.root);
+        *self.think_picker.borrow_mut() = Some(picker);
     }
 
     fn apply_off(self: &Rc<Self>, notify: bool) {
         self.think_label.set_text("OFF");
+        self.chat_think_label.set_text("Reasoning · Off");
         self.think.add_css_class("off");
-        self.think_turbo.set(false);
-        self.think.remove_css_class("turbo");
-        if let Some(slider) = self.think_slider.borrow().as_ref() {
-            slider.set_turbo(false);
-            slider.set_index(0);
+        if let Some(picker) = self.think_picker.borrow().as_ref() {
+            picker.set_level("off");
         }
-        self.particles.set_active(false);
         self.set_chat_think_active(false);
         if notify {
             if let Some(callback) = self.on_thinking.borrow().as_ref() {
@@ -845,23 +806,13 @@ impl Composer {
         let index = index.min(levels.len() - 1);
         self.think_index.set(index);
         self.think_label.set_text(&level_label(&levels[index]));
+        self.chat_think_label.set_text(&format!("Reasoning · {}", level_label(&levels[index])));
         self.think.remove_css_class("off");
 
-        let turbo = levels.len() > 1 && index == levels.len() - 1;
-        self.think_turbo.set(turbo);
-        if turbo {
-            self.think.add_css_class("turbo");
-        } else {
-            self.think.remove_css_class("turbo");
-        }
-        if let Some(slider) = self.think_slider.borrow().as_ref() {
-            slider.set_turbo(turbo);
-        }
-        self.particles.set_active(turbo);
         self.set_chat_think_active(true);
 
-        if let Some(slider) = self.think_slider.borrow().as_ref() {
-            slider.set_index(index);
+        if let Some(picker) = self.think_picker.borrow().as_ref() {
+            picker.set_level(&levels[index]);
         }
 
         if notify {
@@ -1629,5 +1580,3 @@ fn skill_insert(name: &str) -> String {
     let name = name.strip_prefix("skill:").unwrap_or(name);
     format!("/skill:{name} ")
 }
-
-

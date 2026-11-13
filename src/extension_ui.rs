@@ -66,7 +66,7 @@ impl Method {
             "input" => Method::Input,
             "editor" => Method::Editor,
             "notify" => Method::Notify,
-            "Status set" => Method::SetStatus,
+            "setStatus" | "Status set" => Method::SetStatus,
             "setWidget" => Method::SetWidget,
             "setTitle" => Method::SetTitle,
             "set_editor_text" => Method::SetEditorText,
@@ -161,7 +161,7 @@ impl Request {
             status_text,
             widget_key: text("widgetKey"),
             widget_lines,
-            placement: Placement::parse(record.get("widgetPlace").and_then(Value::as_str)),
+            placement: Placement::parse(record.get("widgetPlacement").or_else(|| record.get("widgetPlace")).and_then(Value::as_str)),
             text: text("text"),
         })
     }
@@ -300,6 +300,7 @@ impl Widgets {
             .values()
             .filter(|(at, _)| *at == placement)
             .flat_map(|(_, lines)| lines.iter().map(|line| strip_ansi(line)))
+            .filter(|line| !line.trim().starts_with(crate::subagents::WIDGET_PREFIX))
             .collect();
         if lines.is_empty() {
             return None;
@@ -322,4 +323,25 @@ pub fn clamp_lines(lines: &[String], max: usize) -> String {
     shown.join("\n")
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
 
+    #[test]
+    fn rpc_widget_placement_and_status_use_the_pi_field_names() {
+        let widget = Request::parse(&json!({"type":"extension_ui_request", "method":"setWidget", "widgetKey":"demo", "widgetPlacement":"belowEditor", "widgetLines":["Status"]})).unwrap();
+        assert_eq!(widget.placement, Placement::Below);
+        let status = Request::parse(&json!({"type":"extension_ui_request", "method":"setStatus"})).unwrap();
+        assert_eq!(status.method, Method::SetStatus);
+    }
+
+    #[test]
+    fn machine_snapshots_do_not_leak_into_generic_widget_text() {
+        let mut widgets = Widgets::default();
+        widgets.set("snapshot", Some(vec![format!("{}{{invalid}}", crate::subagents::WIDGET_PREFIX)]), Placement::Above);
+        widgets.set("normal", Some(vec!["Human-readable status".into()]), Placement::Above);
+        assert_eq!(widgets.render(Placement::Above).as_deref(), Some("Human-readable status"));
+        widgets.set("normal", None, Placement::Above);
+        assert!(widgets.render(Placement::Above).is_none());
+    }
+}

@@ -148,7 +148,7 @@ pub fn tokens(index: usize) -> Vec<(String, String)> {
     };
     let ink = if dark { "#f5efe7" } else { "#211b18" };
     let text_base = mix_hex(ink, &page, 0.18);
-    let muted = mix_hex(ink, &page, 0.44);
+    let muted = mix_hex(ink, &page, 0.36);
     let dim = mix_hex(ink, &page, 0.62);
     let border = mix_hex(ink, &page, 0.20);
     let border_muted = mix_hex(ink, &page, 0.12);
@@ -158,8 +158,7 @@ pub fn tokens(index: usize) -> Vec<(String, String)> {
     let user_border = mix_hex(&card, &accent, if dark { 0.34 } else { 0.30 });
     let tool_success = mix_hex(&card, "#35704a", if dark { 0.22 } else { 0.10 });
     let tool_error = mix_hex(&card, "#a34428", if dark { 0.22 } else { 0.10 });
-    let code_block = mix_hex(&card, ink, if dark { 0.14 } else { 0.06 });
-    let mut out = vec![
+    let out = vec![
         ("accent".into(), accent.clone()),
         ("pageBg".into(), page.clone()),
         ("canvas".into(), canvas.clone()),
@@ -173,11 +172,12 @@ pub fn tokens(index: usize) -> Vec<(String, String)> {
         ("toolSuccessBg".into(), tool_success),
         ("toolErrorBg".into(), tool_error),
         ("toolTitle".into(), ink.into()),
-        ("toolOutput".into(), muted.clone()),
+        ("toolOutput".into(), text_base.clone()),
         ("mdHeading".into(), ink.into()),
         ("mdLink".into(), accent.clone()),
         ("mdCode".into(), ink.into()),
-        ("mdCodeBlock".into(), mix_hex(&card, ink, 0.08)),
+        // mdCodeBlock is foreground ink, not a code-card background.
+        ("mdCodeBlock".into(), text_base.clone()),
         ("mdCodeBlockBorder".into(), border_muted.clone()),
         ("mdQuote".into(), muted.clone()),
         ("mdQuoteBorder".into(), border_muted.clone()),
@@ -204,9 +204,6 @@ pub fn tokens(index: usize) -> Vec<(String, String)> {
         ("panelBorder".into(), panel),
         ("threadBlue".into(), accent),
     ];
-    if let Some(entry) = out.iter_mut().find(|(key, _)| key == "mdCodeBlock") {
-        entry.1 = code_block;
-    }
     out
 }
 
@@ -279,6 +276,21 @@ mod tests {
                 theme.name,
                 ratio
             );
+        }
+    }
+
+    #[test]
+    fn card_content_has_readable_contrast_in_every_theme() {
+        for index in 0..THEMES.len() {
+            let colors: std::collections::HashMap<_, _> = tokens(index).into_iter().collect();
+            for (foreground, background) in [
+                ("mdCodeBlock", "cardBg"), ("toolOutput", "cardBg"),
+                ("customMessageText", "customMessageBg"), ("userMessageText", "userMessageBg"),
+                ("thinkingText", "cardBg"),
+            ] {
+                let ratio = contrast(&colors[foreground], &colors[background]);
+                assert!(ratio >= 4.5, "{} {foreground}/{background}: {ratio:.2}:1", THEMES[index].id);
+            }
         }
     }
 }

@@ -27,6 +27,8 @@ pub struct StatusUi {
     pub conn_dot: gtk::Box,
     pub conn_text: gtk::Label,
     pub conn_button: gtk::Button,
+    connection: gtk::Box,
+    connection_sep: gtk::Label,
     code_widgets: Vec<gtk::Widget>,
     chat_mode: Cell<bool>,
     show_costs: Cell<bool>,
@@ -150,7 +152,6 @@ pub fn build() -> StatusUi {
         ctx.clone().upcast(),
         sep_perm.upcast(),
         perm_button.clone().upcast(),
-        sep_conn.upcast(),
     ];
 
     StatusUi {
@@ -174,6 +175,8 @@ pub fn build() -> StatusUi {
         conn_dot,
         conn_text,
         conn_button,
+        connection: conn,
+        connection_sep: sep_conn,
         code_widgets,
         chat_mode: Cell::new(false),
         show_costs: Cell::new(true),
@@ -191,6 +194,7 @@ impl StatusUi {
 
     pub fn set_chat_mode(&self, chat: bool) {
         self.chat_mode.set(chat);
+        self.connection_sep.set_visible(!chat && self.connection.is_visible());
         for widget in &self.code_widgets {
             widget.set_visible(!chat);
         }
@@ -255,6 +259,9 @@ impl StatusUi {
     }
 
     pub fn set_connection(&self, connection: &Connection, detail: &str) {
+        let show = !connection.is_connected();
+        self.connection.set_visible(show);
+        self.connection_sep.set_visible(show && !self.chat_mode.get());
         for class in ["ok", "bad", "wait"] {
             self.conn_dot.remove_css_class(class);
         }

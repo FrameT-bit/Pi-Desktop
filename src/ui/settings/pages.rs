@@ -4,7 +4,7 @@ use gtk::prelude::*;
 use super::{Control, Form};
 use crate::config::Config;
 use crate::state::{resolve_pi_bin, ModelItem};
-use crate::theme::{self, FontChoice, ThemeMode};
+use crate::theme::{self, FontChoice, Palette};
 
 
 pub fn choice_value(key: &str, index: usize) -> &'static str {
@@ -455,18 +455,30 @@ pub fn personalization(config: &Config, form: &mut Form) -> gtk::Box {
     let page = blank();
     let rows = rows(&page);
 
-    let current = theme::load_mode().unwrap_or(ThemeMode::System);
-    let theme_labels: Vec<String> = ThemeMode::all()
-        .iter()
-        .map(|mode| mode.menu_label())
-        .collect();
-    let theme = dropdown_owned(&theme_labels, current.index());
+    let current = theme::load_preferences();
+    let theme = dropdown_owned(&["System".into(), "Light".into(), "Dark".into()], current.appearance_index());
     push_choice(form, "theme", theme.clone());
     rows.append(&row(
-        "theme",
-        "system, light, dark or one of the 50 food themes",
+        "appearance",
+        "Follow the system or select a mode. The header button switches between your saved themes.",
         &theme,
     ));
+
+    for (key, label, palette, selected) in [
+        ("light_theme", "light theme", Palette::Light, current.light),
+        ("dark_theme", "dark theme", Palette::Dark, current.dark),
+    ] {
+        let modes = theme::palette_modes(palette);
+        let labels: Vec<String> = modes.iter().map(|mode| mode.menu_label()).collect();
+        let index = modes.iter().position(|mode| *mode == selected).unwrap_or(0);
+        let control = dropdown_owned(&labels, index);
+        push_choice(form, key, control.clone());
+        rows.append(&row(label, "Used whenever this appearance is active.", &control));
+    }
+
+    let tabs = toggle(config.session_tabs);
+    push_switch(form, "session_tabs", tabs.clone());
+    rows.append(&row("session tabs", "Optional tabs in the header. Sessions remain available in the sidebar.", &tabs));
 
     let font_labels: Vec<String> = (0..3)
         .map(|index| FontChoice::from_index(index).label().to_string())

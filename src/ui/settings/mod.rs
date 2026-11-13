@@ -16,7 +16,7 @@ use gtk::prelude::*;
 
 use crate::config::{self, Approve, Config, Target, Thinking};
 use crate::state::ModelItem;
-use crate::theme::{self, FontChoice, ThemeMode};
+use crate::theme::{self, FontChoice, Palette, ThemeMode, ThemePreferences};
 
 use self::pages::block;
 
@@ -335,7 +335,7 @@ pub fn show(
                 error.set_visible(true);
                 return;
             }
-            let config = match collect(&form) {
+            let config = match collect(&form, &config_before) {
                 Ok(config) => config,
                 Err(message) => {
                     error.set_text(&message);
@@ -348,8 +348,16 @@ pub fn show(
                 error.set_visible(true);
                 return;
             }
-            let mode = ThemeMode::from_index(form.index("theme"));
-            theme::save_preference(mode);
+            let preferences = ThemePreferences {
+                mode: ThemeMode::from_index(form.index("theme")),
+                light: theme::palette_modes(Palette::Light)[form.index("light_theme")],
+                dark: theme::palette_modes(Palette::Dark)[form.index("dark_theme")],
+            };
+            if let Err(err) = theme::save_preferences(preferences) {
+                error.set_text(&format!("failed to save themes: {err}"));
+                error.set_visible(true);
+                return;
+            }
             error.set_visible(false);
             if config_before.needs_reconnect(&config) {
                 saved_reconnect.set(true);
@@ -589,7 +597,7 @@ fn seed_provider(name: &str) {
 }
 
 
-fn collect(form: &Form) -> Result<Config, String> {
+fn collect(form: &Form, before: &Config) -> Result<Config, String> {
     let workspace = form.text("workspace").trim().to_string();
     if workspace.is_empty() {
         return Err("empty workspace".to_string());
@@ -629,7 +637,7 @@ fn collect(form: &Form) -> Result<Config, String> {
         return Err("remote target requires ssh (user@host)".to_string());
     }
 
-    let mut config = Config::default();
+    let mut config = before.clone();
     config.target = if form.choice("target") == "remote" {
         Target::Remote
     } else {
@@ -674,6 +682,7 @@ fn collect(form: &Form) -> Result<Config, String> {
     config.chat_width = chat_width;
     config.font_scale = font_scale;
     config.font = FontChoice::from_index(form.index("font"));
+    config.session_tabs = form.boolean("session_tabs");
     config.show_costs = form.boolean("show_costs");
     Ok(config)
 }

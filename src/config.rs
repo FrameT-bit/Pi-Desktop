@@ -271,6 +271,7 @@ pub struct Config {
     pub append_system_prompt: String,
 
     pub view: ViewMode,
+    pub session_tabs: bool,
     pub timestamps: bool,
     pub auto_scroll: bool,
     pub chat_width: i32,
@@ -320,6 +321,7 @@ impl Default for Config {
             system_prompt: String::new(),
             append_system_prompt: String::new(),
             view: ViewMode::Code,
+            session_tabs: false,
             timestamps: true,
             auto_scroll: true,
             chat_width: DEFAULT_CHAT_WIDTH,
@@ -532,7 +534,10 @@ impl Config {
             };
 
             match key.as_str() {
-                "theme" => {} // do theme.rs
+                "theme" | "light_theme" | "dark_theme" => {} // Owned by theme.rs.
+                "session_tabs" if ui || section.is_empty() => {
+                    if let Some(parsed) = parse_bool(&value()) { self.session_tabs = parsed; }
+                }
                 "view" if ui || section.is_empty() => {
                     if let Some(parsed) = ViewMode::parse(&value()) {
                         self.view = parsed;
@@ -854,6 +859,7 @@ impl Config {
                 escape_text(&self.append_system_prompt),
             ),
             ("ui", "view", self.view.as_str().to_string()),
+            ("ui", "session_tabs", bool_str(self.session_tabs)),
             ("ui", "timestamps", bool_str(self.timestamps)),
             ("ui", "auto_scroll", bool_str(self.auto_scroll)),
             ("ui", "chat_width", self.chat_width.to_string()),
@@ -892,6 +898,26 @@ fn parse_bool(value: &str) -> Option<bool> {
         "true" | "1" | "yes" | "on" => Some(true),
         "false" | "0" | "no" | "off" => Some(false),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod ui_tests {
+    use super::*;
+
+    #[test]
+    fn session_tabs_are_opt_in_and_persist_across_saves() {
+        assert!(!Config::default().session_tabs);
+        for enabled in [false, true] {
+            let mut config = Config::default();
+            config.merge(&format!("[ui]\nsession_tabs={enabled}\n"));
+            let text = render_preserving("[ui]\nlight_theme=oat-milk\ndark_theme=midnight-fudge", &config.known_entries());
+            let mut loaded = Config::default();
+            loaded.merge(&text);
+            assert_eq!(loaded.session_tabs, enabled);
+            assert!(text.contains("light_theme=oat-milk"));
+            assert!(text.contains("dark_theme=midnight-fudge"));
+        }
     }
 }
 
@@ -1075,5 +1101,3 @@ pub fn expand_home(path: &str) -> PathBuf {
 pub fn home_file(relative: &str) -> PathBuf {
     expand_home(&format!("~/{}", relative.trim_start_matches('/')))
 }
-
-

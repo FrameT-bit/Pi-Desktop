@@ -2,6 +2,38 @@
 
 
 
+:root {
+  --esp-2: 2px;
+  --esp-4: 4px;
+  --esp-6: 6px;
+  --esp-8: 8px;
+  --esp-12: 12px;
+  --esp-16: 16px;
+  --esp-24: 24px;
+  --esp-32: 32px;
+  --esp-40: 40px;
+  --esp-48: 48px;
+  --esp-64: 64px;
+  --esp-80: 80px;
+  --cor-texto: @text;
+  --cor-muted: @muted;
+  --cor-acento: @accent;
+  --cor-borda: @border;
+  --cor-superficie: @card_bg;
+  --cor-selecao: @selected_bg;
+  /* Preserve the app's pixel-art controls while sharing one 44px hit target. */
+  --raio-botao: 0;
+  --fio: 1px;
+  --altura-controle: 44px;
+  --altura-miolo: var(--altura-controle);
+  --tipo-controle: 11px;
+  --tipo-descricao: 12px;
+  /* 280px collapsed rail budget minus its 44px grip. */
+  --rail-body-min: 236px;
+  /* Three reasoning options, with room for the "Extra high" label. */
+  --reasoning-width: 288px;
+}
+
 window {
   background-color: @page_bg;
   color: @text;
@@ -80,8 +112,8 @@ separator {
   background-image: none;
   border: 1px solid @border;
   border-radius: 0;
-  padding: 2px 12px;
-  min-height: 0;
+  padding: 0 var(--esp-12);
+  min-height: var(--altura-miolo);
   box-shadow: none;
 }
 
@@ -91,7 +123,7 @@ separator {
 
 .model-chip-label {
   font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
+  font-size: var(--tipo-controle);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: @text_base;
@@ -113,8 +145,8 @@ separator {
   border: 1px solid @border;
   border-radius: 0;
   box-shadow: none;
-  min-width: 28px;
-  min-height: 28px;
+  min-width: var(--altura-miolo);
+  min-height: var(--altura-miolo);
   padding: 0;
 }
 

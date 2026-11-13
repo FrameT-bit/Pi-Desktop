@@ -110,15 +110,6 @@ fn apply_fonts(css: &str, font: FontChoice) -> String {
 
 
 impl ThemeMode {
-    pub fn next(self) -> Self {
-        match self {
-            ThemeMode::System => ThemeMode::Light,
-            ThemeMode::Light => ThemeMode::Dark,
-            ThemeMode::Dark => ThemeMode::System,
-            ThemeMode::Named(_) => ThemeMode::System,
-        }
-    }
-
     pub fn resolve(self, system_prefers_dark: bool) -> Palette {
         match self {
             ThemeMode::System if system_prefers_dark => Palette::Dark,
@@ -231,10 +222,104 @@ impl Palette {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ThemePreferences {
+    pub mode: ThemeMode,
+    pub light: ThemeMode,
+    pub dark: ThemeMode,
+}
+
+impl Default for ThemePreferences {
+    fn default() -> Self {
+        Self { mode: ThemeMode::System, light: ThemeMode::Light, dark: ThemeMode::Dark }
+    }
+}
+
+impl ThemePreferences {
+    pub fn parse(text: &str) -> Self {
+        let mut prefs = Self::default();
+        prefs.select(parse_config(text).unwrap_or(ThemeMode::System));
+        for (key, palette) in [("light_theme", Palette::Light), ("dark_theme", Palette::Dark)] {
+            if let Some(mode) = ui_value(text, key).and_then(ThemeMode::parse) {
+                if mode != ThemeMode::System && mode.resolve(false) == palette {
+                    match palette {
+                        Palette::Light => prefs.light = mode,
+                        Palette::Dark => prefs.dark = mode,
+                    }
+                }
+            }
+        }
+        prefs
+    }
+
+    pub fn select(&mut self, mode: ThemeMode) {
+        self.mode = mode;
+        if let ThemeMode::Named(_) = mode {
+            match mode.resolve(false) {
+                Palette::Light => self.light = mode,
+                Palette::Dark => self.dark = mode,
+            }
+        }
+    }
+
+    pub fn effective(self, system_dark: bool) -> ThemeMode {
+        match self.mode.resolve(system_dark) {
+            Palette::Light => self.light,
+            Palette::Dark => self.dark,
+        }
+    }
+
+    pub fn appearance_index(self) -> usize {
+        match self.mode {
+            ThemeMode::System => 0,
+            _ if self.mode.resolve(false) == Palette::Light => 1,
+            _ => 2,
+        }
+    }
+
+    pub fn render(self, text: &str) -> String {
+        let text = upsert_ui_key(text, "theme", self.mode.as_str());
+        let text = upsert_ui_key(&text, "light_theme", self.light.as_str());
+        upsert_ui_key(&text, "dark_theme", self.dark.as_str())
+    }
+}
+
+pub fn palette_modes(palette: Palette) -> Vec<ThemeMode> {
+    ThemeMode::all().into_iter()
+        .filter(|mode| *mode != ThemeMode::System && mode.resolve(false) == palette)
+        .collect()
+}
+
+pub fn load_preferences() -> ThemePreferences {
+    config_path().and_then(|path| fs::read_to_string(path).ok())
+        .map(|text| ThemePreferences::parse(&text)).unwrap_or_default()
+}
+
+pub fn save_preferences(prefs: ThemePreferences) -> std::io::Result<()> {
+    let Some(path) = config_path() else { return Ok(()) };
+    let existing = fs::read_to_string(&path).unwrap_or_default();
+    crate::config::write_atomic(&path, &prefs.render(&existing))
+}
+
+fn ui_value<'a>(text: &'a str, key: &str) -> Option<&'a str> {
+    let mut in_ui = true;
+    text.lines().find_map(|line| {
+        let line = line.trim();
+        if line.starts_with('[') {
+            in_ui = line.trim_matches(['[', ']']).eq_ignore_ascii_case("ui");
+            return None;
+        }
+        if !in_ui || line.starts_with(['#', ';']) { return None; }
+        let (name, value) = line.split_once('=')?;
+        name.trim().eq_ignore_ascii_case(key).then_some(value.trim())
+    })
+}
+
 type Listener = Rc<dyn Fn()>;
 
 struct Inner {
     mode: Cell<ThemeMode>,
+    preferences: Cell<ThemePreferences>,
     palette: Cell<Palette>,
     system_dark: Cell<bool>,
     font_scale: Cell<u32>,
@@ -254,13 +339,16 @@ pub fn init() -> Theme {
         .ok()
         .and_then(|value| ThemeMode::parse(&value));
     let forced = from_env.is_some();
-    let mode = from_env.or_else(load_mode).unwrap_or(ThemeMode::System);
+    let mut preferences = load_preferences();
+    if let Some(mode) = from_env { preferences.select(mode); }
+    let mode = preferences.mode;
     let system_dark = system_prefers_dark();
     let font = load_font().unwrap_or(FontChoice::Pixel);
 
     let theme = Theme {
         inner: Rc::new(Inner {
             mode: Cell::new(mode),
+            preferences: Cell::new(preferences),
             palette: Cell::new(mode.resolve(system_dark)),
             system_dark: Cell::new(system_dark),
             font_scale: Cell::new(100),
@@ -274,7 +362,9 @@ pub fn init() -> Theme {
     theme.apply();
     theme.watch_system();
     if !forced {
-        save_mode(mode);
+        if let Err(error) = save_preferences(preferences) {
+            eprintln!("pi-desktop: saving appearance: {error}");
+        }
     }
     theme
 }
@@ -291,19 +381,33 @@ impl Theme {
     }
 
     pub fn cycle(&self) {
-        self.set_mode(self.inner.mode.get().next());
+        self.set_mode(match self.palette() {
+            Palette::Light => ThemeMode::Dark,
+            Palette::Dark => ThemeMode::Light,
+        });
     }
 
     pub fn set_mode(&self, mode: ThemeMode) {
-        self.inner.mode.set(mode);
+        let mut preferences = self.inner.preferences.get();
+        preferences.select(mode);
+        self.set_preferences(preferences);
+    }
+
+    pub fn set_preferences(&self, preferences: ThemePreferences) {
+        self.inner.mode.set(preferences.mode);
+        self.inner.preferences.set(preferences);
         if self.inner.persist.get() {
-            save_mode(mode);
+            if let Err(error) = save_preferences(preferences) {
+                eprintln!("pi-desktop: saving appearance: {error}");
+            }
         }
         self.apply();
     }
 
     pub fn tooltip(&self) -> String {
-        format!("Theme: {}", self.inner.mode.get().label())
+        let prefs = self.inner.preferences.get();
+        let next = if self.palette() == Palette::Dark { prefs.light } else { prefs.dark };
+        format!("{} · switch to {}", prefs.effective(self.inner.system_dark.get()).label(), next.label())
     }
 
     pub fn set_font_scale(&self, percent: u32) {
@@ -368,10 +472,7 @@ impl Theme {
             .resolve(self.inner.system_dark.get());
         self.inner.palette.set(palette);
 
-        let named_tokens = self
-            .inner
-            .mode
-            .get()
+        let named_tokens = self.inner.preferences.get().effective(self.inner.system_dark.get())
             .named_index()
             .map(theme_catalog::tokens)
             .unwrap_or_default();
@@ -524,10 +625,6 @@ fn scale_css(css: &str, percent: u32) -> String {
     out
 }
 
-pub fn save_preference(mode: ThemeMode) {
-    save_mode(mode);
-}
-
 pub fn save_font_preference(font: FontChoice) {
     save_font(font);
 }
@@ -574,11 +671,6 @@ pub fn config_path() -> Option<PathBuf> {
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))?;
     Some(base.join("pi-desktop").join("config.ini"))
-}
-
-pub fn load_mode() -> Option<ThemeMode> {
-    let text = fs::read_to_string(config_path()?).ok()?;
-    parse_config(&text)
 }
 
 pub fn parse_config(text: &str) -> Option<ThemeMode> {
@@ -652,65 +744,44 @@ fn upsert_ui_key(text: &str, key: &str, value: &str) -> String {
     lines.join("\n")
 }
 
-fn save_mode(mode: ThemeMode) {
-    let Some(path) = config_path() else {
-        return;
-    };
-    if let Some(dir) = path.parent() {
-        let _ = fs::create_dir_all(dir);
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legacy_named_theme_migrates_into_its_palette_slot() {
+        for name in ["midnight-fudge", "oat-milk"] {
+            let prefs = ThemePreferences::parse(&format!("[ui]\ntheme={name}\n"));
+            assert_eq!(prefs.effective(false).as_str(), name);
+            let mut toggled = prefs;
+            toggled.select(if prefs.mode.resolve(false) == Palette::Dark { ThemeMode::Light } else { ThemeMode::Dark });
+            toggled.select(prefs.mode);
+            assert_eq!(toggled.effective(false).as_str(), name);
+        }
     }
-    let existing = fs::read_to_string(&path).unwrap_or_default();
-    if parse_config(&existing) == Some(mode) {
-        return;
+
+    #[test]
+    fn appearance_switch_preserves_both_selected_themes() {
+        let text = "[pi]\nmodel=openai/test\n[ui]\ntheme=system\nlight_theme=oat-milk\ndark_theme=midnight-fudge\nsession_tabs=false\n";
+        let mut prefs = ThemePreferences::parse(text);
+        assert_eq!(prefs.effective(false).as_str(), "oat-milk");
+        assert_eq!(prefs.effective(true).as_str(), "midnight-fudge");
+        for mode in [ThemeMode::Light, ThemeMode::Dark, ThemeMode::Light] {
+            prefs.select(mode);
+            let saved = prefs.render(text);
+            assert_eq!(ThemePreferences::parse(&saved), prefs);
+            assert!(saved.contains("model=openai/test"));
+            assert!(saved.contains("session_tabs=false"));
+        }
     }
-    let _ = fs::write(path, upsert_ui_theme(&existing, mode));
+
+    #[test]
+    fn theme_choices_reject_wrong_palette_and_system() {
+        let prefs = ThemePreferences::parse("[ui]\nlight_theme=midnight-fudge\ndark_theme=system");
+        assert_eq!(prefs.light, ThemeMode::Light);
+        assert_eq!(prefs.dark, ThemeMode::Dark);
+        for palette in [Palette::Light, Palette::Dark] {
+            assert!(palette_modes(palette).iter().all(|mode| *mode != ThemeMode::System && mode.resolve(false) == palette));
+        }
+    }
 }
-
-fn upsert_ui_theme(text: &str, mode: ThemeMode) -> String {
-    let mut lines: Vec<String> = text.lines().map(str::to_string).collect();
-    let mut section = String::new();
-    let mut ui_start: Option<usize> = None;
-    let mut theme_line: Option<usize> = None;
-
-    for (index, raw) in lines.iter().enumerate() {
-        let line = raw.trim();
-        if let Some(name) = line.strip_prefix('[') {
-            section = name
-                .split(']')
-                .next()
-                .unwrap_or("")
-                .trim()
-                .to_ascii_lowercase();
-            if section == "ui" && ui_start.is_none() {
-                ui_start = Some(index);
-            }
-            continue;
-        }
-        if section == "ui" && !line.starts_with('#') && !line.starts_with(';') {
-            if let Some((key, _)) = line.split_once('=') {
-                if key.trim().eq_ignore_ascii_case("theme") {
-                    theme_line = Some(index);
-                }
-            }
-        }
-    }
-
-    let setting = format!("theme={}", mode.as_str());
-    match (theme_line, ui_start) {
-        (Some(index), _) => lines[index] = setting,
-        (None, Some(index)) => lines.insert(index + 1, setting),
-        (None, None) => {
-            if !lines.is_empty() && lines.last().is_some_and(|line| !line.trim().is_empty()) {
-                lines.push(String::new());
-            }
-            lines.push("[ui]".to_string());
-            lines.push(setting);
-        }
-    }
-
-    let mut out = lines.join("\n");
-    out.push('\n');
-    out
-}
-
-

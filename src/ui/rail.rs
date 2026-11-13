@@ -37,6 +37,7 @@ pub struct RailUi {
     activity_list: gtk::Box,
     activity_empty: gtk::Label,
     subagents_list: gtk::Box,
+    snapshot_list: gtk::Box,
     subagents_empty: gtk::Label,
     subagents: RefCell<Vec<Subagent>>,
     activities: RefCell<Vec<Activity>>,
@@ -59,10 +60,12 @@ impl RailUi {
         let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
         root.add_css_class("rail");
         root.set_vexpand(true);
+        root.set_hexpand(true);
 
         let tab_bar = gtk::Box::new(gtk::Orientation::Horizontal, 0);
         tab_bar.add_css_class("rail-tabs");
         let stack = gtk::Stack::new();
+        stack.set_hhomogeneous(false);
         stack.set_transition_type(gtk::StackTransitionType::Crossfade);
         stack.set_transition_duration(120);
         stack.set_vexpand(true);
@@ -93,10 +96,13 @@ impl RailUi {
         let subagents_empty = gtk::Label::new(Some("no sub-agents in this session"));
         subagents_empty.add_css_class("rail-empty");
         subagents_empty.set_xalign(0.0);
+        subagents_empty.set_wrap(true);
         activity.append(&subagents_empty);
         let subagents_list = gtk::Box::new(gtk::Orientation::Vertical, 0);
         subagents_list.add_css_class("rail-list");
         activity.append(&subagents_list);
+        let snapshot_list = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        activity.append(&snapshot_list);
 
         let tools_title = gtk::Label::new(Some("tools"));
         tools_title.add_css_class("rail-block-title");
@@ -108,14 +114,14 @@ impl RailUi {
         activity.append(&activity_empty);
         let activity_list = gtk::Box::new(gtk::Orientation::Vertical, 0);
         activity_list.add_css_class("rail-list");
+        activity.append(&activity_list);
         let activity_scroll = gtk::ScrolledWindow::builder()
             .hscrollbar_policy(gtk::PolicyType::Never)
             .vscrollbar_policy(gtk::PolicyType::Automatic)
             .vexpand(true)
-            .child(&activity_list)
+            .child(&activity)
             .build();
-        activity.append(&activity_scroll);
-        stack.add_named(&activity, Some("activity"));
+        stack.add_named(&activity_scroll, Some("activity"));
 
         let preview = gtk::Box::new(gtk::Orientation::Vertical, 0);
         preview.add_css_class("rail-page");
@@ -134,6 +140,7 @@ impl RailUi {
         preview_empty.add_css_class("rail-empty");
         preview_empty.set_xalign(0.0);
         preview_empty.set_wrap(true);
+        preview_empty.set_wrap_mode(gtk::pango::WrapMode::WordChar);
         preview.append(&preview_empty);
         let preview_text = gtk::TextView::new();
         preview_text.add_css_class("rail-preview");
@@ -186,6 +193,7 @@ impl RailUi {
         for (index, label) in labels.iter().enumerate() {
             let button = gtk::ToggleButton::with_label(label);
             button.add_css_class("rail-tab");
+            button.set_hexpand(true);
             if let Some(first) = tabs.first() {
                 button.set_group(Some(first));
             }
@@ -217,6 +225,7 @@ impl RailUi {
             activity_list,
             activity_empty,
             subagents_list,
+            snapshot_list,
             subagents_empty,
             subagents: RefCell::new(Vec::new()),
             activities: RefCell::new(Vec::new()),
@@ -378,6 +387,66 @@ impl RailUi {
         }
     }
 
+    pub fn set_subagent_snapshot(&self, snapshot: &crate::subagents::Snapshot) {
+        self.clear_subagent_snapshot();
+        self.subagents_list.set_visible(snapshot.runs.is_empty());
+        self.subagents_empty.set_visible(snapshot.runs.is_empty() && self.subagents.borrow().is_empty());
+        for run in snapshot.runs.iter().take(20) {
+            self.append_snapshot_run(run, 0);
+        }
+    }
+
+    fn append_snapshot_run(&self, run: &crate::subagents::Run, depth: usize) {
+        if depth > 3 { return; }
+        let row = gtk::Box::new(gtk::Orientation::Vertical, 4);
+        row.add_css_class("rail-subagent");
+        row.set_margin_start(depth as i32 * 12);
+        let head = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        let label = gtk::Label::new(Some(&run.label));
+        label.add_css_class("rail-activity-name");
+        label.set_xalign(0.0);
+        label.set_hexpand(true);
+        label.set_ellipsize(gtk::pango::EllipsizeMode::End);
+        let state = gtk::Label::new(Some(&run.state));
+        state.add_css_class("rail-activity-state");
+        state.add_css_class(match run.state.as_str() {
+            "complete" => "rail-activity-ok",
+            "failed" | "rejected" => "rail-activity-error",
+            _ => "rail-activity-state",
+        });
+        head.append(&label);
+        head.append(&state);
+        row.append(&head);
+        let detail = run.detail();
+        if !detail.is_empty() {
+            let label = gtk::Label::new(Some(&detail));
+            label.add_css_class("rail-subagent-detail");
+            label.set_xalign(0.0);
+            label.set_wrap(true);
+            label.set_wrap_mode(gtk::pango::WrapMode::WordChar);
+            label.set_max_width_chars(38);
+            row.append(&label);
+        }
+        if let Some(started) = run.started_at {
+            let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+                .map(|time| time.as_millis() as u64).unwrap_or(started);
+            let elapsed = run.ended_at.unwrap_or(now).saturating_sub(started) / 1000;
+            let time = gtk::Label::new(Some(&format_elapsed(elapsed)));
+            time.add_css_class("rail-activity-time");
+            time.set_xalign(0.0);
+            row.append(&time);
+        }
+        row.set_tooltip_text(Some(&run.id));
+        self.snapshot_list.append(&row);
+        for child in run.children.iter().take(8) { self.append_snapshot_run(child, depth + 1); }
+    }
+
+    pub fn clear_subagent_snapshot(&self) {
+        while let Some(child) = self.snapshot_list.first_child() { self.snapshot_list.remove(&child); }
+        self.subagents_list.set_visible(true);
+        self.subagents_empty.set_visible(self.subagents.borrow().is_empty());
+    }
+
     pub fn activity_start(self: &Rc<Self>, id: &str, name: &str) {
         if self
             .activities
@@ -517,6 +586,7 @@ impl RailUi {
     }
 
     pub fn clear_activity(&self) {
+        self.clear_subagent_snapshot();
         while let Some(child) = self.activity_list.first_child() {
             self.activity_list.remove(&child);
         }
@@ -562,12 +632,12 @@ impl RailUi {
         });
         let total_input = tokens_in + cache_read;
         let hit = if total_input > 0 {
-            format!("{:.1}% hit · {} lidos", 100.0 * cache_read as f64 / total_input as f64, compact(cache_read))
+            format!("{:.1}% hit · {} read", 100.0 * cache_read as f64 / total_input as f64, compact(cache_read))
         } else {
             "—".to_string()
         };
         self.cache.set_text(&if cache_write > 0 {
-            format!("{hit} · {} escritos", compact(cache_write))
+            format!("{hit} · {} written", compact(cache_write))
         } else {
             hit
         });
@@ -668,6 +738,7 @@ fn rail_value(key: &str) -> gtk::Label {
     label.add_css_class("rail-value");
     label.set_xalign(0.0);
     label.set_ellipsize(gtk::pango::EllipsizeMode::Middle);
+    label.set_max_width_chars(1);
     label.set_tooltip_text(Some(key));
     label
 }

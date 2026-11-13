@@ -333,11 +333,16 @@ impl SidebarUi {
     }
 
     pub fn tick_activity(&self, activity: &HashMap<String, SessionActivity>) {
+        let sessions = self.all.borrow();
         for (id, path, label) in self.age_labels.borrow().iter() {
-            if let Some(entry) = activity.get(id).or_else(|| activity.get(path)) {
-                if entry.running {
-                    label.set_text(&entry.elapsed_label());
-                }
+            let text = if let Some(entry) = activity.get(id).or_else(|| activity.get(path)).filter(|entry| entry.running) {
+                entry.elapsed_label()
+            } else {
+                sessions.iter().find(|(_, session)| session.session_id == *id || session.path == *path)
+                    .map(|(_, session)| session.age()).unwrap_or_default()
+            };
+            if label.text().as_str() != text {
+                label.set_text(&text);
             }
         }
     }

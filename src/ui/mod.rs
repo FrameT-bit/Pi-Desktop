@@ -9,12 +9,12 @@ pub mod git;
 pub mod header;
 pub mod hotkeys;
 pub mod jobs;
-pub mod level_slider;
+pub mod reasoning;
 pub mod menu;
-pub mod particles;
 pub mod plugin_config;
 pub mod plugins;
 pub mod popup;
+mod qa;
 pub mod rail;
 pub mod settings;
 pub mod sidebar;
@@ -88,6 +88,15 @@ struct PendingDelete {
 }
 
 type SlotKey = Rc<RefCell<String>>;
+
+const MIN_RAIL_WIDTH: i32 = 280;
+const MAX_RAIL_WIDTH: i32 = 640;
+const RAIL_HANDLE_WIDTH: i32 = 44;
+
+fn rail_width_for(total: i32, wanted: i32) -> i32 {
+    let maximum = MAX_RAIL_WIDTH.min((total - 320).max(RAIL_HANDLE_WIDTH));
+    wanted.clamp(MIN_RAIL_WIDTH.min(maximum), maximum)
+}
 
 pub struct AppUi {
     pub window: adw::ApplicationWindow,
@@ -208,6 +217,7 @@ impl AppUi {
             state.borrow_mut().jobs = 1;
         }
         let header = header::build(&state.borrow().model, &theme);
+        header.set_session_tabs(config.session_tabs);
         let sidebar = Rc::new(sidebar::SidebarUi::build(&state.borrow()));
         let chat = ChatView::new(&theme);
         chat.set_show_timestamps(config.timestamps);
@@ -252,6 +262,8 @@ impl AppUi {
         empty.append(&empty_button);
 
         let stack = gtk::Stack::new();
+        stack.set_hhomogeneous(false);
+        stack.set_vhomogeneous(false);
         stack.add_css_class("content-panel");
         stack.set_transition_type(gtk::StackTransitionType::Crossfade);
         stack.set_transition_duration(140);
@@ -280,7 +292,7 @@ impl AppUi {
 
         let rail_handle = gtk::Box::new(gtk::Orientation::Vertical, 0);
         rail_handle.add_css_class("rail-handle");
-        rail_handle.set_size_request(18, -1);
+        rail_handle.set_size_request(RAIL_HANDLE_WIDTH, -1);
         rail_handle.append(&rail_toggle);
         rail_handle.append(&rail_grip);
 
@@ -294,6 +306,7 @@ impl AppUi {
         rail_paned.set_start_child(Some(&stack));
         rail_paned.set_end_child(Some(&rail_column));
         rail_paned.set_resize_start_child(true);
+        rail_paned.set_resize_end_child(false);
         rail_paned.set_shrink_start_child(false);
         rail_paned.set_shrink_end_child(true);
         rail_paned.set_wide_handle(false);
@@ -302,10 +315,14 @@ impl AppUi {
             let paned = rail_paned.clone();
             let width = rail_width.clone();
             paned.connect_map(move |paned| {
-                let total = paned.width();
-                if total > 1 {
-                    paned.set_position((total - width.get().clamp(280, 460)).max(0));
-                }
+                let width = width.clone();
+                // map can run before allocation; wait for an actual frame.
+                paned.add_tick_callback(move |paned, _| {
+                    let total = paned.width();
+                    if total <= 1 { return glib::ControlFlow::Continue; }
+                    paned.set_position(total - rail_width_for(total, width.get()));
+                    glib::ControlFlow::Break
+                });
             });
         }
         {
@@ -313,24 +330,35 @@ impl AppUi {
             let width = rail_width.clone();
             let start_width = Rc::new(Cell::new(340i32));
             let drag = gtk::GestureDrag::new();
+            drag.set_button(gtk::gdk::BUTTON_PRIMARY);
             let drag_begin = paned.clone();
             let begin_width = start_width.clone();
-            drag.connect_drag_begin(move |_, _, _| {
+            drag.connect_drag_begin(move |gesture, _, _| {
+                gesture.set_state(gtk::EventSequenceState::Claimed);
                 let total = drag_begin.width();
                 let position = drag_begin.position();
                 let current = if total > 1 { total - position } else { 340 };
-                begin_width.set(current.clamp(280, 460));
+                begin_width.set(rail_width_for(total, current));
             });
             let drag_update = paned.clone();
             let update_width = width.clone();
             let update_start = start_width.clone();
             drag.connect_drag_update(move |_, offset_x, _| {
                 let total = drag_update.width();
-                let wanted = (update_start.get() as f64 - offset_x).clamp(280.0, 460.0) as i32;
+                let wanted = rail_width_for(total, (update_start.get() as f64 - offset_x) as i32);
                 drag_update.set_position((total - wanted).max(0));
                 update_width.set(wanted);
             });
             rail_grip.add_controller(drag);
+        }
+        {
+            let width = rail_width.clone();
+            let rail_root = rail.root.clone();
+            rail_paned.connect_position_notify(move |paned| {
+                if rail_root.is_visible() && paned.width() > 1 {
+                    width.set(rail_width_for(paned.width(), paned.width() - paned.position()));
+                }
+            });
         }
 
         let content = gtk::Paned::new(gtk::Orientation::Horizontal);
@@ -440,13 +468,15 @@ impl AppUi {
         let toast = gtk::Overlay::new();
         toast.set_child(Some(&shell));
 
+        let qa = std::env::var_os("PI_DESKTOP_QA_REPORT").is_some();
         let window = adw::ApplicationWindow::builder()
             .application(app)
             .title("pi")
             .default_width(1280)
-            .default_height(840)
+            .default_height(if qa { 600 } else { 840 })
             .build();
-        window.set_size_request(960, 560);
+        window.set_size_request(if qa { 1280 } else { 960 }, if qa { 600 } else { 560 });
+        if qa { window.set_decorated(false); }
         window.set_icon_name(Some("pi-desktop"));
         window.set_content(Some(&toast));
 
@@ -1056,7 +1086,8 @@ impl AppUi {
         self.fetch_history();
         self.fetch_plugins();
 
-        if updater::check_due() {
+        qa::schedule(self);
+        if !self.config.borrow().offline && updater::check_due() {
             let (tx, rx) = async_channel::bounded::<updater::UpdateState>(1);
             updater::spawn_check(tx);
             let me = self.clone();
@@ -2716,9 +2747,9 @@ impl AppUi {
             return;
         }
         let width = if self.rail_open.get() {
-            self.rail_width.get().clamp(280, 460)
+            rail_width_for(total, self.rail_width.get())
         } else {
-            18
+            RAIL_HANDLE_WIDTH
         };
         self.rail_paned.set_position((total - width).max(0));
     }
@@ -3897,14 +3928,14 @@ impl AppUi {
         }
         drop(previous);
         config.apply_overrides(self.session_override.clone(), self.workspace_override.clone());
-        let mode = crate::theme::load_mode().unwrap_or(ThemeMode::System);
-        self.theme.set_mode(mode);
+        self.theme.set_preferences(crate::theme::load_preferences());
         self.theme.set_font_scale(config.font_scale as u32);
         self.theme.set_font(config.font);
         self.chat.set_show_timestamps(config.timestamps);
         self.chat.set_auto_scroll(config.auto_scroll);
         self.chat.set_chat_width(config.chat_width);
         self.status.set_show_costs(config.show_costs);
+        self.header.set_session_tabs(config.session_tabs);
         self.config.replace(config.clone());
         *self.configured_thinking.borrow_mut() = match config.thinking {
             crate::config::Thinking::Unset => None,
@@ -4087,6 +4118,7 @@ impl AppUi {
                     preview: preview.or_else(|| Some("new conversation".to_string())),
                     session_id: id,
                     mtime,
+                    last_response: None,
                 },
             );
             state.active_session = Some(0);
@@ -4483,6 +4515,16 @@ impl AppUi {
                         let mut state = self.state.borrow_mut();
                         state.turn_finished_tokens += output;
                         state.turn_tokens = state.turn_finished_tokens;
+                        let id = state.session_id.clone();
+                        let model = message.get("model").and_then(Value::as_str);
+                        let provider = message.get("provider").and_then(Value::as_str).unwrap_or("");
+                        if let Some(session) = state.sessions.iter_mut().find(|session| session.session_id == id) {
+                            session.last_response = Some(SystemTime::now().duration_since(UNIX_EPOCH)
+                                .map(|time| time.as_secs() as i64).unwrap_or(session.mtime));
+                            if let Some(model) = model {
+                                session.model = Some(if provider.is_empty() { model.into() } else { format!("{provider}/{model}") });
+                            }
+                        }
                     }
                     let text = record
                         .get("message")
@@ -4677,6 +4719,21 @@ impl AppUi {
                 self.refresh_ext_status();
             }
             extension_ui::Method::SetWidget => {
+                if let Some(snapshot) = request.widget_lines.as_deref().and_then(crate::subagents::from_widget) {
+                    match snapshot {
+                        Ok(snapshot) => self.rail.set_subagent_snapshot(&snapshot),
+                        Err(error) => {
+                            self.rail.clear_subagent_snapshot();
+                            self.status.flash_notice(&error);
+                        }
+                    }
+                    self.ext_widgets.borrow_mut().set(&request.widget_key, None, request.placement);
+                    self.refresh_ext_widget();
+                    return;
+                }
+                if request.widget_key == "subagent-async" && request.widget_lines.is_none() {
+                    self.rail.clear_subagent_snapshot();
+                }
                 if request.widget_key == "plan-all" {
                     let lines = request.widget_lines.clone().unwrap_or_default();
                     self.rail.set_plan(&lines);
@@ -5492,12 +5549,9 @@ impl AppUi {
                 .set_busy(true, &format!("{phase} · {}", format_elapsed(elapsed)));
             self.chat
                 .turn_update(&phase, &format_elapsed(elapsed), tokens);
-            let activity = {
-                let state = self.state.borrow();
-                self.activity_snapshot(&state)
-            };
-            self.sidebar.tick_activity(&activity);
         }
+        let activity = self.activity_snapshot(&self.state.borrow());
+        self.sidebar.tick_activity(&activity);
     }
     fn activity_snapshot(&self, state: &AppState) -> HashMap<String, SessionActivity> {
         let mut activity = self.activity.borrow().clone();
@@ -5999,6 +6053,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn rail_width_leaves_space_for_the_conversation() {
+        assert_eq!(rail_width_for(1000, 300), 300);
+        assert_eq!(rail_width_for(1000, 520), 520);
+        assert_eq!(rail_width_for(1000, 900), 640);
+        assert_eq!(rail_width_for(640, 520), 320);
+        assert!(rail_width_for(400, 300) < 400);
+    }
+
+    #[test]
     fn compact_is_a_local_command() {
         assert_eq!(
             local_command("/compact focus on the API"),
@@ -6030,5 +6093,3 @@ mod tests {
         );
     }
 }
-
-

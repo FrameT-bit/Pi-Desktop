@@ -382,6 +382,7 @@ pub struct RemoteSession {
     pub preview: Option<String>,
     pub session_id: String,
     pub mtime: i64,
+    pub last_response: Option<i64>,
 }
 
 impl RemoteSession {
@@ -418,7 +419,7 @@ impl RemoteSession {
     }
 
     pub fn age(&self) -> String {
-        relative_time(self.mtime)
+        relative_time(self.last_response.unwrap_or(self.mtime))
     }
 }
 
@@ -713,15 +714,33 @@ pub fn relative_time(mtime: i64) -> String {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
-    let diff = now - mtime;
+    age_at(mtime, now)
+}
+
+fn age_at(mtime: i64, now: i64) -> String {
+    let diff = now.saturating_sub(mtime).max(0);
     if diff < 60 {
         "Now".to_string()
     } else if diff < 3_600 {
-        format!("there is {} min", diff / 60)
+        format!("{} min", diff / 60)
     } else if diff < 86_400 {
-        format!("there is {} h", diff / 3_600)
+        format!("{} h", diff / 3_600)
     } else {
-        format!("there is {} d", diff / 86_400)
+        format!("{} d", diff / 86_400)
+    }
+}
+
+#[cfg(test)]
+mod age_tests {
+    use super::*;
+
+    #[test]
+    fn session_age_has_no_redundant_prefix() {
+        assert_eq!(age_at(10, 20), "Now");
+        assert_eq!(age_at(10, 250), "4 min");
+        assert_eq!(age_at(10, 7210), "2 h");
+        assert_eq!(age_at(10, 172810), "2 d");
+        assert_eq!(age_at(20, 10), "Now");
     }
 }
 
@@ -764,5 +783,3 @@ pub fn slug_from_prompt(prompt: &str) -> String {
         slug
     }
 }
-
-

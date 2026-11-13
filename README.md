@@ -17,8 +17,8 @@ describe compatibility with the Pi coding agent.
 - Manual `/compact [focus]` instruction in the composer: summarizes old context
   and reports the estimated tokens saved. Pi's automatic compaction stays
   enabled by default.
-- Clickable Markdown links: left-click opens the browser; right-click shows
-  Copy link and Open in browser.
+- Clickable Markdown links open the default browser. Copy responses with the
+  per-message button; there is no duplicate universal right-click menu.
 - Sessions run in separate Pi RPC processes: New Session while a turn is
   running keeps the old turn alive in the background, and switching back
   attaches to that running process. Running-session indicators live in the
@@ -34,6 +34,12 @@ describe compatibility with the Pi coding agent.
 - 50 food themes, light and dark, searchable in Settings → Personalization.
 - Personalization tab for theme, typeface (Pixelify/JetBrains, Adwaita or system)
   and font size.
+- Separate light and dark theme selections. The header toggle switches between
+  those saved themes without resetting either choice, in Chat and Code modes.
+- Session tabs are opt-in (`[ui] session_tabs=true`); the sidebar shows the last
+  response time and the model that produced it.
+- Structured background sub-agent status in the resizable activity rail, and a
+  keyboard-accessible reasoning picker using only the model's supported levels.
 - Memory, personas, plan mode, permissions, restore points and subagents.
 - Weekly GitHub release check on app start, never on a background timer.
 - Credits tab with version, links, license and the preinstalled extension bundle.

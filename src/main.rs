@@ -19,6 +19,7 @@ mod providers;
 mod rpc;
 mod session_ops;
 mod state;
+mod subagents;
 mod title;
 mod theme;
 mod theme_catalog;

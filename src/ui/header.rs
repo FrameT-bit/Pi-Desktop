@@ -65,6 +65,7 @@ pub struct HeaderUi {
     logo_slot: gtk::Box,
     provider: Rc<RefCell<String>>,
     theme: Theme,
+    session_tabs: Cell<bool>,
     pub settings: gtk::Button,
     pub help: gtk::Button,
     palette: Rc<Popup>,
@@ -146,6 +147,8 @@ pub fn build(model: &str, theme: &Theme) -> HeaderUi {
 
     let model_label = gtk::Label::new(Some(model));
     model_label.add_css_class("model-chip-label");
+    model_label.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    model_label.set_max_width_chars(28);
 
     let caret = icons::icon("chevron-down", Tone::Muted);
     caret.add_css_class("model-chip-chevron");
@@ -184,6 +187,7 @@ pub fn build(model: &str, theme: &Theme) -> HeaderUi {
 
     let theme_button = gtk::Button::new();
     theme_button.add_css_class("theme-button");
+    theme_button.add_css_class("appearance-toggle");
     theme_button.set_child(Some(&theme_image));
     theme_button.set_tooltip_text(Some(&theme.tooltip()));
     theme_button.set_valign(gtk::Align::Center);
@@ -201,6 +205,7 @@ pub fn build(model: &str, theme: &Theme) -> HeaderUi {
     mode_code.set_tooltip_text(Some("Code mode"));
     let mode_switch = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     mode_switch.add_css_class("mode-switch");
+    mode_switch.set_valign(gtk::Align::Center);
     mode_switch.append(&mode_chat);
     mode_switch.append(&mode_code);
 
@@ -330,6 +335,7 @@ pub fn build(model: &str, theme: &Theme) -> HeaderUi {
         logo_slot,
         provider,
         theme: theme.clone(),
+        session_tabs: Cell::new(false),
         settings: settings_button,
         help: help_button,
         palette,
@@ -375,6 +381,7 @@ impl HeaderUi {
         closed: &std::collections::HashSet<String>,
         activity: &HashMap<String, SessionActivity>,
     ) {
+        if !self.session_tabs.get() { return; }
         while let Some(child) = self.tabs.first_child() {
             self.tabs.remove(&child);
         }
@@ -464,6 +471,7 @@ impl HeaderUi {
     }
 
     pub fn set_view(&self, chat: bool) {
+        self.center.set_visible(!chat && self.session_tabs.get());
         self.center
             .set_visible_child_name(if chat { "title" } else { "tabs" });
         self.root.remove_css_class("chat-mode");
@@ -471,8 +479,8 @@ impl HeaderUi {
             self.root.add_css_class("chat-mode");
         }
         self.help.set_visible(!chat);
-        self.settings.set_visible(!chat);
-        self.theme_button.set_visible(!chat);
+        self.settings.set_visible(true);
+        self.theme_button.set_visible(true);
         let (on, off) = if chat {
             (&self.mode_chat, &self.mode_code)
         } else {
@@ -480,6 +488,11 @@ impl HeaderUi {
         };
         on.add_css_class("active");
         off.remove_css_class("active");
+    }
+
+    pub fn set_session_tabs(&self, enabled: bool) {
+        self.session_tabs.set(enabled);
+        self.center.set_visible(enabled && !self.root.has_css_class("chat-mode"));
     }
 
     pub fn set_chat_title(&self, title: &str) {
