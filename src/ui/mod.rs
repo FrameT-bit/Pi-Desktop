@@ -6,6 +6,7 @@ pub mod composer;
 pub mod dialog;
 pub mod fit;
 pub mod git;
+mod gallery;
 pub mod header;
 pub mod hotkeys;
 pub mod jobs;
@@ -94,8 +95,14 @@ const MAX_RAIL_WIDTH: i32 = 640;
 const RAIL_HANDLE_WIDTH: i32 = 44;
 
 fn rail_width_for(total: i32, wanted: i32) -> i32 {
-    let maximum = MAX_RAIL_WIDTH.min((total - 320).max(RAIL_HANDLE_WIDTH));
-    wanted.clamp(MIN_RAIL_WIDTH.min(maximum), maximum)
+    // Below this there is no room for both a readable conversation and the
+    // rail body: keep only the 44px handle instead of forcing an overflow.
+    let usable = total - 320;
+    if usable < MIN_RAIL_WIDTH {
+        return RAIL_HANDLE_WIDTH;
+    }
+    let maximum = MAX_RAIL_WIDTH.min(usable);
+    wanted.clamp(MIN_RAIL_WIDTH, maximum)
 }
 
 pub struct AppUi {
@@ -126,7 +133,7 @@ pub struct AppUi {
     rail_width: Rc<Cell<i32>>,
     rail_toggle: gtk::Button,
     rail_toggle_image: gtk::Image,
-    rail_open: Cell<bool>,
+    rail_open: Rc<Cell<bool>>,
     content: gtk::Paned,
     pub status: StatusUi,
     pub stack: gtk::Stack,
@@ -223,6 +230,9 @@ impl AppUi {
         chat.set_show_timestamps(config.timestamps);
         chat.set_auto_scroll(config.auto_scroll);
         chat.set_chat_width(config.chat_width);
+        chat.set_cards_expanded(config.cards_expanded);
+        chat.set_ai_images(config.ai_images);
+        chat.set_clarify(config.clarify);
         let composer = Composer::new();
         let plugins = plugins::PluginsUi::new();
         let jobs = jobs::JobsUi::build();
@@ -307,10 +317,15 @@ impl AppUi {
         rail_paned.set_end_child(Some(&rail_column));
         rail_paned.set_resize_start_child(true);
         rail_paned.set_resize_end_child(false);
-        rail_paned.set_shrink_start_child(false);
+        // Allow the conversation to shrink when the window (or the font) leaves
+        // no room; the rail clamp below decides how much, and the rail body is
+        // hidden instead of pushing the window wider than the screen.
+        rail_paned.set_shrink_start_child(true);
         rail_paned.set_shrink_end_child(true);
         rail_paned.set_wide_handle(false);
         let rail_width = Rc::new(Cell::new(340i32));
+        let rail_dragging = Rc::new(Cell::new(false));
+        let rail_open_shared = Rc::new(Cell::new(true));
         {
             let paned = rail_paned.clone();
             let width = rail_width.clone();
@@ -325,16 +340,46 @@ impl AppUi {
                 });
             });
         }
+        // Re-clamp on every allocation change (window resized, font scale
+        // changed, sidebar dragged). Without this the paned kept its old pixel
+        // position and the rail could overflow a small or zoomed window.
         {
             let paned = rail_paned.clone();
             let width = rail_width.clone();
+            let rail_root = rail.root.clone();
+            let rail_column_c = rail_column.clone();
+            let open = rail_open_shared.clone();
+            let clamping = Rc::new(Cell::new(false));
+            paned.connect_notify_local(Some("max-position"), move |paned, _| {
+                if clamping.replace(true) {
+                    return;
+                }
+                if paned.width() > 1 && rail_column_c.is_visible() {
+                    let total = paned.width();
+                    let wanted = rail_width_for(total, width.get());
+                    let compact = wanted <= RAIL_HANDLE_WIDTH;
+                    rail_root.set_visible(open.get() && !compact);
+                    let target = (total - wanted).max(0);
+                    if paned.position() != target {
+                        paned.set_position(target);
+                    }
+                }
+                clamping.set(false);
+            });
+        }
+        {
+            let paned = rail_paned.clone();
+            let width = rail_width.clone();
+            let dragging = rail_dragging.clone();
             let start_width = Rc::new(Cell::new(340i32));
             let drag = gtk::GestureDrag::new();
             drag.set_button(gtk::gdk::BUTTON_PRIMARY);
             let drag_begin = paned.clone();
             let begin_width = start_width.clone();
+            let begin_dragging = dragging.clone();
             drag.connect_drag_begin(move |gesture, _, _| {
                 gesture.set_state(gtk::EventSequenceState::Claimed);
+                begin_dragging.set(true);
                 let total = drag_begin.width();
                 let position = drag_begin.position();
                 let current = if total > 1 { total - position } else { 340 };
@@ -349,13 +394,19 @@ impl AppUi {
                 drag_update.set_position((total - wanted).max(0));
                 update_width.set(wanted);
             });
+            let end_dragging = dragging.clone();
+            drag.connect_drag_end(move |_, _, _| end_dragging.set(false));
             rail_grip.add_controller(drag);
         }
         {
+            // Record the user's intent only while dragging. GTK also moves the
+            // paned position on its own when the window shrinks; persisting
+            // that clamped value made the rail stay tiny after re-enlarging.
             let width = rail_width.clone();
             let rail_root = rail.root.clone();
+            let dragging = rail_dragging.clone();
             rail_paned.connect_position_notify(move |paned| {
-                if rail_root.is_visible() && paned.width() > 1 {
+                if dragging.get() && rail_root.is_visible() && paned.width() > 1 {
                     width.set(rail_width_for(paned.width(), paned.width() - paned.position()));
                 }
             });
@@ -367,7 +418,7 @@ impl AppUi {
         content.set_end_child(Some(&rail_paned));
         content.set_position(264);
         content.set_resize_start_child(false);
-        content.set_shrink_start_child(false);
+        content.set_shrink_start_child(true);
         content.set_wide_handle(false);
         content.set_hexpand(true);
         content.set_vexpand(true);
@@ -390,7 +441,11 @@ impl AppUi {
         root.set_margin_end(24);
         root.set_margin_top(12);
         root.set_margin_bottom(12);
-        root.append(&header.root);
+        // The app draws its own header instead of a titlebar, so without a
+        // WindowHandle the windowed mode had no draggable surface at all.
+        let header_handle = gtk::WindowHandle::new();
+        header_handle.set_child(Some(&header.root));
+        root.append(&header_handle);
         root.append(&content);
         root.append(&status.root);
 
@@ -469,13 +524,18 @@ impl AppUi {
         toast.set_child(Some(&shell));
 
         let qa = std::env::var_os("PI_DESKTOP_QA_REPORT").is_some();
+        let qa_small = std::env::var_os("PI_DESKTOP_QA_SMALL").is_some()
+            || std::env::var_os("PI_DESKTOP_QA_SIZE").is_some();
         let window = adw::ApplicationWindow::builder()
             .application(app)
             .title("pi")
             .default_width(1280)
             .default_height(if qa { 600 } else { 840 })
             .build();
-        window.set_size_request(if qa { 1280 } else { 960 }, if qa { 600 } else { 560 });
+        window.set_size_request(
+            if qa && !qa_small { 1280 } else { 800 },
+            if qa && !qa_small { 600 } else { 520 },
+        );
         if qa { window.set_decorated(false); }
         window.set_icon_name(Some("pi-desktop"));
         window.set_content(Some(&toast));
@@ -511,7 +571,7 @@ impl AppUi {
             rail_width,
             rail_toggle,
             rail_toggle_image,
-            rail_open: Cell::new(true),
+            rail_open: rail_open_shared,
             content,
             status,
             stack,
@@ -772,6 +832,15 @@ impl AppUi {
         let me = self.clone();
         self.chat.set_on_user_menu(move |anchor, text| {
             me.show_message_menu(&anchor, &text)
+        });
+
+        let me = self.clone();
+        self.chat
+            .set_on_clarify(move |answer| me.answer_clarification(answer));
+
+        let me = self.clone();
+        self.chat.set_on_clarify_used(move |clarify| {
+            me.on_clarify_used(&clarify.question)
         });
 
         {
@@ -1095,7 +1164,7 @@ impl AppUi {
                 if let Ok(state) = rx.recv().await {
                     if state.has_update() {
                         me.status.flash_notice(&format!(
-                            "{} update available · Settings → Credits",
+                            "{} update available · Settings → Updates",
                             state.latest
                         ));
                     }
@@ -1902,19 +1971,19 @@ impl AppUi {
 
     fn submit(self: &Rc<Self>, kind: SubmitKind) {
         let text = self.composer.take_text();
-        let attachment = self.composer.take_attachment();
+        let attachments = self.composer.take_attachments();
         {
             let id = self.state.borrow().session_id.clone();
             self.drafts.borrow_mut().remove(&id);
         }
-        if text.is_empty() && attachment.is_none() {
+        if text.is_empty() && attachments.is_empty() {
             return;
         }
 
         self.upsert_current_session(true);
 
         if self.handle_local_command(&text) {
-            self.restore_attachment(attachment);
+            self.restore_attachments(attachments);
             return;
         }
 
@@ -1926,7 +1995,7 @@ impl AppUi {
         if !connected {
             self.chat
                 .note("no connection to Pi — message not sent", true);
-            self.restore_composer(&text, attachment);
+            self.restore_composer(&text, attachments);
             return;
         }
 
@@ -1936,7 +2005,7 @@ impl AppUi {
         }
 
         if let Some(command) = text.strip_prefix('!') {
-            self.restore_attachment(attachment);
+            self.restore_attachments(attachments);
             let command = command.trim();
             if command.is_empty() {
                 self.chat.note("bash: empty command", true);
@@ -1947,10 +2016,10 @@ impl AppUi {
             return;
         }
 
-        let images: Vec<composer::Attachment> = attachment.iter().cloned().collect();
-        if !running || !images.is_empty() {
-            if !self.send_prompt(&text, true, &images) {
-                self.restore_composer(&text, attachment);
+        let has_attachments = !attachments.is_empty();
+        if !running || has_attachments {
+            if !self.send_prompt(&text, true, &attachments) {
+                self.restore_composer(&text, attachments);
             }
             return;
         }
@@ -1972,15 +2041,15 @@ impl AppUi {
         self.ask_state();
     }
 
-    fn restore_composer(&self, text: &str, attachment: Option<composer::Attachment>) {
+    fn restore_composer(&self, text: &str, attachments: Vec<composer::Attachment>) {
         self.composer.set_text(text);
-        self.restore_attachment(attachment);
+        self.restore_attachments(attachments);
         self.composer.focus();
     }
 
-    fn restore_attachment(&self, attachment: Option<composer::Attachment>) {
-        if let Some(attachment) = attachment {
-            self.composer.set_attachment(attachment);
+    fn restore_attachments(&self, attachments: Vec<composer::Attachment>) {
+        if !attachments.is_empty() {
+            self.composer.set_attachments(attachments);
         }
     }
 
@@ -2007,7 +2076,7 @@ impl AppUi {
         self: &Rc<Self>,
         text: &str,
         record_user: bool,
-        images: &[composer::Attachment],
+        attachments: &[composer::Attachment],
     ) -> bool {
         if !self.state.borrow().connection.is_connected() {
             self.chat
@@ -2015,18 +2084,29 @@ impl AppUi {
             return false;
         }
 
+        let images: Vec<ImageBlock> = attachments
+            .iter()
+            .filter(|attachment| attachment.is_image())
+            .map(|image| ImageBlock {
+                mime: image.mime.clone(),
+                data: image.data.clone(),
+            })
+            .collect();
+        let files: Vec<chat::FileBlock> = attachments
+            .iter()
+            .filter(|attachment| !attachment.is_image())
+            .map(|file| chat::FileBlock {
+                name: file.name.clone(),
+                path: file.path.clone().unwrap_or_default(),
+                bytes: file.bytes,
+            })
+            .collect();
+
         if record_user {
-            if images.is_empty() {
+            if images.is_empty() && files.is_empty() {
                 self.chat.append_user(text);
             } else {
-                let blocks: Vec<ImageBlock> = images
-                    .iter()
-                    .map(|image| ImageBlock {
-                        mime: image.mime.clone(),
-                        data: image.data.clone(),
-                    })
-                    .collect();
-                self.chat.append_user_images(text, &blocks);
+                self.chat.append_user_attachments(text, &images, &files);
             }
             let mut state = self.state.borrow_mut();
             let replace = state.first_prompt.as_deref().map_or(true, |first| {
@@ -2043,7 +2123,7 @@ impl AppUi {
         }
 
         let id = self.id();
-        let message = self.wire_text(text);
+        let message = wire_files(self.wire_text(text), attachments);
         let mut command = json!({"id": id, "type": "prompt", "message": message});
         if !images.is_empty() {
             command["images"] = Value::Array(
@@ -2263,6 +2343,28 @@ impl AppUi {
             return;
         }
         self.loop_fire();
+    }
+
+    fn on_clarify_used(&self, question: &str) {
+        self.show_toast("Pi asked a question", "info", 6);
+        if !self.config.borrow().notify {
+            return;
+        }
+        let _ = std::process::Command::new("notify-send")
+            .args([
+                "-a",
+                "Pi Desktop",
+                "-i",
+                "io.github.FrameT.PiDesktop",
+                "Pi needs a decision",
+                question,
+            ])
+            .spawn();
+    }
+
+    fn answer_clarification(self: &Rc<Self>, answer: String) {
+        let text = format!("Answer to your question: {answer}");
+        self.send_prompt(&text, true, &[]);
     }
 
     fn notify_settle(&self, aborted: bool) {
@@ -2751,6 +2853,11 @@ impl AppUi {
         } else {
             RAIL_HANDLE_WIDTH
         };
+        let compact = width <= RAIL_HANDLE_WIDTH;
+        let page = self.rail_column.is_visible();
+        self.rail
+            .root
+            .set_visible(page && self.rail_open.get() && !compact);
         self.rail_paned.set_position((total - width).max(0));
     }
 
@@ -3934,6 +4041,10 @@ impl AppUi {
         self.chat.set_show_timestamps(config.timestamps);
         self.chat.set_auto_scroll(config.auto_scroll);
         self.chat.set_chat_width(config.chat_width);
+        self.chat.set_cards_expanded(config.cards_expanded);
+        self.chat.set_ai_images(config.ai_images);
+        self.chat.set_clarify(config.clarify);
+        self.apply_subagent_settings(&config);
         self.status.set_show_costs(config.show_costs);
         self.header.set_session_tabs(config.session_tabs);
         self.config.replace(config.clone());
@@ -3947,6 +4058,33 @@ impl AppUi {
         self.refresh_status();
         if reconnect {
             self.reconnect(config);
+        }
+    }
+
+    fn apply_subagent_settings(&self, config: &Config) {
+        if config.subagent_tier == crate::config::SubagentTier::Off {
+            return;
+        }
+        let models = self.settings_models();
+        let (provider, id) = {
+            let state = self.state.borrow();
+            (state.model_provider.clone(), state.model_id.clone())
+        };
+        match crate::families::apply_to_settings(
+            &crate::config::pi_agent_dir(),
+            config.subagent_tier,
+            &models,
+            &provider,
+            &id,
+            &config.subagent_models,
+        ) {
+            Ok(Some(model)) => self.status.flash_notice(&format!("sub-agents: {model}")),
+            Ok(None) => self
+                .status
+                .flash_notice("sub-agents: no model found for this family"),
+            Err(error) => self
+                .status
+                .flash_notice(&format!("sub-agents: {error}")),
         }
     }
 
@@ -5955,6 +6093,27 @@ fn with_search_hint(text: &str) -> String {
     )
 }
 
+/// Pi has no native file attachment channel: text files are inlined with the
+/// same `<file name="...">` envelope its own CLI uses, and binary files are
+/// referenced by absolute path so a tool can read them.
+fn wire_files(text: String, attachments: &[composer::Attachment]) -> String {
+    let mut out = text;
+    for file in attachments.iter().filter(|attachment| !attachment.is_image()) {
+        let path = file.path.as_deref().unwrap_or(&file.name);
+        match file.text.as_deref().filter(|content| !content.trim().is_empty()) {
+            Some(content) => {
+                out.push_str(&format!("\n\n<file name=\"{path}\">\n{content}\n</file>"));
+            }
+            None => {
+                out.push_str(&format!(
+                    "\n\n<file name=\"{path}\"></file>\n(read this file with your tools if you need its contents)"
+                ));
+            }
+        }
+    }
+    out
+}
+
 fn plugin_count_text(count: usize) -> String {
     if count == 1 {
         "1 package installed".to_string()
@@ -6031,13 +6190,7 @@ fn role_of(message: Option<&Value>) -> Option<&str> {
 
 fn focus_is_text_input(window: &adw::ApplicationWindow) -> bool {
     gtk::prelude::GtkWindowExt::focus(window)
-        .map(|widget| {
-            widget.is::<gtk::TextView>()
-                || widget.is::<gtk::Entry>()
-                || widget.is::<gtk::SpinButton>()
-                || widget.is::<gtk::SearchEntry>()
-        })
-        .unwrap_or(false)
+        .is_some_and(|widget| widget.is::<gtk::TextView>() || widget.is::<gtk::Editable>())
 }
 
 fn str_of(record: &Value, key: &str) -> String {
@@ -6059,6 +6212,34 @@ mod tests {
         assert_eq!(rail_width_for(1000, 900), 640);
         assert_eq!(rail_width_for(640, 520), 320);
         assert!(rail_width_for(400, 300) < 400);
+        // No room for both: only the handle, never an overflowing rail.
+        assert_eq!(rail_width_for(400, 300), RAIL_HANDLE_WIDTH);
+    }
+
+    #[test]
+    fn file_attachments_use_pis_file_envelope() {
+        let text_file = composer::Attachment {
+            kind: composer::AttachmentKind::File,
+            mime: "text/markdown".into(),
+            data: String::new(),
+            name: "notes.md".into(),
+            bytes: 12,
+            path: Some("/tmp/notes.md".into()),
+            text: Some("hello".into()),
+        };
+        let binary = composer::Attachment {
+            kind: composer::AttachmentKind::File,
+            mime: "application/pdf".into(),
+            data: String::new(),
+            name: "doc.pdf".into(),
+            bytes: 99,
+            path: Some("/tmp/doc.pdf".into()),
+            text: None,
+        };
+        let prompt = wire_files("read these".into(), &[text_file, binary]);
+        assert!(prompt.starts_with("read these"));
+        assert!(prompt.contains("<file name=\"/tmp/notes.md\">\nhello\n</file>"));
+        assert!(prompt.contains("<file name=\"/tmp/doc.pdf\"></file>"));
     }
 
     #[test]

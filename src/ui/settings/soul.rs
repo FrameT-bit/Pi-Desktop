@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::ui::settings::pages::{block, push_editor, push_switch, row, text_view_sized, toggle};
 use crate::ui::settings::Form;
 
-pub fn page(config: &Config, form: &mut Form) -> gtk::Box {
+pub fn page(config: &Config, form: &mut Form, models: &[crate::state::ModelItem]) -> gtk::Box {
     let page = gtk::Box::new(gtk::Orientation::Vertical, 0);
     page.add_css_class("settings-page-content");
 
@@ -28,6 +28,7 @@ pub fn page(config: &Config, form: &mut Form) -> gtk::Box {
     persona_actions.append(&load_persona);
     persona_actions.append(&clear_persona);
     persona_block.append(&persona_actions);
+    super::compact::action(&persona_actions, &persona_block, "Compact personality", config, models, &[&persona]);
 
     let replace_block = block(&page, "SYSTEM PROMPT");
     let replace = toggle(!config.system_prompt.trim().is_empty());
@@ -64,6 +65,7 @@ pub fn page(config: &Config, form: &mut Form) -> gtk::Box {
     let everything = gtk::Box::new(gtk::Orientation::Vertical, 0);
     everything.append(&system_row);
     everything.append(&system_actions);
+    super::compact::action(&system_actions, &everything, "Compact system prompt", config, models, &[&system]);
     everything.append(&hint);
     everything.set_visible(replace.state());
     replace_block.append(&everything);

@@ -7,6 +7,7 @@ use std::time::Duration;
 use gtk::prelude::*;
 use serde_json::{json, Value};
 
+use crate::clarify::{self, Clarify};
 use crate::diff;
 use crate::icons::{self, Tone};
 use crate::images::{self, ImageBlock};
@@ -14,9 +15,19 @@ use crate::markdown;
 use crate::state::format_tokens;
 use crate::theme::{Palette, Theme};
 
-use super::thumb;
+use super::{gallery, thumb};
 
 const CHAT_MARGIN: i32 = 24;
+/// Opening a long conversation used to build a widget for every message before
+/// the first frame. Render a bounded tail instead and page backwards on demand.
+const INITIAL_MESSAGES: usize = 20;
+const MESSAGE_PAGE: usize = 20;
+
+pub struct FileBlock {
+    pub name: String,
+    pub path: String,
+    pub bytes: usize,
+}
 
 pub struct ChatView {
     pub root: gtk::Overlay,
@@ -27,11 +38,15 @@ pub struct ChatView {
     empty_hint: gtk::Label,
     inner: RefCell<Inner>,
     messages: RefCell<Vec<Value>>,
+    history_start: Cell<usize>,
+    more: gtk::Button,
+    sink: RefCell<Option<gtk::Box>>,
     show_timestamps: Cell<bool>,
     auto_scroll: Rc<Cell<bool>>,
     follow: Rc<Cell<bool>>,
     follow_scheduled: Rc<Cell<bool>>,
     programmatic: Rc<Cell<bool>>,
+    window_hooked: Cell<bool>,
     thinking_rows: RefCell<Vec<ThinkingRow>>,
     width: Cell<i32>,
     on_user_menu: RefCell<Option<Rc<dyn Fn(gtk::Box, String)>>>,
@@ -40,6 +55,11 @@ pub struct ChatView {
     last_think_follow: Cell<Option<std::time::Instant>>,
     on_empty_action: RefCell<Option<Box<dyn Fn(&str)>>>,
     chat_mode: Cell<bool>,
+    expand_cards: Rc<Cell<bool>>,
+    show_ai_images: Cell<bool>,
+    show_clarify: Cell<bool>,
+    on_clarify: RefCell<Option<Rc<dyn Fn(String)>>>,
+    on_clarify_used: RefCell<Option<Rc<dyn Fn(&Clarify)>>>,
     tool_rows: RefCell<Vec<ToolRow>>,
     theme: Theme,
     empty_mark: gtk::Image,
@@ -268,6 +288,11 @@ impl ChatView {
         let root = gtk::Overlay::new();
         root.set_child(Some(&scroll));
 
+        let more = gtk::Button::with_label("load earlier messages");
+        more.add_css_class("chat-more");
+        more.set_halign(gtk::Align::Center);
+        more.set_visible(false);
+
         let find_entry = gtk::Entry::new();
         find_entry.add_css_class("find-entry");
         find_entry.set_placeholder_text(Some("search chat..."));
@@ -307,17 +332,26 @@ impl ChatView {
             empty_hint: hint.clone(),
             inner: RefCell::new(Inner::default()),
             messages: RefCell::new(Vec::new()),
+            history_start: Cell::new(0),
+            more,
+            sink: RefCell::new(None),
             show_timestamps: Cell::new(true),
             auto_scroll: Rc::new(Cell::new(true)),
             follow: Rc::new(Cell::new(true)),
             follow_scheduled: Rc::new(Cell::new(false)),
             programmatic: Rc::new(Cell::new(false)),
+            window_hooked: Cell::new(false),
             thinking_rows: RefCell::new(Vec::new()),
             width: Cell::new(78),
             on_user_menu: RefCell::new(None),
             diff_cards: RefCell::new(Vec::new()),
             on_empty_action: RefCell::new(None),
             chat_mode: Cell::new(false),
+            expand_cards: Rc::new(Cell::new(false)),
+            show_ai_images: Cell::new(true),
+            show_clarify: Cell::new(true),
+            on_clarify: RefCell::new(None),
+            on_clarify_used: RefCell::new(None),
             tool_rows: RefCell::new(Vec::new()),
             theme: theme.clone(),
             empty_mark: mark.clone(),
@@ -336,6 +370,7 @@ impl ChatView {
         });
         view.wire_follow();
         view.wire_find();
+        view.wire_more();
         view.wire_empty(&empty_buttons);
         view.sync_empty_mark();
         let weak = Rc::downgrade(&view);
@@ -532,6 +567,24 @@ impl ChatView {
         });
 
         let total = find.hits.len();
+        if total == 0 {
+            // Pagination keeps older messages out of the widget tree. Say so
+            // instead of implying the text is absent from the conversation.
+            let older = self.history_start.get() > 0
+                && self
+                    .messages
+                    .borrow()
+                    .get(..self.history_start.get())
+                    .is_some_and(|older| {
+                        older.iter().any(|message| {
+                            message_text(message).to_lowercase().contains(&needle)
+                        })
+                    });
+            if older {
+                find.count.set_text("load earlier");
+                return;
+            }
+        }
         find.count.set_text(&format!("0/{total}"));
         drop(find);
         if total > 0 {
@@ -587,6 +640,40 @@ impl ChatView {
         }
     }
 
+    pub fn set_ai_images(&self, enabled: bool) {
+        self.show_ai_images.set(enabled);
+    }
+
+    pub fn set_clarify(&self, enabled: bool) {
+        self.show_clarify.set(enabled);
+    }
+
+    pub fn set_on_clarify(&self, callback: impl Fn(String) + 'static) {
+        *self.on_clarify.borrow_mut() = Some(Rc::new(callback));
+    }
+
+    pub fn set_on_clarify_used(&self, callback: impl Fn(&Clarify) + 'static) {
+        *self.on_clarify_used.borrow_mut() = Some(Rc::new(callback));
+    }
+
+    fn push_clarify(&self, clarify: &Clarify) {
+        let Some(on_answer) = self.on_clarify.borrow().as_ref().cloned() else {
+            return;
+        };
+        if let Some(used) = self.on_clarify_used.borrow().as_ref() {
+            used(clarify);
+        }
+        let card = clarify_card(clarify, on_answer);
+        self.push_stamped(&card);
+    }
+
+    pub fn set_cards_expanded(&self, enabled: bool) {
+        self.expand_cards.set(enabled);
+        for row in self.tool_rows.borrow().iter() {
+            row.apply_default(enabled);
+        }
+    }
+
     pub fn set_chat_width(&self, width: i32) {
         let width = width.clamp(60, 120);
         if self.width.get() == width {
@@ -625,6 +712,74 @@ impl ChatView {
         }
     }
 
+    fn wire_more(self: &Rc<Self>) {
+        let weak = Rc::downgrade(self);
+        self.more.connect_clicked(move |_| {
+            if let Some(view) = weak.upgrade() {
+                view.load_earlier();
+            }
+        });
+    }
+
+    fn load_earlier(self: &Rc<Self>) {
+        if !self.inner.borrow().streams.is_empty()
+            || self.inner.borrow().thinking.is_some()
+        {
+            return;
+        }
+        let start = self.history_start.get();
+        if start == 0 {
+            self.more.set_visible(false);
+            return;
+        }
+        let new_start = start.saturating_sub(MESSAGE_PAGE);
+        let batch = {
+            let messages = self.messages.borrow();
+            messages[new_start..start].to_vec()
+        };
+        let adj = self.scroll.vadjustment();
+        let before_upper = adj.upper();
+        let before_value = adj.value();
+
+        self.render_batch_top(&batch);
+        self.history_start.set(new_start);
+        self.more.set_visible(new_start > 0);
+
+        // The new upper bound only exists after the next allocation; restore the
+        // same content under the cursor instead of jumping to the new top.
+        let guard = self.programmatic.clone();
+        let first = adj.clone();
+        glib::idle_add_local_once(move || {
+            guard.set(true);
+            first.set_value(before_value + (first.upper() - before_upper).max(0.0));
+            guard.set(false);
+        });
+        let guard = self.programmatic.clone();
+        let later = adj.clone();
+        glib::timeout_add_local_once(std::time::Duration::from_millis(120), move || {
+            guard.set(true);
+            later.set_value(before_value + (later.upper() - before_upper).max(0.0));
+            guard.set(false);
+        });
+    }
+
+    fn render_batch_top(&self, batch: &[Value]) {
+        let sink = gtk::Box::new(gtk::Orientation::Vertical, 12);
+        *self.sink.borrow_mut() = Some(sink.clone());
+        self.render_messages(batch);
+        *self.sink.borrow_mut() = None;
+
+        let mut cursor: Option<gtk::Widget> = Some(self.more.clone().upcast());
+        let mut child = sink.first_child();
+        while let Some(current) = child {
+            let next = current.next_sibling();
+            sink.remove(&current);
+            self.list.insert_child_after(&current, cursor.as_ref());
+            cursor = Some(current);
+            child = next;
+        }
+    }
+
     fn wire_follow(self: &Rc<Self>) {
         let follow = self.follow.clone();
         let guard = self.programmatic.clone();
@@ -633,6 +788,52 @@ impl ChatView {
                 return;
             }
             follow.set(adj.upper() - adj.page_size() - adj.value() <= 24.0);
+        });
+
+        // Layout is deferred while the window is in the background, so the
+        // adjustment's upper bound changes only after the window comes back.
+        // Re-anchor whenever the content height settles and we are following.
+        let weak = Rc::downgrade(self);
+        self.scroll
+            .vadjustment()
+            .connect_notify_local(Some("upper"), move |_, _| {
+                if let Some(view) = weak.upgrade() {
+                    if view.auto_scroll.get() && view.follow.get() {
+                        view.maybe_follow();
+                    }
+                }
+            });
+
+        // Coming back from the background / another workspace: if the user was
+        // following, catch up immediately instead of staying mid-history.
+        let weak = Rc::downgrade(self);
+        self.scroll.connect_map(move |scroll| {
+            if scroll.root().is_none() {
+                return;
+            }
+            let Some(view) = weak.upgrade() else {
+                return;
+            };
+            if view.window_hooked.replace(true) {
+                return;
+            }
+            let Some(root) = scroll.root() else {
+                return;
+            };
+            let Ok(window) = root.downcast::<gtk::Window>() else {
+                return;
+            };
+            let weak = weak.clone();
+            window.connect_notify_local(Some("is-active"), move |window, _| {
+                if !window.is_active() {
+                    return;
+                }
+                if let Some(view) = weak.upgrade() {
+                    if view.auto_scroll.get() && view.follow.get() {
+                        view.scroll_to_bottom();
+                    }
+                }
+            });
         });
     }
 
@@ -690,10 +891,16 @@ impl ChatView {
     fn push(&self, widget: &impl IsA<gtk::Widget>) {
         self.hide_empty();
         widget.add_css_class("enter");
-        self.list.append(widget);
+        let target = self.sink.borrow().clone();
+        match target {
+            Some(sink) => sink.append(widget),
+            None => self.list.append(widget),
+        }
         let widget = widget.as_ref().clone();
         glib::idle_add_local_once(move || widget.remove_css_class("enter"));
-        self.maybe_follow();
+        if self.sink.borrow().is_none() {
+            self.maybe_follow();
+        }
     }
 
     pub fn append_user(&self, text: &str) {
@@ -706,6 +913,26 @@ impl ChatView {
 
     pub fn append_user_images(&self, text: &str, images: &[ImageBlock]) {
         self.append_user_mark(text, None, images);
+    }
+
+    pub fn append_user_attachments(
+        &self,
+        text: &str,
+        images: &[ImageBlock],
+        files: &[FileBlock],
+    ) {
+        let message = user_message_with_files(text, None, images, files);
+        self.messages.borrow_mut().push(message);
+        let block = user_block_full(text, None, self.width.get(), images, files);
+        self.wire_user_menu(&block, text);
+        if !text.trim().is_empty() {
+            let turn = TurnUi::new(block, &self.theme);
+            let root = turn.root.clone();
+            *self.turn.borrow_mut() = Some(turn);
+            self.push_stamped(&root);
+        } else {
+            self.push_stamped(&block);
+        }
     }
 
     fn append_user_mark(&self, text: &str, mark: Option<&str>, images: &[ImageBlock]) {
@@ -763,14 +990,19 @@ impl ChatView {
         let Some(callback) = self.on_user_menu.borrow().as_ref().cloned() else {
             return;
         };
-        let block_c = block.clone();
+        // Weak: the gesture lives on the block, so capturing the block strongly
+        // would leak every user bubble (and its AppUi) for the session's life.
+        let block_c = block.downgrade();
         let text = text.to_string();
         let gesture = gtk::GestureClick::new();
         gesture.set_button(gtk::gdk::BUTTON_SECONDARY);
         gesture.set_propagation_phase(gtk::PropagationPhase::Capture);
         gesture.connect_pressed(move |gesture, _, _, _| {
             gesture.set_state(gtk::EventSequenceState::Claimed);
-            callback(block_c.clone(), text.clone());
+            let Some(block_c) = block_c.upgrade() else {
+                return;
+            };
+            callback(block_c, text.clone());
         });
         block.add_controller(gesture);
     }
@@ -878,43 +1110,54 @@ impl ChatView {
 
     pub fn assistant_final(&self, message: &Value) {
         self.messages.borrow_mut().push(message.clone());
-        let blocks = text_blocks(message);
-        let mut inner = self.inner.borrow_mut();
-        let mut streams = std::mem::take(&mut inner.streams);
-
-        if blocks.is_empty() {
-            for (_, stream) in streams {
-                self.list.remove(&stream.wrapper);
+        let mut streams = std::mem::take(&mut self.inner.borrow_mut().streams);
+        let mut previous = None::<gtk::Widget>;
+        for (index, block) in assistant_blocks(message, self.show_ai_images.get()) {
+            let mut question = None;
+            let widget: gtk::Widget = match block {
+                HistBlock::Text(text) => {
+                    let (text, clarify) = if self.show_clarify.get() && self.on_clarify.borrow().is_some() {
+                        clarify::extract(&text)
+                    } else {
+                        (text, None)
+                    };
+                    question = clarify;
+                    if text.trim().is_empty() && question.is_none() { continue; }
+                    if let Some(stream) = streams.remove(&(index as i64)) {
+                        // Keep the streamed position, including the timestamp.
+                        stream.wrapper.remove(&stream.label);
+                        self.render_assistant_text(&stream.wrapper, &text);
+                        previous = Some(stream.wrapper.upcast());
+                        if let Some(question) = question { self.push_clarify(&question); }
+                        continue;
+                    }
+                    self.assistant_body(&text).upcast()
+                }
+                HistBlock::Images(images) => gallery::widget(images).upcast(),
+                HistBlock::Thinking(_) => continue,
+            };
+            let next = streams.iter().filter(|(key, _)| **key >= index as i64)
+                .min_by_key(|(key, _)| *key).map(|(_, stream)| stream.wrapper.clone());
+            if let Some(next) = next {
+                self.list.insert_child_after(&widget, next.prev_sibling().as_ref());
+            } else if let Some(previous) = previous.as_ref() {
+                self.list.insert_child_after(&widget, Some(previous));
+            } else {
+                self.push_stamped(&widget);
             }
-            return;
-        }
-
-        for (index, text) in blocks {
-            if let Some(stream) = streams.remove(&index) {
-                if text.trim().is_empty() {
-                    self.list.remove(&stream.wrapper);
-                    continue;
-                }
-                while let Some(child) = stream.wrapper.first_child() {
-                    stream.wrapper.remove(&child);
-                }
-                for widget in markdown::render(&text) {
-                    stream.wrapper.append(&widget);
-                }
-            } else if !text.trim().is_empty() {
-                let stream = self.new_stream();
-                for widget in markdown::render(&text) {
-                    stream.wrapper.append(&widget);
-                }
+            // A stamped widget is wrapped; use the top-level child as anchor.
+            previous = if widget.parent().as_ref() == Some(self.list.upcast_ref()) {
+                Some(widget)
+            } else {
+                widget.parent()
+            };
+            if let Some(question) = question {
+                self.push_clarify(&question);
             }
         }
-
         for (_, stream) in streams {
-            if stream.text.trim().is_empty() {
-                self.list.remove(&stream.wrapper);
-            }
+            self.list.remove(&stream.wrapper);
         }
-
         self.maybe_follow();
     }
 
@@ -1003,7 +1246,7 @@ impl ChatView {
 
     pub fn tool_start(&self, id: &str, name: &str, args: &Value) {
         self.seal_stream();
-        let row = ToolRow::new(name, args, self.width.get());
+        let row = ToolRow::new(name, args, self.width.get(), self.expand_cards.clone());
         row.set_state("pending");
         self.push_stamped(&row.card);
         self.remember_tool(&row);
@@ -1026,7 +1269,12 @@ impl ChatView {
     pub fn tool_append(&self, id: &str, delta: &str) {
         let mut inner = self.inner.borrow_mut();
         if !inner.tools.contains_key(id) {
-            let row = ToolRow::new("bash", &Value::Null, self.width.get());
+            let row = ToolRow::new(
+                "bash",
+                &Value::Null,
+                self.width.get(),
+                self.expand_cards.clone(),
+            );
             row.set_state("pending");
             self.push_stamped(&row.card);
             self.remember_tool(&row);
@@ -1051,7 +1299,12 @@ impl ChatView {
         let row = match inner.tools.remove(id) {
             Some(row) => row,
             None => {
-                let row = ToolRow::new("bash", &Value::Null, self.width.get());
+                let row = ToolRow::new(
+                "bash",
+                &Value::Null,
+                self.width.get(),
+                self.expand_cards.clone(),
+            );
                 self.push_stamped(&row.card);
                 self.remember_tool(&row);
                 row
@@ -1094,6 +1347,22 @@ impl ChatView {
             if !text.is_empty() {
                 row.set_output(&text);
             }
+            let images = tool_images(result);
+            if self.show_ai_images.get() && !images.is_empty() {
+                let gallery = gallery::widget(images.iter().cloned().map(Into::into).collect());
+                let anchor = row.card.upcast_ref::<gtk::Widget>();
+                let wrapped = anchor.parent();
+                let top = if wrapped.as_ref() == Some(self.list.upcast_ref()) {
+                    Some(anchor.clone())
+                } else {
+                    wrapped.filter(|parent| parent.parent().as_ref() == Some(self.list.upcast_ref()))
+                };
+                if let Some(top) = top {
+                    self.list.insert_child_after(&gallery, Some(&top));
+                } else {
+                    self.push(&gallery);
+                }
+            }
             if let Some(patch) = result
                 .get("details")
                 .and_then(|details| details.get("patch"))
@@ -1119,6 +1388,11 @@ impl ChatView {
             });
             if let Some(details) = result.get("details") {
                 entry["details"] = details.clone();
+            }
+            for image in images {
+                entry["content"].as_array_mut().unwrap().push(json!({
+                    "type": "image", "data": image.data, "mimeType": image.mime,
+                }));
             }
             self.messages.borrow_mut().push(entry);
         }
@@ -1149,6 +1423,8 @@ impl ChatView {
         }
         *self.inner.borrow_mut() = Inner::default();
         self.messages.borrow_mut().clear();
+        self.history_start.set(0);
+        self.more.set_visible(false);
         self.diff_cards.borrow_mut().clear();
         self.thinking_rows.borrow_mut().clear();
         self.tool_rows.borrow_mut().clear();
@@ -1158,7 +1434,11 @@ impl ChatView {
     pub fn load_messages(&self, messages: &[Value]) {
         self.clear();
         *self.messages.borrow_mut() = messages.to_vec();
-        self.render_messages(messages);
+        let start = messages.len().saturating_sub(INITIAL_MESSAGES);
+        self.history_start.set(start);
+        self.more.set_visible(start > 0);
+        self.list.prepend(&self.more);
+        self.render_messages(&messages[start..]);
         self.scroll_to_bottom();
         self.settle_to_bottom();
     }
@@ -1170,15 +1450,17 @@ impl ChatView {
                 "user" => {
                     let text = message_text(message);
                     let images = images::blocks_from_message(message);
-                    if !text.trim().is_empty() || !images.is_empty() {
+                    let files = file_blocks_from_message(message);
+                    if !text.trim().is_empty() || !images.is_empty() || !files.is_empty() {
                         let mark = message.get("mark").and_then(Value::as_str);
-                        let block = user_block(&text, mark, self.width.get(), &images);
+                        let block =
+                            user_block_full(&text, mark, self.width.get(), &images, &files);
                         self.wire_user_menu(&block, &text);
                         self.push_stamped(&block);
                     }
                 }
                 "assistant" => {
-                    for block in history_blocks(message) {
+                    for (_, block) in assistant_blocks(message, self.show_ai_images.get()) {
                         match block {
                             HistBlock::Thinking(text) => {
                                 if text.trim().is_empty() {
@@ -1197,16 +1479,29 @@ impl ChatView {
                                 }
                                 self.append_assistant(&text);
                             }
+                            HistBlock::Images(images) => {
+                                self.push(&gallery::widget(images));
+                            }
                         }
                     }
                 }
                 "toolResult" => {
-                    let row = ToolRow::from_history(message, self.width.get());
+                    let row = ToolRow::from_history(
+                        message,
+                        self.width.get(),
+                        self.expand_cards.clone(),
+                    );
                     if let Some(state) = row.diff_state() {
                         self.register_diff(&state);
                     }
                     self.remember_tool(&row);
                     self.push_stamped(&row.card);
+                    if self.show_ai_images.get() {
+                        let images = tool_images(message);
+                        if !images.is_empty() {
+                            self.push(&gallery::widget(images.into_iter().map(Into::into).collect()));
+                        }
+                    }
                 }
                 _ => {}
             }
@@ -1215,7 +1510,13 @@ impl ChatView {
 
     fn rerender(&self) {
         self.find_reset();
-        let messages = self.messages.borrow().clone();
+        // Move the buffer out instead of cloning it: a long session can hold
+        // tens of thousands of messages, and the clone was a full copy.
+        let messages = std::mem::take(&mut *self.messages.borrow_mut());
+        if messages.is_empty() && self.inner.borrow().streams.is_empty() {
+            *self.messages.borrow_mut() = messages;
+            return;
+        }
         let live_think: Option<String> = {
             let inner = self.inner.borrow();
             inner
@@ -1237,17 +1538,17 @@ impl ChatView {
                 .filter(|(_, text)| !text.trim().is_empty())
                 .collect()
         };
-        if messages.is_empty() && partial.is_empty() {
-            return;
-        }
 
         *self.inner.borrow_mut() = Inner::default();
         self.diff_cards.borrow_mut().clear();
-        let _ = &live_think;
         while let Some(child) = self.list.first_child() {
             self.list.remove(&child);
         }
-        self.render_messages(&messages);
+        let start = self.history_start.get().min(messages.len());
+        self.history_start.set(start);
+        self.more.set_visible(start > 0);
+        self.list.prepend(&self.more);
+        self.render_messages(&messages[start..]);
         for (index, text) in partial {
             let mut stream = self.new_stream();
             stream.label.set_text(&text);
@@ -1267,17 +1568,45 @@ impl ChatView {
         }
         self.empty
             .set_visible(messages.is_empty() && self.inner.borrow().streams.is_empty());
+        *self.messages.borrow_mut() = messages;
         self.scroll_to_bottom();
     }
 
     fn append_assistant(&self, text: &str) {
+        let (text, clarify) = if self.show_clarify.get() && self.on_clarify.borrow().is_some() {
+            clarify::extract(text)
+        } else {
+            (text.to_string(), None)
+        };
+        if !text.trim().is_empty() {
+            self.push_stamped(&self.assistant_body(&text));
+        }
+        if let Some(clarify) = clarify {
+            if let Some(answer) = self.on_clarify.borrow().as_ref().cloned() {
+                self.push_stamped(&clarify_card(&clarify, answer));
+            }
+        }
+    }
+
+    fn render_assistant_text(&self, wrapper: &gtk::Box, text: &str) {
+        let parts = if self.show_ai_images.get() { gallery::parts(text) }
+            else { vec![gallery::Part::Text(text)] };
+        for part in parts {
+            match part {
+                gallery::Part::Text(text) => {
+                    for widget in markdown::render(text) { wrapper.append(&widget); }
+                }
+                gallery::Part::Images(images) => wrapper.append(&gallery::widget(images)),
+            }
+        }
+    }
+
+    fn assistant_body(&self, text: &str) -> gtk::Overlay {
         let wrapper = gtk::Box::new(gtk::Orientation::Vertical, 8);
         wrapper.set_halign(gtk::Align::Fill);
         wrapper.add_css_class("assistant-msg");
         self.wire_assistant_right_click(&wrapper);
-        for widget in markdown::render(text) {
-            wrapper.append(&widget);
-        }
+        self.render_assistant_text(&wrapper, text);
         let overlay = gtk::Overlay::new();
         overlay.set_child(Some(&wrapper));
         let actions = message_actions(text);
@@ -1296,8 +1625,139 @@ impl ChatView {
         }
         overlay.add_controller(motion);
 
-        self.push_stamped(&overlay);
+        overlay
     }
+}
+
+fn clarify_card(clarify: &Clarify, on_answer: Rc<dyn Fn(String)>) -> gtk::Box {
+    let card = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    card.add_css_class("clarify-card");
+    card.set_halign(gtk::Align::Fill);
+
+    let icon = icons::icon("message", Tone::Accent);
+    icon.set_pixel_size(16);
+    let heading = gtk::Label::new(Some("PI HAS A QUESTION"));
+    heading.add_css_class("clarify-heading");
+    heading.set_xalign(0.0);
+    heading.set_hexpand(true);
+    let head = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+    head.append(&icon);
+    head.append(&heading);
+    card.append(&head);
+
+    let question = gtk::Label::new(Some(&clarify.question));
+    question.add_css_class("clarify-question");
+    question.set_xalign(0.0);
+    question.set_wrap(true);
+    question.set_selectable(true);
+    question.set_max_width_chars(64);
+    card.append(&question);
+
+    let answered = Rc::new(std::cell::Cell::new(false));
+    let finish: Rc<dyn Fn(String)> = Rc::new({
+        let on_answer = on_answer.clone();
+        let answered = answered.clone();
+        let card = card.clone();
+        let heading = heading.clone();
+        move |answer: String| {
+            if answered.replace(true) {
+                return;
+            }
+            let answer = answer.trim().to_string();
+            if answer.is_empty() {
+                answered.set(false);
+                return;
+            }
+            heading.set_text(&format!("ANSWERED · {answer}"));
+            card.set_sensitive(false);
+            on_answer(answer);
+        }
+    });
+
+    let options = gtk::Box::new(
+        if clarify.options.len() == 2 {
+            gtk::Orientation::Horizontal
+        } else {
+            gtk::Orientation::Vertical
+        },
+        6,
+    );
+    options.add_css_class("clarify-options");
+
+    let toggles: Rc<RefCell<Vec<(String, gtk::ToggleButton)>>> =
+        Rc::new(RefCell::new(Vec::new()));
+    for option in &clarify.options {
+        if clarify.multiselect {
+            let button = gtk::ToggleButton::with_label(option);
+            button.add_css_class("clarify-option");
+            button.set_halign(gtk::Align::Start);
+            toggles
+                .borrow_mut()
+                .push((option.clone(), button.clone()));
+            options.append(&button);
+        } else {
+            let button = gtk::Button::with_label(option);
+            button.add_css_class("clarify-option");
+            button.set_hexpand(true);
+            let finish = finish.clone();
+            let option = option.clone();
+            button.connect_clicked(move |_| finish(option.clone()));
+            options.append(&button);
+        }
+    }
+    card.append(&options);
+
+    let row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+    row.add_css_class("clarify-answer");
+    let entry = gtk::Entry::new();
+    entry.set_placeholder_text(Some("or type an answer..."));
+    entry.set_hexpand(true);
+    row.append(&entry);
+
+    let send = gtk::Button::with_label("send");
+    send.add_css_class("clarify-send");
+    row.append(&send);
+    card.append(&row);
+
+    let submit: Rc<dyn Fn()> = Rc::new({
+        let entry = entry.clone();
+        let toggles = toggles.clone();
+        let finish = finish.clone();
+        move || {
+            let typed = entry.text().trim().to_string();
+            if !typed.is_empty() {
+                finish(typed);
+                return;
+            }
+            let picked: Vec<String> = toggles
+                .borrow()
+                .iter()
+                .filter(|(_, button)| button.is_active())
+                .map(|(label, _)| label.clone())
+                .collect();
+            if !picked.is_empty() {
+                finish(picked.join(", "));
+            }
+        }
+    });
+    {
+        let submit = submit.clone();
+        send.connect_clicked(move |_| submit());
+    }
+    {
+        let submit = submit.clone();
+        entry.connect_activate(move |_| submit());
+    }
+    if clarify.multiselect {
+        let send = gtk::Button::with_label("send selected");
+        send.add_css_class("clarify-send");
+        send.set_halign(gtk::Align::End);
+        let submit = submit.clone();
+        send.connect_clicked(move |_| submit());
+        card.append(&send);
+    }
+
+    card
 }
 
 fn message_actions(text: &str) -> gtk::Box {
@@ -1320,6 +1780,16 @@ fn message_actions(text: &str) -> gtk::Box {
 }
 
 fn user_block(text: &str, mark: Option<&str>, width: i32, images: &[ImageBlock]) -> gtk::Box {
+    user_block_full(text, mark, width, images, &[])
+}
+
+fn user_block_full(
+    text: &str,
+    mark: Option<&str>,
+    width: i32,
+    images: &[ImageBlock],
+    files: &[FileBlock],
+) -> gtk::Box {
     let block = gtk::Box::new(gtk::Orientation::Vertical, 0);
     block.set_halign(gtk::Align::End);
     block.add_css_class("user-msg");
@@ -1354,7 +1824,87 @@ fn user_block(text: &str, mark: Option<&str>, width: i32, images: &[ImageBlock])
         }
     }
 
+    for file in files {
+        block.append(&file_card(file));
+    }
+
     block
+}
+
+fn file_card(file: &FileBlock) -> gtk::Box {
+    let card = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    card.add_css_class("user-file");
+    card.set_halign(gtk::Align::Start);
+    card.set_tooltip_text(Some(&file.path));
+
+    let icon = icons::icon("file", Tone::Muted);
+    icon.set_pixel_size(22);
+    icon.set_valign(gtk::Align::Center);
+    card.append(&icon);
+
+    let info = gtk::Box::new(gtk::Orientation::Vertical, 2);
+    info.set_valign(gtk::Align::Center);
+    let name = gtk::Label::new(Some(&file.name));
+    name.add_css_class("user-file-name");
+    name.set_xalign(0.0);
+    name.set_ellipsize(gtk::pango::EllipsizeMode::Middle);
+    name.set_max_width_chars(26);
+    let meta = gtk::Label::new(Some(&format_size_label(file.bytes)));
+    meta.add_css_class("user-file-meta");
+    meta.set_xalign(0.0);
+    info.append(&name);
+    info.append(&meta);
+    card.append(&info);
+    card
+}
+
+fn format_size_label(bytes: usize) -> String {
+    if bytes < 1024 {
+        format!("{bytes} B")
+    } else if bytes < 1024 * 1024 {
+        format!("{:.1} kB", bytes as f64 / 1024.0)
+    } else {
+        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+    }
+}
+
+fn user_message_with_files(
+    text: &str,
+    mark: Option<&str>,
+    images: &[ImageBlock],
+    files: &[FileBlock],
+) -> Value {
+    let mut message = user_message(text, mark, images);
+    if !files.is_empty() {
+        if let Some(content) = message.get_mut("content").and_then(Value::as_array_mut) {
+            for file in files {
+                content.push(json!({
+                    "type": "file",
+                    "name": file.name,
+                    "path": file.path,
+                    "bytes": file.bytes,
+                }));
+            }
+        }
+    }
+    message
+}
+
+fn file_blocks_from_message(message: &Value) -> Vec<FileBlock> {
+    let Some(Value::Array(blocks)) = message.get("content") else {
+        return Vec::new();
+    };
+    blocks
+        .iter()
+        .filter(|block| block.get("type").and_then(Value::as_str) == Some("file"))
+        .filter_map(|block| {
+            Some(FileBlock {
+                name: block.get("name").and_then(Value::as_str)?.to_string(),
+                path: block.get("path").and_then(Value::as_str).unwrap_or("").to_string(),
+                bytes: block.get("bytes").and_then(Value::as_u64).unwrap_or(0) as usize,
+            })
+        })
+        .collect()
 }
 
 fn user_message(text: &str, mark: Option<&str>, images: &[ImageBlock]) -> Value {
@@ -1384,43 +1934,40 @@ fn same_user_content(left: &Value, right: &Value) -> bool {
 enum HistBlock {
     Text(String),
     Thinking(String),
+    Images(Vec<gallery::Source>),
 }
 
-fn history_blocks(message: &Value) -> Vec<HistBlock> {
+fn assistant_blocks(message: &Value, show_images: bool) -> Vec<(usize, HistBlock)> {
     let Some(Value::Array(blocks)) = message.get("content") else {
-        return Vec::new();
+        return message.get("content").and_then(Value::as_str)
+            .map(|text| vec![(0, HistBlock::Text(text.into()))]).unwrap_or_default();
     };
-    blocks
-        .iter()
-        .filter_map(|block| match block.get("type").and_then(Value::as_str) {
-            Some("text") => block
-                .get("text")
-                .and_then(Value::as_str)
-                .map(|text| HistBlock::Text(text.to_string())),
-            Some("thinking") => block
-                .get("thinking")
-                .and_then(Value::as_str)
-                .map(|text| HistBlock::Thinking(text.to_string())),
-            _ => None,
-        })
-        .collect()
-}
-
-fn text_blocks(message: &Value) -> Vec<(i64, String)> {
-    let Some(Value::Array(blocks)) = message.get("content") else {
-        return Vec::new();
-    };
-    blocks
-        .iter()
-        .enumerate()
-        .filter_map(|(index, block)| {
-            if block.get("type").and_then(Value::as_str) != Some("text") {
-                return None;
+    let mut output = Vec::new();
+    for (index, block) in blocks.iter().enumerate() {
+        let item = match block.get("type").and_then(Value::as_str) {
+            Some("text") => block.get("text").and_then(Value::as_str)
+                .map(|text| HistBlock::Text(text.into())),
+            Some("thinking") => block.get("thinking").and_then(Value::as_str)
+                .map(|text| HistBlock::Thinking(text.into())),
+            Some("image") if show_images => {
+                let Some(image) = images::image_from_block(block) else { continue };
+                if let Some((_, HistBlock::Images(group))) = output.last_mut() {
+                    group.push(image.into());
+                    continue;
+                }
+                Some(HistBlock::Images(vec![image.into()]))
             }
-            let text = block.get("text").and_then(Value::as_str)?.to_string();
-            Some((index as i64, text))
-        })
-        .collect()
+            _ => None,
+        };
+        if let Some(item) = item { output.push((index, item)); }
+    }
+    output
+}
+
+fn tool_images(message: &Value) -> Vec<ImageBlock> {
+    message.get("content").and_then(Value::as_array).into_iter().flatten()
+        .filter(|block| block.get("type").and_then(Value::as_str) == Some("image"))
+        .filter_map(images::image_from_block).collect()
 }
 
 fn message_text(message: &Value) -> String {
@@ -1506,6 +2053,9 @@ fn tool_result_is_error(message: &Value) -> bool {
 
 
 const DIFF_COLLAPSED_LINES: usize = 8;
+/// A single generated patch can contain tens of thousands of lines. Building a
+/// widget per line froze the UI and ballooned memory; render a bounded prefix.
+const MAX_DIFF_RENDER_LINES: usize = 2000;
 
 struct DiffState {
     rows: Vec<gtk::Widget>,
@@ -1549,10 +2099,16 @@ struct ToolRow {
     rendered: Cell<usize>,
     expanded: Rc<Cell<bool>>,
     chat_mode: Rc<Cell<bool>>,
+    expand_cards: Rc<Cell<bool>>,
 }
 
 impl ToolRow {
-    fn new(name: &str, args: &Value, width: i32) -> Self {
+    fn new(
+        name: &str,
+        args: &Value,
+        width: i32,
+        expand_cards: Rc<Cell<bool>>,
+    ) -> Self {
         let card = gtk::Box::new(gtk::Orientation::Vertical, 0);
         card.add_css_class("tool-card");
         card.set_halign(gtk::Align::Fill);
@@ -1621,7 +2177,7 @@ impl ToolRow {
         card.append(&output);
         card.append(&diff_body);
 
-        let expanded = Rc::new(Cell::new(true));
+        let expanded = Rc::new(Cell::new(false));
         let expanded_c = expanded.clone();
         let chat_mode = Rc::new(Cell::new(false));
         let chat_mode_c = chat_mode.clone();
@@ -1650,7 +2206,7 @@ impl ToolRow {
             output_c.set_visible(next);
         });
 
-        Self {
+        let row = Self {
             card,
             output,
             meta,
@@ -1669,7 +2225,10 @@ impl ToolRow {
             rendered: Cell::new(0),
             expanded,
             chat_mode,
-        }
+            expand_cards,
+        };
+        row.apply_default(row.expand_cards.get());
+        row
     }
 
     fn apply_expanded(&self, next: bool) {
@@ -1692,20 +2251,33 @@ impl ToolRow {
         self.card.remove_css_class("tool-compact");
         if chat {
             self.card.add_css_class("tool-compact");
-            self.apply_expanded(false);
-            self.diff_body.set_visible(false);
-            if self.card.has_css_class("error") {
-                self.apply_expanded(true);
-                self.diff_body.set_visible(false);
-            }
-        } else {
+        }
+        self.apply_default(self.expand_cards.get());
+    }
+
+    fn apply_default(&self, expanded: bool) {
+        if self.card.has_css_class("error") {
             self.apply_expanded(true);
-            self.diff_body.set_visible(self.diff_state.borrow().is_some());
+            self.diff_body
+                .set_visible(self.diff_state.borrow().is_some());
+            return;
+        }
+        self.apply_expanded(expanded);
+        if self.chat_mode.get() && !expanded {
+            self.diff_body.set_visible(false);
+        } else {
+            self.diff_body
+                .set_visible(self.diff_state.borrow().is_some());
         }
     }
 
-    fn from_history(message: &Value, width: i32) -> Self {
-        let row = Self::new(&tool_result_name(message), &Value::Null, width);
+    fn from_history(message: &Value, width: i32, expand_cards: Rc<Cell<bool>>) -> Self {
+        let row = Self::new(
+            &tool_result_name(message),
+            &Value::Null,
+            width,
+            expand_cards,
+        );
         let text = tool_result_text(message);
         if !text.is_empty() {
             row.set_output(&text);
@@ -1735,11 +2307,15 @@ impl ToolRow {
         }
         let mut rows: Vec<gtk::Widget> = Vec::new();
         let mut first_path = String::new();
+        let mut budget = MAX_DIFF_RENDER_LINES;
         for file in &diff.files {
             if first_path.is_empty() {
                 first_path = file.path.clone();
             }
             for hunk in &file.hunks {
+                if budget == 0 {
+                    break;
+                }
                 let split = hunk
                     .lines
                     .iter()
@@ -1752,19 +2328,43 @@ impl ToolRow {
                     text: hunk.header.clone(),
                 };
                 for line in &hunk.lines[..split] {
+                    if budget == 0 {
+                        break;
+                    }
                     let row = diff_line_widget(line);
                     self.diff_body.append(&row);
                     rows.push(row.upcast());
+                    budget -= 1;
                 }
-                let row = diff_line_widget(&header);
-                self.diff_body.append(&row);
-                rows.push(row.upcast());
+                if budget > 0 {
+                    let row = diff_line_widget(&header);
+                    self.diff_body.append(&row);
+                    rows.push(row.upcast());
+                    budget -= 1;
+                }
                 for line in &hunk.lines[split..] {
+                    if budget == 0 {
+                        break;
+                    }
                     let row = diff_line_widget(line);
                     self.diff_body.append(&row);
                     rows.push(row.upcast());
+                    budget -= 1;
+                }
+                if budget == 0 {
+                    break;
                 }
             }
+            if budget == 0 {
+                break;
+            }
+        }
+        if budget == 0 {
+            let note = gtk::Label::new(Some("diff truncated in the interface"));
+            note.add_css_class("diff-truncated");
+            note.set_xalign(0.0);
+            self.diff_body.append(&note);
+            rows.push(note.upcast());
         }
 
         let file = &diff.files[0];
@@ -1795,7 +2395,7 @@ impl ToolRow {
             anchor: self.diff_body.clone().upcast(),
             expanded: Cell::new(false),
         });
-        state.apply(state.rows.len() <= DIFF_COLLAPSED_LINES);
+        state.apply(self.expand_cards.get() && state.rows.len() > DIFF_COLLAPSED_LINES);
         *self.diff_state.borrow_mut() = Some(state);
 
         self.diff_body.set_visible(true);
@@ -1833,7 +2433,7 @@ impl ToolRow {
         }
         self.status.add_css_class(class);
         self.status.set_text(label);
-        if state == "error" && self.chat_mode.get() {
+        if state == "error" {
             self.apply_expanded(true);
         }
     }
@@ -2012,6 +2612,34 @@ fn thinking_height(expanded: bool) -> i32 {
     }
 }
 
+fn apply_thinking_state(
+    expanded: &Rc<Cell<bool>>,
+    chat_mode: &Cell<bool>,
+    chevron: &gtk::Image,
+    body: &gtk::ScrolledWindow,
+    content: &gtk::Label,
+    text: &Rc<RefCell<String>>,
+    next: bool,
+) {
+    expanded.set(next);
+    icons::set_icon(
+        chevron,
+        if next { "chevron-down" } else { "chevron-right" },
+        Tone::Muted,
+    );
+    body.set_max_content_height(thinking_height(next));
+    body.set_min_content_height(if next { thinking_height(true) } else { 0 });
+    body.set_visible(!chat_mode.get() || next);
+    body.queue_resize();
+    let borrowed = text.borrow();
+    let display = if next {
+        think_clip(borrowed.as_str(), THINK_FULL_CHARS)
+    } else {
+        think_tail(borrowed.as_str(), THINK_TAIL_CHARS)
+    };
+    content.set_text(&display);
+}
+
 #[derive(Clone)]
 struct ThinkingRow {
     root: gtk::Box,
@@ -2072,43 +2700,53 @@ impl ThinkingRow {
         root.append(&body);
 
         let expanded = Rc::new(Cell::new(false));
-        let row = Self {
+        let chat_mode = Cell::new(false);
+        let text = Rc::new(RefCell::new(String::new()));
+        let render_scheduled = Rc::new(Cell::new(false));
+        {
+            let expanded_c = expanded.clone();
+            let body_c = body.clone();
+            let chevron_c = chevron.clone();
+            let content_c = content.clone();
+            let text_c = text.clone();
+            let chat_mode_c = chat_mode.clone();
+            head_button.connect_clicked(move |_| {
+                let next = !expanded_c.get();
+                apply_thinking_state(
+                    &expanded_c,
+                    &chat_mode_c,
+                    &chevron_c,
+                    &body_c,
+                    &content_c,
+                    &text_c,
+                    next,
+                );
+            });
+        }
+        Self {
             root,
             title,
             chevron,
             body,
             content,
-            text: Rc::new(RefCell::new(String::new())),
+            text,
             expanded,
-            render_scheduled: Rc::new(Cell::new(false)),
-            chat_mode: Cell::new(false),
-        };
-        let row_for_click = row.clone();
-        head_button.connect_clicked(move |_| {
-            let next = !row_for_click.expanded.get();
-            row_for_click.set_expanded(next);
-        });
-
-        row
+            render_scheduled,
+            chat_mode,
+        }
     }
 
     fn set_expanded(&self, expanded: bool) {
-        self.expanded.set(expanded);
-        icons::set_icon(
+        apply_thinking_state(
+            &self.expanded,
+            &self.chat_mode,
             &self.chevron,
-            if expanded { "chevron-down" } else { "chevron-right" },
-            Tone::Muted,
+            &self.body,
+            &self.content,
+            &self.text,
+            expanded,
         );
-        self.body.set_max_content_height(thinking_height(expanded));
-        self.body.set_min_content_height(if expanded {
-            thinking_height(true)
-        } else {
-            0
-        });
-        self.body.set_visible(!self.chat_mode.get() || expanded);
-        self.body.queue_resize();
         self.root.queue_resize();
-        self.render_now();
     }
 
     fn show_running(&self) {
@@ -2187,7 +2825,5 @@ fn scroll_thinking_to_end(body: &gtk::ScrolledWindow) {
     let bottom = (adjustment.upper() - adjustment.page_size()).max(0.0);
     adjustment.set_value(bottom);
 }
-
-
 
 

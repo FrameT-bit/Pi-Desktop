@@ -1,4 +1,5 @@
 
+mod compact;
 mod connections;
 mod credits;
 mod mcp;
@@ -6,6 +7,7 @@ mod memory;
 mod pages;
 mod providers;
 mod soul;
+mod updates;
 
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -37,13 +39,14 @@ const TABS: &[(&str, &str)] = &[
     ("CONNECTIONS", "SEARCH"),
     ("SOUL", "PERSONALITY"),
     ("CREDITS", "CREDITS"),
+    ("UPDATES", "UPDATES"),
 ];
 
 const NAV: &[(&str, &[&str])] = &[
     ("GENERAL", &["CONNECTION", "MODEL", "PERSONALIZATION"]),
     ("TOOLS", &["PROVIDERS", "MCP", "MEMORY", "SOUL"]),
     ("ADVANCED", &["CONNECTIONS"]),
-    ("ABOUT", &["CREDITS"]),
+    ("ABOUT", &["UPDATES", "CREDITS"]),
 ];
 
 fn tab_label(name: &str) -> &'static str {
@@ -170,10 +173,11 @@ pub fn show(
             "PERSONALIZATION" => personalization_page(&config, &mut form),
             "PROVIDERS" => providers::page(),
             "MCP" => mcp::page(&window, &config.bin),
-            "MEMORY" => memory::page(),
+            "MEMORY" => memory::page(&config, &aux_models),
             "CONNECTIONS" => connections_page.clone(),
-            "SOUL" => soul::page(&config, &mut form),
+            "SOUL" => soul::page(&config, &mut form, &aux_models),
             "CREDITS" => credits::page(),
+            "UPDATES" => updates::page(),
             _ => pages::blank(),
         };
         let page = tab_shell(*name, &content);
@@ -443,6 +447,7 @@ fn tab_name(value: &str) -> Option<&'static str> {
         "memory" => Some("MEMORY"),
         "soul" => Some("SOUL"),
         "credits" | "about" => Some("CREDITS"),
+        "updates" | "update" => Some("UPDATES"),
         _ => None,
     }
 }
@@ -485,6 +490,7 @@ fn tab_title(name: &str) -> &'static str {
         "MEMORY" => "Memory between sessions",
         "SOUL" => "Personality",
         "CREDITS" => "Credits",
+        "UPDATES" => "Updates",
         _ => "Settings",
     }
 }
@@ -499,7 +505,8 @@ fn tab_desc(name: &str) -> &'static str {
         "CONNECTIONS" => "Search providers used by the web access extension.",
         "MEMORY" => "Facts and preferences that pi-memory injects into the prompt.",
         "SOUL" => "Persona and system prompt passed to Pi.",
-        "CREDITS" => "Version, updates, links and licenses.",
+        "CREDITS" => "Version, links and licenses.",
+        "UPDATES" => "Check releases from FrameT-bit/Pi-Desktop on GitHub.",
         _ => "",
     }
 }
@@ -551,6 +558,12 @@ fn model_page(config: &Config, form: &mut Form, aux_models: &[ModelItem]) -> gtk
 
     let default_model = block(&page, "DEFAULT MODEL");
     default_model.append(&pages::main_model(config, form, aux_models));
+
+    let subagents = block(&page, "SUB-AGENTS");
+    subagents.append(&pages::subagents(config, form, aux_models));
+
+    let features = block(&page, "FEATURES THAT EXTEND THE SYSTEM PROMPT");
+    features.append(&pages::features(config, form));
 
     let adv = advanced(&page, "advanced · scope of Ctrl+P, tools and context");
     let cycle = block(&adv, "CTRL+P CYCLE");
@@ -684,5 +697,10 @@ fn collect(form: &Form, before: &Config) -> Result<Config, String> {
     config.font = FontChoice::from_index(form.index("font"));
     config.session_tabs = form.boolean("session_tabs");
     config.show_costs = form.boolean("show_costs");
+    config.cards_expanded = form.boolean("cards_expanded");
+    config.ai_images = form.boolean("ai_images");
+    config.clarify = form.boolean("clarify");
+    config.subagent_tier = crate::config::SubagentTier::from_index(form.index("subagent_tier"));
+    config.subagent_models = form.text("subagent_models");
     Ok(config)
 }

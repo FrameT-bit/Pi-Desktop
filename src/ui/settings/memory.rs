@@ -18,7 +18,7 @@ fn set_view(scroll: &gtk::ScrolledWindow, text: &str) {
     view.buffer().set_text(text);
 }
 
-pub fn page() -> gtk::Box {
+pub fn page(config: &config::Config, models: &[crate::state::ModelItem]) -> gtk::Box {
     let page = gtk::Box::new(gtk::Orientation::Vertical, 0);
     page.add_css_class("settings-page-content");
 
@@ -57,6 +57,7 @@ pub fn page() -> gtk::Box {
     actions.append(&save);
     actions.append(&reload);
     page.append(&actions);
+    super::compact::action(&actions, &page, "Compact memory", config, models, &[&user_view, &memory_view]);
 
     let note = gtk::Label::new(Some(&format!(
         "the agent writes here alone (review every 10 shifts or when you ask to remember); files in {}",

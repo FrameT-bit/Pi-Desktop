@@ -38,6 +38,8 @@ session_id=ui-fixture
 offline=true
 no_extensions=true
 no_mcp=true
+system_prompt=Keep the platform stable.\\nKeep the platform stable.
+append_system_prompt=Use clear language.\\nUse clear language.
 [ui]
 theme=dark
 light_theme=oat-milk
@@ -54,16 +56,23 @@ session_tabs=false
             {"type": "message", "message": {"role": "assistant", "provider": "openai", "model": "gpt-6.1-sol", "timestamp": 1794481200000}},
         ]
         (sessions / "history.jsonl").write_text("\n".join(json.dumps(entry) for entry in entries))
+        memory = home / ".pi/agent/memory"
+        memory.mkdir()
+        original = "- Prefer Rust.\n- Prefer Rust."
+        (memory / "USER.md").write_text(original)
+        (memory / "MEMORY.md").write_text(original)
         env = dict(os.environ, HOME=str(home), PI_DESKTOP_CONFIG=str(config), PI_BIN=str(fixture),
                    PI_CODING_AGENT_DIR=str(home / ".pi/agent"), PI_DESKTOP_THEME=theme,
                    PI_DESKTOP_DEMO="qa", PI_DESKTOP_QA_SCENARIO=scenario,
                    PI_DESKTOP_QA_REPORT=str(OUTPUT / f"{name}.json"),
                    PI_DESKTOP_SNAPSHOT=str(OUTPUT / f"{name}.png"), PI_DESKTOP_SNAPSHOT_DELAY="7",
                    PI_DESKTOP_FIXTURE_LOG=str(OUTPUT / f"{name}.rpc.jsonl"))
-        if scenario == "reasoning":
+        if scenario in ("reasoning", "models"):
             env["PI_DESKTOP_SNAPSHOT_TARGET"] = "popover"
-        if scenario == "settings":
+        if scenario in ("settings", "viewer", "updates") or scenario.startswith("compact-"):
             env["PI_DESKTOP_SNAPSHOT_TARGET"] = "dialog"
+        if scenario.startswith("compact-"):
+            env["PI_FIXTURE_COMPACT"] = "1"
         binary = os.environ.get("PI_DESKTOP_QA_BIN", str(ROOT / "target/debug/pi-desktop"))
         result = subprocess.run([binary], cwd=ROOT, env=env,
                                 capture_output=True, text=True, timeout=40)
@@ -72,6 +81,28 @@ session_tabs=false
         assert "Theme parser error" not in result.stderr, result.stderr
         assert "CRITICAL" not in result.stderr, result.stderr
         report = json.loads((OUTPUT / f"{name}.json").read_text())
+        feature = report["feature"]
+        if scenario == "models":
+            assert feature == {"focused": True, "text": "test/fixture-cheap", "matches": 1}, feature
+        elif scenario in ("gallery", "viewer"):
+            assert feature["next"][2] >= 44 and feature["next"][3] >= 44, feature
+            if scenario == "gallery":
+                assert feature["page_two"] and feature["window_width"] == 1280, feature
+                x, _, width, _ = feature["gallery"]
+                assert x >= 0 and x + width <= 1280, feature
+            else:
+                assert feature["width"] == 390, feature
+                x, y, width, height = feature["next"]
+                assert x >= 0 and x + width <= 390 and y + height <= feature["height"], feature
+        elif scenario.startswith("compact-"):
+            assert feature == {"applied": True}, feature
+            requests = [json.loads(line) for line in (OUTPUT / f"{name}.rpc.jsonl").read_text().splitlines()]
+            models = [request["model"] for request in requests if request["type"] == "fixture_compact"]
+            assert models == ["test/fixture-cheap"] * (2 if scenario == "compact-memory" else 1), models
+            assert (memory / "USER.md").read_text() == original
+            assert (memory / "MEMORY.md").read_text() == original
+        elif scenario == "updates":
+            assert feature == {"release_link": True}, feature
         assert not report["raw_snapshot_visible"]
         assert not report["connected_visible"]
         assert report["tabs_visible"] == (scenario == "tabs")
@@ -103,15 +134,29 @@ session_tabs=false
 
 
 if __name__ == "__main__":
+    import sys
+
     OUTPUT.mkdir(parents=True, exist_ok=True)
     subprocess.run(["cargo", "build", "--quiet"], cwd=ROOT, check=True)
-    for name, scenario, theme in [
+    cases = [
         ("code-dark-1280", "code", "midnight-fudge"),
         ("code-light-1280", "code", "oat-milk"),
         ("chat-1280", "chat", "midnight-fudge"),
         ("optional-tabs-1280", "tabs", "midnight-fudge"),
         ("reasoning-390", "reasoning", "midnight-fudge"),
         ("personalization", "settings", "oat-milk"),
-    ]:
+        ("model-search", "models", "midnight-fudge"),
+        ("gallery-1280", "gallery", "midnight-fudge"),
+        ("viewer-390", "viewer", "midnight-fudge"),
+        ("compact-memory", "compact-memory", "midnight-fudge"),
+        ("compact-personality", "compact-personality", "midnight-fudge"),
+        ("compact-system", "compact-system", "midnight-fudge"),
+    ]
+    if "--live-updates" in sys.argv:
+        cases.append(("updates", "updates", "midnight-fudge"))
+    selected = set(sys.argv[1:]) - {"--live-updates"}
+    cases = [case for case in cases if not selected or case[1] in selected]
+    assert cases, "no matching scenarios"
+    for name, scenario, theme in cases:
         run(name, scenario, theme)
-    print(f"6 native UI scenarios passed. PNGs and measured reports: {OUTPUT}")
+    print(f"{len(cases)} native UI scenarios passed. PNGs and measured reports: {OUTPUT}")

@@ -67,6 +67,7 @@ pub struct SidebarInner {
     pending_select: RefCell<Option<glib::SourceId>>,
     row_widgets: RefCell<Vec<(usize, gtk::Box, gtk::Box, gtk::Label, String)>>,
     age_labels: RefCell<Vec<(String, String, gtk::Label)>>,
+    last_render: Cell<u64>,
 }
 
 impl Deref for SidebarUi {
@@ -222,6 +223,7 @@ impl SidebarUi {
             pending_select: RefCell::new(None),
             row_widgets: RefCell::new(Vec::new()),
             age_labels: RefCell::new(Vec::new()),
+            last_render: Cell::new(0),
         });
         let sidebar = Self { inner };
         {
@@ -354,6 +356,39 @@ impl SidebarUi {
         models: &[ModelItem],
         activity: &HashMap<String, SessionActivity>,
     ) {
+        // Rebuilding the rows is only needed when something visible changed.
+        // During a turn this method is called on every tool event, and each
+        // rebuild used to allocate a whole tree of widgets.
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        sessions.len().hash(&mut hasher);
+        for session in sessions {
+            session.path.hash(&mut hasher);
+            session.name.hash(&mut hasher);
+            session.model.hash(&mut hasher);
+            session.preview.hash(&mut hasher);
+            session.session_id.hash(&mut hasher);
+            session.mtime.hash(&mut hasher);
+            session.last_response.hash(&mut hasher);
+        }
+        active.hash(&mut hasher);
+        for model in models {
+            model.provider.hash(&mut hasher);
+            model.id.hash(&mut hasher);
+            model.name.hash(&mut hasher);
+        }
+        for (key, entry) in activity {
+            key.hash(&mut hasher);
+            entry.running.hash(&mut hasher);
+            entry.phase.hash(&mut hasher);
+            entry.unread.hash(&mut hasher);
+            entry.waiting.hash(&mut hasher);
+        }
+        let fingerprint = hasher.finish();
+        if fingerprint == self.last_render.get() {
+            return;
+        }
+        self.last_render.set(fingerprint);
         *self.all.borrow_mut() = sessions.iter().cloned().enumerate().collect();
         *self.models.borrow_mut() = models.to_vec();
         *self.activity.borrow_mut() = activity.clone();
@@ -608,20 +643,28 @@ impl SidebarInner {
         )));
 
         let key = slug.to_string();
-        let inner = self.clone();
+        // Weak: the button owns this closure, so a strong Rc<SidebarInner> here
+        // would keep the whole sidebar (and every row) alive after a rebuild.
+        let weak = Rc::downgrade(self);
         button.connect_clicked(move |_| {
+            let Some(inner) = weak.upgrade() else {
+                return;
+            };
             if !inner.collapsed.borrow_mut().remove(&key) {
                 inner.collapsed.borrow_mut().insert(key.clone());
             }
             inner.rebuild();
         });
 
-        let inner = self.clone();
-        let anchor = button.clone();
+        let weak = Rc::downgrade(self);
+        let anchor = button.downgrade();
         let key = slug.to_string();
         let menu_gesture = gtk::GestureClick::new();
         menu_gesture.set_button(gtk::gdk::BUTTON_SECONDARY);
         menu_gesture.connect_pressed(move |gesture, _, _, _| {
+            let (Some(inner), Some(anchor)) = (weak.upgrade(), anchor.upgrade()) else {
+                return;
+            };
             gesture.set_state(gtk::EventSequenceState::Claimed);
             inner.show_group_menu(&anchor, &key);
         });
@@ -750,19 +793,26 @@ impl SidebarInner {
         ));
 
         {
-            let inner = self.clone();
+            let weak = Rc::downgrade(self);
             let click = gtk::GestureClick::new();
             click.set_button(gtk::gdk::BUTTON_PRIMARY);
             click.connect_pressed(move |_, n_press, _, _| {
                 if n_press != 1 {
                     return;
                 }
+                let Some(inner) = weak.upgrade() else {
+                    return;
+                };
                 inner.cancel_pending_select();
-                let inner_c = inner.clone();
+                let inner_c = Rc::downgrade(&inner);
                 let source =
                     glib::timeout_add_local_once(Duration::from_millis(CLICK_DELAY_MS), move || {
+                        let Some(inner_c) = inner_c.upgrade() else {
+                            return;
+                        };
                         inner_c.pending_select.borrow_mut().take();
-                        if let Some(callback) = inner_c.on_session.borrow().as_ref() {
+                        let callback = inner_c.on_session.borrow();
+                        if let Some(callback) = callback.as_ref() {
                             callback(index);
                         }
                     });
@@ -772,9 +822,9 @@ impl SidebarInner {
         }
 
         {
-            let inner = self.clone();
-            let name_c = name.clone();
-            let body_c = body.clone();
+            let weak = Rc::downgrade(self);
+            let name_c = name.downgrade();
+            let body_c = body.downgrade();
             let title_c = title.clone();
             let rename = gtk::GestureClick::new();
             rename.set_button(gtk::gdk::BUTTON_PRIMARY);
@@ -782,6 +832,11 @@ impl SidebarInner {
                 if n_press != 2 {
                     return;
                 }
+                let (Some(inner), Some(name_c), Some(body_c)) =
+                    (weak.upgrade(), name_c.upgrade(), body_c.upgrade())
+                else {
+                    return;
+                };
                 gesture.set_state(gtk::EventSequenceState::Claimed);
                 inner.cancel_pending_select();
                 inner.start_rename(&body_c, &name_c, index, &title_c);
@@ -790,14 +845,22 @@ impl SidebarInner {
         }
 
         {
-            let inner = self.clone();
-            let row_c = row.clone();
-            let body_c = body.clone();
-            let name_c = name.clone();
+            let weak = Rc::downgrade(self);
+            let row_c = row.downgrade();
+            let body_c = body.downgrade();
+            let name_c = name.downgrade();
             let title_c = title.clone();
             let menu_gesture = gtk::GestureClick::new();
             menu_gesture.set_button(gtk::gdk::BUTTON_SECONDARY);
             menu_gesture.connect_pressed(move |gesture, _, _, _| {
+                let (Some(inner), Some(row_c), Some(body_c), Some(name_c)) = (
+                    weak.upgrade(),
+                    row_c.upgrade(),
+                    body_c.upgrade(),
+                    name_c.upgrade(),
+                ) else {
+                    return;
+                };
                 gesture.set_state(gtk::EventSequenceState::Claimed);
                 inner.cancel_pending_select();
                 inner.show_row_menu(&row_c, index, &body_c, &name_c, &title_c);
@@ -827,14 +890,14 @@ impl SidebarInner {
         name.set_visible(false);
 
         let finished = Rc::new(Cell::new(false));
-        let body_c = body.clone();
-        let name_c = name.clone();
-        let entry_c = entry.clone();
+        let body_c = body.downgrade();
+        let name_c = name.downgrade();
+        let entry_c = entry.downgrade();
         let current = current.to_string();
 
         let commit: Rc<dyn Fn()> = Rc::new({
             let finished = finished.clone();
-            let inner = self.clone();
+            let inner = Rc::downgrade(self);
             let body_c = body_c.clone();
             let name_c = name_c.clone();
             let entry_c = entry_c.clone();
@@ -843,6 +906,11 @@ impl SidebarInner {
                 if finished.replace(true) {
                     return;
                 }
+                let (Some(body_c), Some(name_c), Some(entry_c)) =
+                    (body_c.upgrade(), name_c.upgrade(), entry_c.upgrade())
+                else {
+                    return;
+                };
                 let value = entry_c.text().trim().to_string();
                 body_c.remove(&entry_c);
                 name_c.set_visible(true);
@@ -850,8 +918,10 @@ impl SidebarInner {
                     return;
                 }
                 name_c.set_text(&value);
-                if let Some(callback) = inner.on_rename.borrow().as_ref() {
-                    callback(index, value);
+                if let Some(inner) = inner.upgrade() {
+                    if let Some(callback) = inner.on_rename.borrow().as_ref() {
+                        callback(index, value);
+                    }
                 }
             }
         });
@@ -875,8 +945,14 @@ impl SidebarInner {
             key.connect_key_pressed(move |_, key, _, _| {
                 if key == gtk::gdk::Key::Escape {
                     finished.set(true);
-                    body_c.remove(&entry_c);
-                    name_c.set_visible(true);
+                    if let (Some(body_c), Some(name_c), Some(entry_c)) = (
+                        body_c.upgrade(),
+                        name_c.upgrade(),
+                        entry_c.upgrade(),
+                    ) {
+                        body_c.remove(&entry_c);
+                        name_c.set_visible(true);
+                    }
                     return glib::Propagation::Stop;
                 }
                 glib::Propagation::Proceed

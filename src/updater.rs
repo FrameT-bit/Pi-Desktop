@@ -18,6 +18,10 @@ pub struct UpdateState {
     pub url: String,
     pub notes: String,
     pub error: String,
+    #[serde(default)]
+    pub prerelease: bool,
+    #[serde(default)]
+    pub appimage: Option<String>,
 }
 
 impl UpdateState {
@@ -47,10 +51,17 @@ fn state_path() -> Option<std::path::PathBuf> {
 }
 
 pub fn load() -> UpdateState {
-    state_path()
+    let mut state: UpdateState = state_path()
         .and_then(|path| std::fs::read_to_string(path).ok())
         .and_then(|text| serde_json::from_str(&text).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    // A cache made by an older installed build must not offer that same
+    // release again after upgrading.
+    if state.current != current_version() {
+        state.checked_at = 0;
+    }
+    state.current = current_version();
+    state
 }
 
 fn save(state: &UpdateState) {
@@ -86,27 +97,36 @@ pub fn spawn_check(tx: async_channel::Sender<UpdateState>) {
 
 fn check_blocking() -> UpdateState {
     let current = current_version();
-    let url = format!("https://api.github.com/repos/{REPO}/releases/latest");
+    // /releases/latest excludes prereleases and returns 404 for this project
+    // when it only has preview builds. Use the public release list instead.
+    let url = format!("https://api.github.com/repos/{REPO}/releases?per_page=100");
     let output = Command::new("curl")
         .args([
             "-sS",
+            "--fail-with-body",
+            "--max-filesize",
+            "4000000",
             "--max-time",
             "10",
             "-H",
             "User-Agent: FrameT-Pi-Desktop",
+            "-H",
+            "Accept: application/vnd.github+json",
             &url,
         ])
         .stdin(Stdio::null())
         .output();
     let mut state = UpdateState {
         checked_at: now(),
-        current: current.clone(),
+        current,
         ..UpdateState::default()
     };
     let output = match output {
         Ok(output) if output.status.success() => output,
         Ok(output) => {
-            state.error = format!("GitHub answered {}", output.status);
+            state.error = serde_json::from_slice::<serde_json::Value>(&output.stdout)
+                .ok().and_then(|value| value.get("message")?.as_str().map(str::to_owned))
+                .unwrap_or_else(|| format!("GitHub request failed ({})", output.status));
             return state;
         }
         Err(error) => {
@@ -121,56 +141,77 @@ fn check_blocking() -> UpdateState {
             return state;
         }
     };
-    let Some(tag) = value.get("tag_name").and_then(|value| value.as_str()) else {
-        let message = value
-            .get("message")
-            .and_then(|value| value.as_str())
-            .unwrap_or("release without tag");
-        state.error = if message.eq_ignore_ascii_case("not found") {
-            "no public release yet".to_string()
-        } else {
-            message.to_string()
-        };
-        return state;
-    };
-    state.latest = tag.trim_start_matches('v').to_string();
-    state.url = value
-        .get("html_url")
-        .and_then(|value| value.as_str())
-        .unwrap_or(RELEASES_URL)
-        .to_string();
-    state.notes = value
-        .get("body")
-        .and_then(|value| value.as_str())
-        .unwrap_or("")
-        .to_string();
+    if let Err(error) = apply_releases(&mut state, &value) { state.error = error.into(); }
     state
 }
 
-pub fn version_gt(left: &str, right: &str) -> bool {
-    let parse = |value: &str| {
-        value
-            .trim()
-            .trim_start_matches('v')
-            .split(['.', '-', '+'])
-            .map(|part| part.parse::<u64>().unwrap_or(0))
-            .collect::<Vec<_>>()
+fn apply_releases(state: &mut UpdateState, value: &serde_json::Value) -> Result<(), &'static str> {
+    let releases = value.as_array().ok_or("GitHub did not return a release list.")?;
+    let Some((_, tag, release)) = releases.iter().filter_map(|release| {
+        if release.get("draft").and_then(|draft| draft.as_bool()) != Some(false) { return None; }
+        let tag = release.get("tag_name")?.as_str()?;
+        Some((version(tag)?, tag, release))
+    }).max_by_key(|(version, _, release)| (*version, release["prerelease"].as_bool() == Some(false))) else {
+        return Ok(());
     };
-    let left = parse(left);
-    let right = parse(right);
-    let len = left.len().max(right.len());
-    for index in 0..len {
-        let a = left.get(index).copied().unwrap_or(0);
-        let b = right.get(index).copied().unwrap_or(0);
-        if a != b {
-            return a > b;
-        }
+    state.latest = tag.strip_prefix('v').unwrap_or(tag).to_owned();
+    state.url = format!("{RELEASES_URL}/tag/{tag}");
+    state.prerelease = release["prerelease"].as_bool().unwrap_or(false);
+    state.notes = release["body"].as_str().unwrap_or("").to_string();
+    let expected = format!("Pi-Desktop-{}-{}.AppImage", state.latest, std::env::consts::ARCH);
+    if release["assets"].as_array().is_some_and(|assets| assets.iter().any(|asset|
+        asset["name"].as_str() == Some(expected.as_str()) && asset["state"].as_str() == Some("uploaded")
+    )) {
+        state.appimage = Some(format!("{RELEASES_URL}/download/{tag}/{expected}"));
     }
-    false
+    Ok(())
+}
+
+fn version(tag: &str) -> Option<[u64; 3]> {
+    let tag = tag.strip_prefix('v').unwrap_or(tag);
+    if !tag.bytes().all(|byte| byte.is_ascii_digit() || byte == b'.') { return None; }
+    let mut parts = tag.split('.');
+    let version = [parts.next()?.parse().ok()?, parts.next()?.parse().ok()?, parts.next()?.parse().ok()?];
+    parts.next().is_none().then_some(version)
+}
+
+pub fn version_gt(left: &str, right: &str) -> bool {
+    matches!((version(left), version(right)), (Some(left), Some(right)) if left > right)
 }
 
 pub fn open(url: &str) {
-    let _ = Command::new("xdg-open").arg(url).stdin(Stdio::null()).spawn();
+    let _ = gtk::gio::AppInfo::launch_default_for_uri(url, gtk::gio::AppLaunchContext::NONE);
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn finds_highest_public_version_even_when_only_prereleases_exist() {
+        let name = format!("Pi-Desktop-1.10.0-{}.AppImage", std::env::consts::ARCH);
+        let mut state = UpdateState { current: "1.9.0".into(), ..Default::default() };
+        apply_releases(&mut state, &json!([
+            {"tag_name":"v2.0.0","draft":true},
+            {"tag_name":"v1.9.8","draft":false,"prerelease":true},
+            {"tag_name":"v1.10.0","draft":false,"prerelease":true,"assets":[{"name":name,"state":"uploaded"}]},
+            {"tag_name":"2.0.0/other","draft":false},
+        ])).unwrap();
+        assert!(state.has_update() && state.prerelease);
+        assert_eq!(state.latest, "1.10.0");
+        assert_eq!(state.url, format!("{RELEASES_URL}/tag/v1.10.0"));
+        assert!(state.appimage.unwrap().ends_with(&name));
+    }
+
+    #[test]
+    #[ignore = "requests the public GitHub API"]
+    fn official_repository_returns_published_release() {
+        let state = check_blocking();
+        assert!(state.error.is_empty(), "{}", state.error);
+        assert!(!state.latest.is_empty());
+        assert!(state.url.starts_with(RELEASES_URL));
+        eprintln!("Latest public release: v{} (prerelease: {})", state.latest, state.prerelease);
+    }
+}
 

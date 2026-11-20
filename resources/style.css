@@ -608,6 +608,111 @@ separator {
   color: @error;
 }
 
+.chat-gallery {
+  margin-top: var(--esp-8);
+  margin-bottom: var(--esp-8);
+}
+
+.image-viewer {
+  background-color: var(--cor-superficie);
+  padding: var(--esp-8);
+}
+
+.chat-gallery-image,
+.gallery-arrow {
+  background: none;
+  border: none;
+  box-shadow: none;
+  border-radius: var(--raio-botao);
+  padding: 0;
+}
+
+.gallery-arrow,
+button.compact-action,
+.compact-picker button {
+  min-height: var(--altura-controle);
+  min-width: var(--altura-controle);
+}
+
+.gallery-arrow:hover {
+  background-color: var(--cor-selecao);
+}
+
+.gallery-count {
+  color: var(--cor-texto);
+}
+
+.compact-picker {
+  padding: var(--esp-24);
+  border-spacing: var(--esp-12);
+}
+
+.clarify-card {
+  background-color: @card_bg;
+  border: 1px solid @border;
+  border-left: 2px solid @accent;
+  border-radius: 0;
+  padding: 10px 12px;
+}
+
+.clarify-heading {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  color: @accent;
+}
+
+.clarify-question {
+  font-family: "Pixelify Sans", serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: @text;
+}
+
+.clarify-option {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid @border;
+  border-radius: 0;
+  padding: 6px 10px;
+  color: @text;
+  box-shadow: none;
+}
+
+.clarify-option:hover {
+  border-color: @accent;
+}
+
+.clarify-option:checked {
+  background-color: @selected_bg;
+  border-color: @accent;
+}
+
+.clarify-send {
+  border: 1px solid @accent;
+  border-radius: 0;
+  background-color: transparent;
+  color: @accent;
+  padding: 4px 12px;
+}
+
+.chat-more {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
+  background-color: transparent;
+  border: 1px solid @border;
+  border-radius: 0;
+  padding: 6px 14px;
+}
+
+.chat-more:hover {
+  color: @text;
+  border-color: @accent;
+}
+
 
 .tool-card {
   background-color: @card_bg;
@@ -908,6 +1013,47 @@ separator {
 .attach-strip {
   background-color: transparent;
   padding: 0 2px 6px 2px;
+}
+
+.attach-scroll {
+  background-color: transparent;
+  border: none;
+}
+
+.attach-chip {
+  background-color: @card_bg;
+  border: 1px solid @panel_border;
+  padding: 4px 6px;
+  border-radius: 0;
+}
+
+.attach-file-icon {
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+}
+
+.user-file {
+  background-color: @card_bg;
+  border: 1px solid @panel_border;
+  border-radius: 0;
+  padding: 6px 8px;
+  margin-top: 4px;
+}
+
+.user-file-name {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: @text;
+}
+
+.user-file-meta {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: @muted;
 }
 
 .attach-slot {

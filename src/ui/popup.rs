@@ -216,7 +216,6 @@ impl Popup {
         popover.set_has_arrow(false);
         popover.set_autohide(true);
         popover.set_position(position);
-        popover.set_can_focus(false);
         popover.set_size_request(width, -1);
 
         let list = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -225,6 +224,7 @@ impl Popup {
         let search = gtk::Entry::new();
         search.add_css_class("palette-search-entry");
         search.set_placeholder_text(Some("filter model..."));
+        search.set_focusable(true);
         search.set_visible(false);
 
         let scroll = scroll_body(&list, 420);

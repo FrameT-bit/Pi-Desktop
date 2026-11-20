@@ -218,6 +218,63 @@ impl Thinking {
 }
 
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum SubagentTier {
+    Off,
+    Best,
+    #[default]
+    Balanced,
+    Cheap,
+}
+
+impl SubagentTier {
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.trim().to_ascii_lowercase().as_str() {
+            "off" | "none" | "disabled" => Some(SubagentTier::Off),
+            "best" | "strong" => Some(SubagentTier::Best),
+            "balanced" | "middle" | "mid" => Some(SubagentTier::Balanced),
+            "cheap" | "fast" | "budget" => Some(SubagentTier::Cheap),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SubagentTier::Off => "off",
+            SubagentTier::Best => "best",
+            SubagentTier::Balanced => "balanced",
+            SubagentTier::Cheap => "cheap",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            SubagentTier::Off => "off (inherit the parent model)",
+            SubagentTier::Best => "best",
+            SubagentTier::Balanced => "balanced",
+            SubagentTier::Cheap => "cheap",
+        }
+    }
+
+    pub fn index(self) -> usize {
+        match self {
+            SubagentTier::Off => 0,
+            SubagentTier::Best => 1,
+            SubagentTier::Balanced => 2,
+            SubagentTier::Cheap => 3,
+        }
+    }
+
+    pub fn from_index(index: usize) -> Self {
+        match index {
+            1 => SubagentTier::Best,
+            2 => SubagentTier::Balanced,
+            3 => SubagentTier::Cheap,
+            _ => SubagentTier::Off,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CliArgs {
     pub session: Option<String>,
@@ -279,6 +336,15 @@ pub struct Config {
     pub font: FontChoice,
     pub show_costs: bool,
     pub notify: bool,
+    /// Tool/diff cards start collapsed unless the user asks to keep them open.
+    pub cards_expanded: bool,
+    /// Let the model place images directly in the conversation.
+    pub ai_images: bool,
+    /// Allow the `pi-clarify` question protocol.
+    pub clarify: bool,
+    pub subagent_tier: SubagentTier,
+    /// Per-family model overrides: family=best|balanced|cheap,fanily=...
+    pub subagent_models: String,
 
     session_override: Option<String>,
     launch_session_id: Option<String>,
@@ -329,6 +395,11 @@ impl Default for Config {
             font: FontChoice::Pixel,
             show_costs: true,
             notify: true,
+            cards_expanded: false,
+            ai_images: true,
+            clarify: true,
+            subagent_tier: SubagentTier::default(),
+            subagent_models: String::new(),
             session_override: None,
             launch_session_id: None,
             session_path: None,
@@ -580,6 +651,29 @@ impl Config {
                         self.show_costs = parsed;
                     }
                 }
+                "cards_expanded" if ui || section.is_empty() => {
+                    if let Some(parsed) = parse_bool(&value()) {
+                        self.cards_expanded = parsed;
+                    }
+                }
+                "ai_images" if ui || section.is_empty() => {
+                    if let Some(parsed) = parse_bool(&value()) {
+                        self.ai_images = parsed;
+                    }
+                }
+                "clarify" if ui || section.is_empty() => {
+                    if let Some(parsed) = parse_bool(&value()) {
+                        self.clarify = parsed;
+                    }
+                }
+                "subagent_tier" if ui || section.is_empty() => {
+                    if let Some(parsed) = SubagentTier::parse(&value()) {
+                        self.subagent_tier = parsed;
+                    }
+                }
+                "subagent_models" if ui || section.is_empty() => {
+                    self.subagent_models = value();
+                }
                 "target" if !ui => {
                     if let Some(parsed) = Target::parse(&value()) {
                         self.target = parsed;
@@ -753,13 +847,44 @@ impl Config {
         push_flag(&mut args, self.no_context_files, "--no-context-files");
 
         push_value(&mut args, "--system-prompt", &self.system_prompt);
-        push_value(
-            &mut args,
-            "--append-system-prompt",
-            &self.append_system_prompt,
-        );
+        let append = self.effective_append_prompt();
+        push_value(&mut args, "--append-system-prompt", &append);
 
         args
+    }
+
+    /// User text plus the opt-in feature contracts. Every feature that adds
+    /// instructions here has a toggle, so a compact system prompt stays possible.
+    pub fn effective_append_prompt(&self) -> String {
+        let mut parts: Vec<String> = Vec::new();
+        if !self.append_system_prompt.trim().is_empty() {
+            parts.push(self.append_system_prompt.trim().to_string());
+        }
+        if self.ai_images {
+            parts.push(
+                "INLINE IMAGES\n\
+Image tool results appear in the chat, outside tool cards. To place a local image between \
+paragraphs, write a fenced `pi-image` block with an absolute `path` and optional `alt` on \
+its own line:\n```pi-image\n{\"path\":\"/tmp/chart.png\",\"alt\":\"Revenue\"}\n```\n\
+Place consecutive image blocks together for one carousel. Put captions and sources in prose \
+next to the relevant image. Do not repeat images already shown from tool results."
+                    .to_string(),
+            );
+        }
+        if self.clarify {
+            parts.push(
+                "CLARIFY\n\
+When you genuinely need a decision from the user before continuing (ambiguous scope, a \
+destructive choice, missing preference), do not guess. End your reply with one fenced \
+block tagged `pi-clarify` containing JSON with a `question` string and an `options` array \
+of 2-4 short strings. Add `\"multiselect\": true` only when several answers may be chosen \
+at once. The desktop client renders the question as buttons plus an always-available free \
+text field, so keep every option self-contained. Example:\n\n```pi-clarify\n{\"question\":\"Which database should I target?\",\"options\":[\"SQLite\",\"PostgreSQL\"]}\n```\n\nUse this sparingly: at most once per turn, and never for information you could \
+obtain with a tool."
+                    .to_string(),
+            );
+        }
+        parts.join("\n\n")
     }
 
     pub fn needs_reconnect(&self, other: &Self) -> bool {
@@ -793,6 +918,8 @@ impl Config {
             || self.no_context_files != other.no_context_files
             || self.system_prompt != other.system_prompt
             || self.append_system_prompt != other.append_system_prompt
+            || self.ai_images != other.ai_images
+            || self.clarify != other.clarify
     }
 
     pub fn remote_command(&self) -> String {
@@ -867,6 +994,11 @@ impl Config {
             ("ui", "font", self.font.as_str().to_string()),
             ("ui", "show_costs", bool_str(self.show_costs)),
             ("ui", "notify", bool_str(self.notify)),
+            ("ui", "cards_expanded", bool_str(self.cards_expanded)),
+            ("ui", "ai_images", bool_str(self.ai_images)),
+            ("ui", "clarify", bool_str(self.clarify)),
+            ("ui", "subagent_tier", self.subagent_tier.as_str().to_string()),
+            ("ui", "subagent_models", escape_text(&self.subagent_models)),
         ]
     }
 }
@@ -918,6 +1050,40 @@ mod ui_tests {
             assert!(text.contains("light_theme=oat-milk"));
             assert!(text.contains("dark_theme=midnight-fudge"));
         }
+    }
+
+    #[test]
+    fn feature_toggles_and_subagent_tier_round_trip() {
+        let mut config = Config::default();
+        config.merge(
+            "[ui]\ncards_expanded=true\nai_images=false\nclarify=false\nsubagent_tier=cheap\nsubagent_models=openai=best:openai/gpt-5-pro,balanced:_,cheap:openai/gpt-5-mini\n",
+        );
+        let text = render_preserving("", &config.known_entries());
+        let mut loaded = Config::default();
+        loaded.merge(&text);
+        assert!(loaded.cards_expanded);
+        assert!(!loaded.ai_images);
+        assert!(!loaded.clarify);
+        assert_eq!(loaded.subagent_tier, SubagentTier::Cheap);
+        assert_eq!(
+            loaded.subagent_models,
+            "openai=best:openai/gpt-5-pro,balanced:_,cheap:openai/gpt-5-mini"
+        );
+    }
+
+    #[test]
+    fn append_prompt_only_carries_enabled_features() {
+        let mut config = Config::default();
+        config.append_system_prompt = "keep me".into();
+        config.ai_images = false;
+        config.clarify = false;
+        assert_eq!(config.effective_append_prompt(), "keep me");
+        config.ai_images = true;
+        config.clarify = true;
+        let prompt = config.effective_append_prompt();
+        assert!(prompt.starts_with("keep me"));
+        assert!(prompt.contains("INLINE IMAGES"));
+        assert!(prompt.contains("pi-clarify"));
     }
 }
 

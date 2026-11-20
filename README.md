@@ -30,6 +30,24 @@ describe compatibility with the Pi coding agent.
   running keeps the old turn alive in the background, and switching back
   attaches to that running process. Running-session indicators live in the
   sidebar and session tabs; background permission prompts wait until opened.
+- Long conversations render the newest messages first: history is shown as a bounded tail
+  (the last 20 messages) with a "load earlier" button that pages backwards,
+  and tool/diff cards start collapsed so a huge session does not build
+  thousands of widgets or keep them alive.
+- Several attachments per message: images keep a thumbnail strip, and any
+  other file (PDF, source, CSV, Office document) becomes a file card. Text is
+  inlined for the agent and PDFs are extracted with `pdftotext` when present.
+- Optional inline images: consecutive images share a carousel in the chat,
+  outside tool cards. Click an image to enlarge it. Toggle in Settings → Model.
+- Compact Memory, Personality and System Prompt in Settings: choose a model
+  available to local Pi, review the shorter draft, then save to apply it.
+- Optional clarify questions: the model can end a turn with a multiple-choice
+  question plus an always-available free-text field, and the desktop shows a
+  card and a system notification. Toggle in Settings → Model → features.
+- Sub-agent tier (best / balanced / cheap) resolved inside the model family of
+  the current session, with per-family model picks. Written to Pi's
+  `settings.json` as `subagents.defaultModel` and per-provider role overrides.
+- Windowed mode is draggable from the custom header (double-click maximizes).
 - Sessions, search, tree, artifacts, jobs and Pi extensions.
 - Configure installed extensions when they expose settings: search, memory,
   personas and MCP open their settings page; guard, subagents and openwiki
@@ -49,6 +67,8 @@ describe compatibility with the Pi coding agent.
   keyboard-accessible reasoning picker using only the model's supported levels.
 - Memory, personas, plan mode, permissions, restore points and subagents.
 - Weekly GitHub release check on app start, never on a background timer.
+- Updates tab with a manual check, release links and AppImage downloads from
+  FrameT-bit/Pi-Desktop. Published previews are labeled.
 - Credits tab with version, links, license and the preinstalled extension bundle.
 
 ## Requirements

@@ -1,10 +1,8 @@
 
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
 use gtk::prelude::*;
 
 use crate::state::PI_VERSION;
-use crate::updater::{self, UpdateState};
+use crate::updater;
 
 use super::pages::{block, row};
 
@@ -42,7 +40,6 @@ pub fn page() -> gtk::Box {
     links.add_css_class("settings-actions");
     for (label, url) in [
         ("repository", updater::REPO_URL),
-        ("releases", updater::RELEASES_URL),
         ("issues", updater::ISSUES_URL),
     ] {
         let button = gtk::Button::with_label(label);
@@ -52,60 +49,6 @@ pub fn page() -> gtk::Box {
         links.append(&button);
     }
     about.append(&links);
-
-    let updates = block(&page, "Updates");
-    let update_rows = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    update_rows.add_css_class("settings-rows");
-    updates.append(&update_rows);
-
-    let cached = updater::load();
-    let status = gtk::Label::new(None);
-    status.add_css_class("settings-row-desc");
-    status.set_xalign(0.0);
-    status.set_wrap(true);
-    let status_row = row(
-        "status",
-        "GitHub releases, checked at most once a week when opening the app",
-        &status,
-    );
-    update_rows.append(&status_row);
-    render_update_state(&status, &cached);
-
-    let check = gtk::Button::with_label("check now");
-    check.add_css_class("settings-mini");
-    let actions = gtk::Box::new(gtk::Orientation::Horizontal, 6);
-    actions.add_css_class("settings-actions");
-    actions.append(&check);
-    if cached.has_update() {
-        let open = gtk::Button::with_label("open release");
-        open.add_css_class("settings-mini");
-        let url = cached.url.clone();
-        open.connect_clicked(move |_| updater::open(&url));
-        actions.append(&open);
-    }
-    updates.append(&actions);
-
-    {
-        let status = status.clone();
-        let check_button = check.clone();
-        check.connect_clicked(move |_| {
-            check_button.set_sensitive(false);
-            status.set_text("Checking GitHub...");
-            status.set_visible(true);
-            let (tx, rx) = async_channel::bounded::<UpdateState>(1);
-            updater::spawn_check(tx);
-            let status = status.clone();
-            let check_button = check_button.clone();
-            glib::spawn_future_local(async move {
-                if let Ok(state) = rx.recv().await {
-                    render_update_state(&status, &state);
-                } else {
-                    status.set_text("check failed: no response");
-                }
-                check_button.set_sensitive(true);
-            });
-        });
-    }
 
     let plugins = block(&page, "PREINSTALLED EXTENSIONS");
     let plugin_rows = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -135,49 +78,4 @@ pub fn page() -> gtk::Box {
     }
 
     page
-}
-
-fn render_update_state(label: &gtk::Label, state: &UpdateState) {
-    if !state.error.is_empty() {
-        label.set_text(&format!("check failed: {}", state.error));
-        return;
-    }
-    if state.latest.is_empty() {
-        label.set_text("not checked yet");
-        return;
-    }
-    if state.has_update() {
-        label.set_text(&format!(
-            "update v{} available · current v{} · verified {}",
-            state.latest,
-            state.current,
-            relative_time(state.checked_at)
-        ));
-    } else {
-        label.set_text(&format!(
-            "up to date · v{} · checked {}",
-            state.current,
-            relative_time(state.checked_at)
-        ));
-    }
-}
-
-fn relative_time(timestamp: i64) -> String {
-    if timestamp <= 0 {
-        return "never".to_string();
-    }
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or(Duration::ZERO)
-        .as_secs() as i64;
-    let seconds = now.saturating_sub(timestamp);
-    if seconds < 60 {
-        "just now".to_string()
-    } else if seconds < 3_600 {
-        format!("{} min ago", seconds / 60)
-    } else if seconds < 86_400 {
-        format!("{} h ago", seconds / 3_600)
-    } else {
-        format!("{} d ago", seconds / 86_400)
-    }
 }

@@ -40,12 +40,31 @@ pub const IMAGE_TYPE_NOTICE: &str =
 
 pub const IMAGE_SIZE_NOTICE: &str = "too large image (max 8 MB)";
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AttachmentKind {
+    Image,
+    File,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Attachment {
+    pub kind: AttachmentKind,
+    /// Images: the sniffed/declared image mime. Files: best-effort mime.
     pub mime: String,
+    /// Images: base64 payload sent over RPC. Files: empty.
     pub data: String,
     pub name: String,
     pub bytes: usize,
+    /// Files only: absolute path the agent can read.
+    pub path: Option<String>,
+    /// Files only: extracted text, when the file is text-like.
+    pub text: Option<String>,
+}
+
+impl Attachment {
+    pub fn is_image(&self) -> bool {
+        self.kind == AttachmentKind::Image
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -147,11 +166,8 @@ pub struct Composer {
     send: gtk::Button,
     send_icon: gtk::Image,
     attach_strip: gtk::Box,
-    attach_thumb: gtk::Box,
-    attach_name: gtk::Label,
-    attach_meta: gtk::Label,
-    attach_remove: gtk::Button,
-    attachment: RefCell<Option<Attachment>>,
+    attach_scroll: gtk::ScrolledWindow,
+    attachments: RefCell<Vec<Attachment>>,
     palette: Rc<InlineList>,
     skills: Rc<InlineList>,
     last_mention: RefCell<Option<Mention>>,
@@ -338,32 +354,17 @@ impl Composer {
         hint.set_wrap(true);
         hint.set_visible(false);
 
-        let attach_thumb = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        attach_thumb.add_css_class("attach-slot");
-        let attach_name = gtk::Label::new(None);
-        attach_name.add_css_class("attach-name");
-        attach_name.set_xalign(0.0);
-        attach_name.set_ellipsize(gtk::pango::EllipsizeMode::Middle);
-        attach_name.set_hexpand(true);
-        let attach_meta = gtk::Label::new(None);
-        attach_meta.add_css_class("attach-meta");
-        attach_meta.set_xalign(0.0);
-        let attach_info = gtk::Box::new(gtk::Orientation::Vertical, 2);
-        attach_info.set_hexpand(true);
-        attach_info.set_valign(gtk::Align::Center);
-        attach_info.append(&attach_name);
-        attach_info.append(&attach_meta);
-        let attach_remove = gtk::Button::new();
-        attach_remove.add_css_class("attach-remove");
-        attach_remove.set_child(Some(&icons::icon("cross", Tone::Muted)));
-        attach_remove.set_tooltip_text(Some("Remove attachment"));
-        attach_remove.set_valign(gtk::Align::Center);
-        let attach_strip = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+        let attach_strip = gtk::Box::new(gtk::Orientation::Horizontal, 8);
         attach_strip.add_css_class("attach-strip");
-        attach_strip.append(&attach_thumb);
-        attach_strip.append(&attach_info);
-        attach_strip.append(&attach_remove);
         attach_strip.set_visible(false);
+        let attach_scroll = gtk::ScrolledWindow::builder()
+            .hscrollbar_policy(gtk::PolicyType::Automatic)
+            .vscrollbar_policy(gtk::PolicyType::Never)
+            .child(&attach_strip)
+            .build();
+        attach_scroll.add_css_class("attach-scroll");
+        attach_scroll.set_propagate_natural_height(true);
+        attach_scroll.set_visible(false);
 
         let input_column = gtk::Box::new(gtk::Orientation::Vertical, 0);
         input_column.set_hexpand(true);
@@ -376,7 +377,7 @@ impl Composer {
 
         let column = gtk::Box::new(gtk::Orientation::Vertical, 0);
         column.append(&widget_above);
-        column.append(&attach_strip);
+        column.append(&attach_scroll);
         column.append(&frame);
         column.append(&widget_below);
 
@@ -403,11 +404,8 @@ impl Composer {
             send,
             send_icon,
             attach_strip,
-            attach_thumb,
-            attach_name,
-            attach_meta,
-            attach_remove,
-            attachment: RefCell::new(None),
+            attach_scroll,
+            attachments: RefCell::new(Vec::new()),
             palette,
             skills,
             last_mention: RefCell::new(None),
@@ -474,12 +472,6 @@ impl Composer {
                 me.history.borrow_mut().reset();
             }
             me.refresh_send();
-        });
-
-        let me = self.clone();
-        self.attach_remove.connect_clicked(move |_| {
-            me.clear_attachment();
-            me.focus();
         });
 
         let me = self.clone();
@@ -872,26 +864,51 @@ impl Composer {
     }
 
 
-    pub fn take_attachment(&self) -> Option<Attachment> {
-        let taken = self.attachment.borrow_mut().take();
-        if taken.is_some() {
-            self.refresh_attachment();
+    pub fn take_attachments(self: &Rc<Self>) -> Vec<Attachment> {
+        let taken = std::mem::take(&mut *self.attachments.borrow_mut());
+        if !taken.is_empty() {
+            self.refresh_attachments();
         }
         taken
     }
 
-    pub fn set_attachment(&self, attachment: Attachment) {
-        *self.attachment.borrow_mut() = Some(attachment);
-        self.refresh_attachment();
+    /// Backwards-compatible single-attachment view used by restore paths.
+    pub fn take_attachment(self: &Rc<Self>) -> Option<Attachment> {
+        self.take_attachments().into_iter().next()
     }
 
-    pub fn clear_attachment(&self) {
-        if self.attachment.borrow_mut().take().is_some() {
-            self.refresh_attachment();
+    pub fn set_attachments(self: &Rc<Self>, attachments: Vec<Attachment>) {
+        *self.attachments.borrow_mut() = attachments;
+        self.refresh_attachments();
+    }
+
+    pub fn set_attachment(self: &Rc<Self>, attachment: Attachment) {
+        self.set_attachments(vec![attachment]);
+    }
+
+    pub fn attachments(&self) -> Vec<Attachment> {
+        self.attachments.borrow().clone()
+    }
+
+    pub fn clear_attachment(self: &Rc<Self>) {
+        if !self.attachments.borrow_mut().is_empty() {
+            self.attachments.borrow_mut().clear();
+            self.refresh_attachments();
         }
     }
 
-    pub fn attach_bytes(&self, bytes: &[u8], name: &str) -> bool {
+    fn remove_attachment(self: &Rc<Self>, index: usize) {
+        {
+            let mut attachments = self.attachments.borrow_mut();
+            if index >= attachments.len() {
+                return;
+            }
+            attachments.remove(index);
+        }
+        self.refresh_attachments();
+    }
+
+    pub fn attach_bytes(self: &Rc<Self>, bytes: &[u8], name: &str) -> bool {
         let Some(mime) = images::sniff_mime(bytes) else {
             self.notice(IMAGE_TYPE_NOTICE.to_string());
             return false;
@@ -901,52 +918,71 @@ impl Composer {
             return false;
         }
         let attachment = Attachment {
+            kind: AttachmentKind::Image,
             mime: mime.to_string(),
             data: images::encode_base64(bytes),
             name: name.to_string(),
             bytes: bytes.len(),
+            path: None,
+            text: None,
         };
-        self.set_attachment(attachment);
+        self.attachments.borrow_mut().push(attachment);
+        self.refresh_attachments();
         true
     }
 
-    pub fn attach_file(&self, path: &str) -> AttachFile {
+    pub fn attach_file(self: &Rc<Self>, path: &str) -> AttachFile {
         use std::io::Read;
 
         let Ok(mut file) = std::fs::File::open(path) else {
-            return AttachFile::NotImage;
+            self.notice("cannot open the file".to_string());
+            return AttachFile::Rejected;
         };
         let metadata = file.metadata().ok();
+        let total = metadata.as_ref().map(|meta| meta.len() as usize).unwrap_or(0);
         let mut head = [0u8; 16];
         let read = file.read(&mut head).unwrap_or(0);
-        if images::sniff_mime(&head[..read]).is_none() {
-            return AttachFile::NotImage;
+
+        if images::sniff_mime(&head[..read]).is_some() {
+            if images::too_large(total) {
+                self.notice(IMAGE_SIZE_NOTICE.to_string());
+                return AttachFile::Rejected;
+            }
+            let mut bytes = head[..read].to_vec();
+            if file.read_to_end(&mut bytes).is_err() {
+                self.notice("fail to read the image".to_string());
+                return AttachFile::Rejected;
+            }
+            if images::too_large(bytes.len()) {
+                self.notice(IMAGE_SIZE_NOTICE.to_string());
+                return AttachFile::Rejected;
+            }
+            let name = file_name_of(path);
+            return if self.attach_bytes(&bytes, &name) {
+                AttachFile::Attached
+            } else {
+                AttachFile::Rejected
+            };
         }
-        if metadata
-            .as_ref()
-            .is_some_and(|meta| images::too_large(meta.len() as usize))
-        {
-            self.notice(IMAGE_SIZE_NOTICE.to_string());
+
+        if total > MAX_FILE_BYTES {
+            self.notice("file too large (max 64 MB)".to_string());
             return AttachFile::Rejected;
         }
-        let mut bytes = head[..read].to_vec();
-        if file.read_to_end(&mut bytes).is_err() {
-            self.notice("fail to read the image".to_string());
-            return AttachFile::Rejected;
-        }
-        if images::too_large(bytes.len()) {
-            self.notice(IMAGE_SIZE_NOTICE.to_string());
-            return AttachFile::Rejected;
-        }
-        let name = std::path::Path::new(path)
-            .file_name()
-            .map(|name| name.to_string_lossy().to_string())
-            .unwrap_or_else(|| path.to_string());
-        if self.attach_bytes(&bytes, &name) {
-            AttachFile::Attached
-        } else {
-            AttachFile::Rejected
-        }
+        let name = file_name_of(path);
+        let mime = file_mime(path);
+        let text = read_text_attachment(path, &mime);
+        self.attachments.borrow_mut().push(Attachment {
+            kind: AttachmentKind::File,
+            mime,
+            data: String::new(),
+            name,
+            bytes: total,
+            path: Some(path.to_string()),
+            text,
+        });
+        self.refresh_attachments();
+        AttachFile::Attached
     }
 
     fn notice(&self, message: String) {
@@ -958,7 +994,7 @@ impl Composer {
     fn refresh_send(&self) {
         let text = self.text();
         let has_text = !text.trim().is_empty();
-        let has_attach = self.attachment.borrow().is_some();
+        let has_attach = !self.attachments.borrow().is_empty();
         self.placeholder.set_visible(text.is_empty());
         self.send.set_sensitive(has_text || has_attach);
         if has_text || has_attach {
@@ -970,31 +1006,94 @@ impl Composer {
         }
     }
 
-    fn refresh_attachment(&self) {
-        let attachment = self.attachment.borrow().clone();
-        let Some(attachment) = attachment else {
-            self.attach_strip.set_visible(false);
-            self.refresh_send();
-            return;
-        };
-        self.attach_name.set_text(&attachment.name);
-        self.attach_name.set_tooltip_text(Some(&attachment.mime));
-        self.attach_meta.set_text(&format!(
-            "{} · {}",
-            attachment.mime,
-            format_size(attachment.bytes)
-        ));
-        while let Some(child) = self.attach_thumb.first_child() {
-            self.attach_thumb.remove(&child);
+    fn refresh_attachments(self: &Rc<Self>) {
+        while let Some(child) = self.attach_strip.first_child() {
+            self.attach_strip.remove(&child);
         }
-        if let Some(widget) = thumb::from_base64(&attachment.data, 40, "attach-thumb") {
-            self.attach_thumb.append(&widget);
+        let attachments = self.attachments.borrow();
+        for (index, attachment) in attachments.iter().enumerate() {
+            self.attach_strip
+                .append(&self.attachment_chip(index, attachment));
         }
-        self.attach_strip.set_visible(true);
+        let has = !attachments.is_empty();
+        drop(attachments);
+        self.attach_strip.set_visible(has);
+        self.attach_scroll.set_visible(has);
         self.refresh_send();
     }
 
-    pub fn append_paths(&self, paths: &[String]) {
+    fn attachment_chip(self: &Rc<Self>, index: usize, attachment: &Attachment) -> gtk::Box {
+        let chip = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        chip.add_css_class("attach-chip");
+
+        let slot = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        slot.add_css_class("attach-slot");
+        slot.set_valign(gtk::Align::Center);
+        let thumb: Option<gtk::Widget> = match attachment.kind {
+            AttachmentKind::Image => {
+                thumb::from_base64(&attachment.data, 36, "attach-thumb").map(|w| w.upcast())
+            }
+            AttachmentKind::File => {
+                let icon = icons::icon("file", Tone::Muted);
+                icon.set_pixel_size(22);
+                let holder = gtk::Box::new(gtk::Orientation::Vertical, 0);
+                holder.add_css_class("attach-file-icon");
+                holder.set_valign(gtk::Align::Center);
+                holder.set_halign(gtk::Align::Center);
+                holder.append(&icon);
+                Some(holder.upcast::<gtk::Widget>())
+            }
+        };
+        if let Some(thumb) = thumb {
+            slot.append(&thumb);
+        }
+        chip.append(&slot);
+
+        let info = gtk::Box::new(gtk::Orientation::Vertical, 2);
+        info.set_hexpand(true);
+        info.set_valign(gtk::Align::Center);
+        let name = gtk::Label::new(Some(&attachment.name));
+        name.add_css_class("attach-name");
+        name.set_xalign(0.0);
+        name.set_ellipsize(gtk::pango::EllipsizeMode::Middle);
+        name.set_max_width_chars(22);
+        let meta = gtk::Label::new(Some(&format!(
+            "{} · {}",
+            if attachment.mime.is_empty() {
+                "file"
+            } else {
+                &attachment.mime
+            },
+            format_size(attachment.bytes)
+        )));
+        meta.add_css_class("attach-meta");
+        meta.set_xalign(0.0);
+        info.append(&name);
+        info.append(&meta);
+        chip.append(&info);
+
+        let remove = gtk::Button::new();
+        remove.add_css_class("attach-remove");
+        remove.set_child(Some(&icons::icon("cross", Tone::Muted)));
+        remove.set_tooltip_text(Some("Remove attachment"));
+        remove.set_valign(gtk::Align::Center);
+        let weak = Rc::downgrade(self);
+        remove.connect_clicked(move |_| {
+            if let Some(me) = weak.upgrade() {
+                me.remove_attachment(index);
+            }
+        });
+        chip.append(&remove);
+        chip.set_tooltip_text(Some(
+            attachment
+                .path
+                .as_deref()
+                .unwrap_or(attachment.mime.as_str()),
+        ));
+        chip
+    }
+
+    pub fn append_paths(self: &Rc<Self>, paths: &[String]) {
         let mut rest: Vec<String> = Vec::new();
         for path in paths {
             match self.attach_file(path) {
@@ -1549,6 +1648,105 @@ fn format_size(bytes: usize) -> String {
         format!("{:.1} kB", bytes as f64 / 1024.0)
     } else {
         format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
+    }
+}
+
+const MAX_FILE_BYTES: usize = 64 * 1024 * 1024;
+const MAX_TEXT_BYTES: usize = 256 * 1024;
+
+fn file_name_of(path: &str) -> String {
+    std::path::Path::new(path)
+        .file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_else(|| path.to_string())
+}
+
+fn file_mime(path: &str) -> String {
+    let extension = std::path::Path::new(path)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    let mime = match extension.as_str() {
+        "pdf" => "application/pdf",
+        "txt" | "log" => "text/plain",
+        "md" | "markdown" => "text/markdown",
+        "json" => "application/json",
+        "jsonl" => "application/x-ndjson",
+        "csv" => "text/csv",
+        "tsv" => "text/tab-separated-values",
+        "yaml" | "yml" => "application/yaml",
+        "toml" => "application/toml",
+        "html" | "htm" => "text/html",
+        "css" => "text/css",
+        "rs" => "text/x-rust",
+        "py" => "text/x-python",
+        "js" | "mjs" | "cjs" => "text/javascript",
+        "ts" | "tsx" => "text/typescript",
+        "go" => "text/x-go",
+        "c" | "h" => "text/x-c",
+        "cpp" | "hpp" | "cc" => "text/x-c++",
+        "java" => "text/x-java",
+        "sh" | "bash" | "zsh" | "fish" => "text/x-shellscript",
+        "sql" => "application/sql",
+        "xml" => "application/xml",
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "zip" => "application/zip",
+        _ => "application/octet-stream",
+    };
+    mime.to_string()
+}
+
+fn is_text_mime(mime: &str) -> bool {
+    mime.starts_with("text/")
+        || matches!(
+            mime,
+            "application/json"
+                | "application/x-ndjson"
+                | "application/yaml"
+                | "application/toml"
+                | "application/xml"
+                | "application/sql"
+        )
+        || mime.ends_with("+json")
+}
+
+/// Reads text-like attachments and extracts PDF text when `pdftotext` exists,
+/// so the agent receives content instead of just a path.
+fn read_text_attachment(path: &str, mime: &str) -> Option<String> {
+    if mime == "application/pdf" {
+        // Extraction runs on the UI thread, so keep it to documents where
+        // pdftotext is near-instant.
+        let size = std::fs::metadata(path).ok()?.len();
+        if size > 20 * 1024 * 1024 {
+            return None;
+        }
+        return pdf_text(path);
+    }
+    if !is_text_mime(mime) {
+        return None;
+    }
+    let metadata = std::fs::metadata(path).ok()?;
+    if metadata.len() as usize > MAX_TEXT_BYTES {
+        return None;
+    }
+    std::fs::read_to_string(path).ok()
+}
+
+fn pdf_text(path: &str) -> Option<String> {
+    let output = std::process::Command::new("pdftotext")
+        .args(["-layout", "-enc", "UTF-8", path, "-"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout).to_string();
+    if text.trim().is_empty() {
+        None
+    } else {
+        Some(text)
     }
 }
 

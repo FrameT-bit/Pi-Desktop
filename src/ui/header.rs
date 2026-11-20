@@ -270,12 +270,13 @@ pub fn build(model: &str, theme: &Theme) -> HeaderUi {
 
     {
         let menu = menu.clone();
-        let palette = palette.clone();
+        let search = palette.search.clone();
+        let palette = Rc::downgrade(&palette);
         let theme = theme.clone();
         let on_model = on_model.clone();
         let preferred = preferred.clone();
-        let search = palette.search.clone();
         search.connect_changed(move |entry| {
+            let Some(palette) = palette.upgrade() else { return };
             menu.borrow_mut().query = entry.text().to_string();
             rebuild_menu(&menu.borrow(), &palette, &theme, &on_model, &preferred);
             palette.select_index(preferred.get());
@@ -574,15 +575,13 @@ fn rebuild_menu(
         });
         return;
     }
-    let query = state.query.trim().to_lowercase();
+    let query = state.query.to_lowercase();
     let filtered: Vec<&ModelItem> = state
         .models
         .iter()
         .filter(|model| {
-            query.is_empty()
-                || model.name.to_lowercase().contains(&query)
-                || model.id.to_lowercase().contains(&query)
-                || model.provider.to_lowercase().contains(&query)
+            let searchable = format!("{} {}/{}", model.name, model.provider, model.id).to_lowercase();
+            query.split_whitespace().all(|term| searchable.contains(term))
         })
         .collect();
     if filtered.is_empty() {

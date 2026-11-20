@@ -15,6 +15,10 @@ pub fn choice_value(key: &str, index: usize) -> &'static str {
             .copied()
             .unwrap_or(""),
         "approve" => ["ask", "yes", "no"].get(index).copied().unwrap_or("ask"),
+        "subagent_tier" => ["off", "best", "balanced", "cheap"]
+            .get(index)
+            .copied()
+            .unwrap_or("balanced"),
         "theme" => ["system", "light", "dark"]
             .get(index)
             .copied()
@@ -451,6 +455,173 @@ pub fn model_context(config: &Config, form: &mut Form) -> gtk::Box {
     page
 }
 
+pub fn features(config: &Config, form: &mut Form) -> gtk::Box {
+    let page = blank();
+    let rows = rows(&page);
+
+    let note = gtk::Label::new(Some(
+        "Both features add instructions to the system prompt. Turn them off to keep the prompt compact.",
+    ));
+    note.add_css_class("settings-row-desc");
+    note.set_xalign(0.0);
+    note.set_wrap(true);
+    note.set_max_width_chars(64);
+    rows.append(&note);
+
+    for (key, label, desc, value) in [
+        (
+            "ai_images",
+            "images placed by the assistant",
+            "images appear directly in the conversation, with a carousel and an enlarged view",
+            config.ai_images,
+        ),
+        (
+            "clarify",
+            "clarify questions",
+            "the model may end a turn with a multiple-choice question plus a free-text answer",
+            config.clarify,
+        ),
+    ] {
+        let switch = toggle(value);
+        push_switch(form, key, switch.clone());
+        rows.append(&row(label, desc, &switch));
+    }
+    page
+}
+
+pub fn subagents(config: &Config, form: &mut Form, models: &[ModelItem]) -> gtk::Box {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    let page = blank();
+    let rows = rows(&page);
+
+    let tier = dropdown(
+        &["off", "best", "balanced", "cheap"],
+        &[
+            "off · inherit the parent model",
+            "best · strongest model in the family",
+            "balanced · middle of the family",
+            "cheap · cheapest capable model",
+        ],
+        config.subagent_tier.index(),
+    );
+    push_choice(form, "subagent_tier", tier.clone());
+    rows.append(&row(
+        "sub-agent tier",
+        "when a sub-agent starts without an explicit model, pick one inside the currently selected model's family",
+        &tier,
+    ));
+
+    let groups = crate::families::families(models);
+    let choices = Rc::new(RefCell::new(crate::families::resolved_choices(
+        &groups,
+        &config.subagent_models,
+    )));
+    let raw = text_entry(&config.subagent_models, 300);
+    raw.set_visible(false);
+    push_text(form, "subagent_models", raw.clone());
+
+    if groups.is_empty() {
+        let empty = gtk::Label::new(Some(
+            "No models discovered yet. Connect a provider and reopen settings to choose per-family models.",
+        ));
+        empty.add_css_class("settings-row-desc");
+        empty.set_xalign(0.0);
+        empty.set_wrap(true);
+        empty.set_max_width_chars(64);
+        rows.append(&empty);
+        return page;
+    }
+
+    let sync: Rc<dyn Fn()> = Rc::new({
+        let choices = choices.clone();
+        let raw = raw.clone();
+        move || {
+            let serialized = crate::families::serialize_overrides(&choices.borrow());
+            raw.set_text(&serialized);
+        }
+    });
+
+    for group in &groups {
+        let block = gtk::Box::new(gtk::Orientation::Vertical, 4);
+        block.add_css_class("settings-family");
+        let title = gtk::Label::new(Some(&group.label));
+        title.add_css_class("settings-block-label");
+        title.set_xalign(0.0);
+        block.append(&title);
+
+        for (tier, label) in [
+            (crate::config::SubagentTier::Best, "best"),
+            (crate::config::SubagentTier::Balanced, "balanced"),
+            (crate::config::SubagentTier::Cheap, "cheap"),
+        ] {
+            let labels: Vec<String> = group
+                .models
+                .iter()
+                .map(|token| {
+                    let name = models
+                        .iter()
+                        .find(|model| format!("{}/{}", model.provider, model.id) == *token)
+                        .map(|model| model.name.trim().to_string())
+                        .unwrap_or_default();
+                    if name.is_empty() || name == *token {
+                        token.clone()
+                    } else {
+                        format!("{name} · {token}")
+                    }
+                })
+                .collect();
+            let current = choices
+                .borrow()
+                .get(&group.family)
+                .map(|choice| choice.get(tier).to_string())
+                .filter(|value| !value.is_empty())
+                .unwrap_or_else(|| group.models.last().cloned().unwrap_or_default());
+            let selected = group
+                .models
+                .iter()
+                .position(|token| *token == current)
+                .unwrap_or(0);
+            let picker = dropdown_owned(&labels, selected);
+            let family = group.family.clone();
+            let choices_c = choices.clone();
+            let tokens = group.models.clone();
+            let sync = sync.clone();
+            picker.connect_selected_notify(move |dropdown| {
+                let Some(token) = tokens.get(dropdown.selected() as usize) else {
+                    return;
+                };
+                {
+                    let mut choices = choices_c.borrow_mut();
+                    let entry = choices
+                        .entry(family.clone())
+                        .or_insert_with(crate::families::FamilyChoice::default);
+                    match tier {
+                        crate::config::SubagentTier::Best => entry.best = token.clone(),
+                        crate::config::SubagentTier::Balanced => entry.balanced = token.clone(),
+                        crate::config::SubagentTier::Cheap => entry.cheap = token.clone(),
+                        crate::config::SubagentTier::Off => {}
+                    }
+                }
+                sync();
+            });
+            block.append(&row(label, "", &picker));
+        }
+        rows.append(&block);
+    }
+
+    let note = gtk::Label::new(Some(
+        "Saved to Pi's settings.json as subagents.defaultModel and per-provider role overrides. Anything else in that file is preserved.",
+    ));
+    note.add_css_class("settings-row-desc");
+    note.set_xalign(0.0);
+    note.set_wrap(true);
+    note.set_max_width_chars(64);
+    rows.append(&note);
+    page
+}
+
 pub fn personalization(config: &Config, form: &mut Form) -> gtk::Box {
     let page = blank();
     let rows = rows(&page);
@@ -506,6 +677,12 @@ pub fn interface(config: &Config, form: &mut Form) -> gtk::Box {
         ("timestamps", "time in messages", "HH:MM shows above each message", config.timestamps),
         ("auto_scroll", "Auto-scroll", "follows the end during streaming", config.auto_scroll),
         ("show_costs", "cost in status bar", "shows the token/cost block", config.show_costs),
+        (
+            "cards_expanded",
+            "keep tool cards expanded",
+            "off: tool and diff cards start collapsed (click a card to open it). on: they open by default.",
+            config.cards_expanded,
+        ),
     ] {
         let switch = toggle(value);
         push_switch(form, key, switch.clone());

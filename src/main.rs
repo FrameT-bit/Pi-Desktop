@@ -1,8 +1,10 @@
 mod artifacts;
 mod catalog;
+mod clarify;
 mod config;
 mod diff;
 mod extension_ui;
+mod families;
 mod files;
 mod git;
 mod history;

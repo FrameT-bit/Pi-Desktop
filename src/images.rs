@@ -115,6 +115,9 @@ pub fn blocks_from_message(message: &Value) -> Vec<ImageBlock> {
                 .and_then(Value::as_str)
                 .map(str::to_string)
                 .or_else(|| {
+                    // Decoding a multi-megabyte payload only to sniff the mime
+                    // is expensive when we render history; skip when the block
+                    // already declares it (the normal case).
                     decode_base64(&data)
                         .and_then(|bytes| sniff_mime(&bytes))
                         .map(str::to_string)
@@ -124,4 +127,18 @@ pub fn blocks_from_message(message: &Value) -> Vec<ImageBlock> {
         .collect()
 }
 
+pub fn image_from_block(block: &Value) -> Option<ImageBlock> {
+    let data = block.get("data").and_then(Value::as_str)?;
+    if data.len() > MAX_BYTES.div_ceil(3) * 4 { return None; }
+    let mime = block
+        .get("mimeType")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .or_else(|| {
+            decode_base64(data)
+                .and_then(|bytes| sniff_mime(&bytes))
+                .map(str::to_string)
+        })?;
+    Some(ImageBlock { mime, data: data.to_string() })
+}
 
