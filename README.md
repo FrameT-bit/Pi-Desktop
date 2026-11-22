@@ -73,12 +73,47 @@ describe compatibility with the Pi coding agent.
 
 ## Requirements
 
-- Stable Rust
+- Stable Rust (1.83 or newer)
 - GTK4 (>= 4.16) and libadwaita (>= 1.5)
 - The `pi` binary available on `PATH` or configured in `config.ini`
 - The fonts in `resources/fonts/` (installed by the script below)
 
-## One-click setup
+## Install
+
+```sh
+curl -fsSL https://framet-bit.github.io/Pi-Desktop/install.sh | bash
+```
+
+The installer builds the latest release from source and installs it into the
+current user's home: `~/.local/bin/pi-desktop`, the desktop entry, icons and
+bundled fonts. It compiles at low priority with half the cores, keeps a reusable
+build cache so later runs only rebuild what changed, and resumes if you
+interrupt it. Nothing is written outside your home.
+
+Maintenance uses the same command:
+
+```sh
+curl -fsSL ... | bash -s -- --update      # rebuild the latest release
+curl -fsSL ... | bash -s -- --status      # show what is installed
+curl -fsSL ... | bash -s -- --uninstall   # remove the app; keep settings
+curl -fsSL ... | bash -s -- --dry-run     # print the plan; write nothing
+```
+
+Only the GTK4 development packages need root, and only on the first run:
+
+| system | GTK4 | supported |
+|---|---|---|
+| Fedora 41 or newer | 4.16+ | yes |
+| Ubuntu 25.04 or newer | 4.18+ | yes |
+| Debian 13 or newer | 4.18+ | yes |
+| Arch, openSUSE Tumbleweed | current | yes |
+| Ubuntu 24.04 LTS, Debian 12 | 4.14, 4.8 | no, GTK4 is too old |
+
+When GTK4 is too old the installer stops before writing anything and asks what
+to do: upgrade the distribution (recommended), or build inside a rootless
+podman container with `--container`, which leaves the system untouched.
+
+## One-click setup from a checkout
 
 ```sh
 ./setup.sh
@@ -181,6 +216,7 @@ official favicon/press mark.
 ## Layout
 
 ```text
+install.sh                builds from source and installs for the current user
 build.rs                  generates tokens and CSS from resources/tokens-site.json
 resources/style.rules.css layout rules, no literal color
 resources/style.css       generated at build time; do not edit by hand
