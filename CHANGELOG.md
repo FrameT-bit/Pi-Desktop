@@ -4,23 +4,23 @@
 
 ### Added
 
-- Install with one command:
-  `curl -fsSL https://framet-bit.github.io/Pi-Desktop/install.sh | bash`.
+- Install with one command, `curl -fsSL https://framet-bit.github.io/Pi-Desktop/install.sh | bash`.
   The installer builds the latest release from source into the user's home,
-  compiling at low priority with half the cores and a reusable cache, and
-  resumes where it stopped when interrupted. Nothing is written outside the
-  user's home.
-- Maintenance flags through the same command: `--update`, `--status`,
+  compiling at low priority with half the cores and a reusable cache. A run
+  that is interrupted continues where it stopped. Nothing is written outside
+  the user's home.
+- Maintenance flags through the same command, as `--update`, `--status`,
   `--dry-run`, `--uninstall` and `--purge`.
 - `--container` builds inside a rootless podman container, for systems whose
   GTK4 is older than the 4.16 the app requires.
-- A preflight check reads the GTK4 and libadwaita versions before building and
-  stops with instructions instead of failing halfway through the compiler.
+- A preflight check reads the GTK4 and libadwaita versions before building, so
+  a system that cannot build is told in two seconds instead of failing halfway
+  through the compiler.
 
 ### Changed
 
 - Systems with GTK4 older than 4.16 are asked whether to upgrade the
-  distribution (recommended) or build in a container.
+  distribution, which is the recommended path, or to build in a container.
 - The application itself is unchanged.
 
 ## 1.7.0

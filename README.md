@@ -84,15 +84,15 @@ describe compatibility with the Pi coding agent.
 curl -fsSL https://framet-bit.github.io/Pi-Desktop/install.sh | bash
 ```
 
-The same URL is the project's landing page: <https://framet-bit.github.io/Pi-Desktop/>.
+The same URL is the project's landing page, at <https://framet-bit.github.io/Pi-Desktop/>.
 
 The installer builds the latest release from source and installs it into the
-current user's home: `~/.local/bin/pi-desktop`, the desktop entry, icons and
-bundled fonts. It compiles at low priority with half the cores, keeps a reusable
-build cache so later runs only rebuild what changed, and resumes if you
-interrupt it. Nothing is written outside your home.
+current user's home, as `~/.local/bin/pi-desktop` plus the desktop entry, the
+icons and the bundled fonts. It compiles at low priority with half the cores and keeps a
+reusable cache, so a later run only rebuilds what changed. Interrupting it is
+safe, the next run continues. Nothing is written outside your home.
 
-Maintenance uses the same command:
+Maintenance uses the same command.
 
 ```sh
 curl -fsSL ... | bash -s -- --update      # rebuild the latest release
@@ -101,7 +101,7 @@ curl -fsSL ... | bash -s -- --uninstall   # remove the app; keep settings
 curl -fsSL ... | bash -s -- --dry-run     # print the plan; write nothing
 ```
 
-Only the GTK4 development packages need root, and only on the first run:
+Only the GTK4 development packages need root, and only on the first run.
 
 | system | GTK4 | supported |
 |---|---|---|
@@ -111,9 +111,10 @@ Only the GTK4 development packages need root, and only on the first run:
 | Arch, openSUSE Tumbleweed | current | yes |
 | Ubuntu 24.04 LTS, Debian 12 | 4.14, 4.8 | no, GTK4 is too old |
 
-When GTK4 is too old the installer stops before writing anything and asks what
-to do: upgrade the distribution (recommended), or build inside a rootless
-podman container with `--container`, which leaves the system untouched.
+When GTK4 is too old the installer stops before writing anything and asks
+whether to upgrade the distribution, which is the recommended path, or to build
+inside a rootless podman container with `--container`. That build leaves the
+system packages untouched.
 
 ## One-click setup from a checkout
 
