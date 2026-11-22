@@ -28,6 +28,11 @@
 # and --container avoids even that.
 set -Eeuo pipefail
 
+# Child processes must not inherit translated libc messages. The application
+# does the same in src/main.rs. LC_ALL is left alone so UTF-8 paths still work.
+export LC_MESSAGES=C
+export LANGUAGE=C
+
 readonly APP=pi-desktop
 readonly APP_LABEL="Pi Desktop"
 readonly REPO=FrameT-bit/Pi-Desktop
@@ -356,6 +361,14 @@ resolve_version() {
     ok "latest release is $VERSION"
 }
 
+fetch_tag_with_git() {
+    local tag=$1 dir=$2
+    git init --quiet "$dir" || return 1
+    git -C "$dir" remote add origin "$PROJECT_URL.git" || return 1
+    git -C "$dir" -c advice.detachedHead=false fetch --quiet --depth 1 origin "refs/tags/$tag" || return 1
+    git -C "$dir" -c advice.detachedHead=false checkout --quiet FETCH_HEAD || return 1
+}
+
 ensure_source() {
     if [ -n "$FROM_DIR" ]; then
         SOURCE_DIR=$FROM_DIR
@@ -371,7 +384,7 @@ ensure_source() {
     mkdir -p "$SRC_DIR"
     rm -rf "$SOURCE_DIR"
     if have git; then
-        git clone --quiet --depth 1 --branch "v$VERSION" "$PROJECT_URL.git" "$SOURCE_DIR" ||
+        fetch_tag_with_git "v$VERSION" "$SOURCE_DIR" ||
             die "cannot fetch tag v$VERSION from $PROJECT_URL."
         COMMIT=$(git -C "$SOURCE_DIR" rev-parse --short HEAD)
     else
