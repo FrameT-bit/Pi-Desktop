@@ -84,6 +84,8 @@ describe compatibility with the Pi coding agent.
 curl -fsSL https://framet-bit.github.io/Pi-Desktop/install.sh | bash
 ```
 
+The same URL is the project's landing page: <https://framet-bit.github.io/Pi-Desktop/>.
+
 The installer builds the latest release from source and installs it into the
 current user's home: `~/.local/bin/pi-desktop`, the desktop entry, icons and
 bundled fonts. It compiles at low priority with half the cores, keeps a reusable

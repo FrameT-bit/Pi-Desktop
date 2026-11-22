@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pi Desktop — a native GTK4 desktop for the Pi coding agent</title>
+<meta name="description" content="Pi Desktop is a native GTK4 and libadwaita client for the Pi coding agent. One command builds it from source into your home directory.">
+<meta property="og:title" content="Pi Desktop">
+<meta property="og:description" content="A native GTK4 desktop for the Pi coding agent. Install with one command.">
+<meta property="og:image" content="https://framet-bit.github.io/Pi-Desktop/design/banner-github.png">
+<meta property="og:type" content="website">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="resources/brand/mark-on-dark-64.png" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="resources/brand/mark-on-light-64.png" media="(prefers-color-scheme: light)">
+<link rel="apple-touch-icon" href="resources/brand/logo-256.png">
+<style>
+  @font-face {
+    font-family: "Pixelify";
+    src: url("resources/fonts/PixelifySans.ttf") format("truetype");
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "JetBrains Mono";
+    src: url("resources/fonts/JetBrainsMono-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "JetBrains Mono";
+    src: url("resources/fonts/JetBrainsMono-Bold.ttf") format("truetype");
+    font-weight: 700;
+    font-display: swap;
+  }
+
+  :root {
+    --page: #0d1116;
+    --canvas: #161d27;
+    --card: #212730;
+    --card-soft: #252f3d;
+    --border: #3c444e;
+    --border-strong: #53687c;
+    --text: #ebe7e4;
+    --text-base: #d5d8db;
+    --muted: #9fa4ab;
+    --dim: #757d89;
+    --accent: #6a9fcc;
+    --on-accent: #0d1116;
+    --pad: clamp(20px, 7.4vw, 112px);
+    --measure: 1080px;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --page: #ebe7e4;
+      --canvas: #f4f2f0;
+      --card: #ffffff;
+      --card-soft: #eef1f3;
+      --border: #c9c3bc;
+      --border-strong: #7b8086;
+      --text: #252f3d;
+      --text-base: #394352;
+      --muted: #5c5752;
+      --dim: #8b847d;
+      --accent: #4b607c;
+      --on-accent: #f4f2f0;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text-base);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  .wrap {
+    max-width: var(--measure);
+    margin: 0 auto;
+    padding: 0 var(--pad);
+  }
+
+  header.bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 22px var(--pad);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: "Pixelify", sans-serif;
+    font-size: 19px;
+    color: var(--text);
+    letter-spacing: 0.01em;
+  }
+  .brand img { width: 26px; height: 26px; }
+
+  nav.top { display: flex; gap: 22px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; }
+  nav.top a { color: var(--muted); }
+  nav.top a:hover { color: var(--text); text-decoration: none; }
+
+  main { display: block; }
+
+  .hero { padding-block: clamp(56px, 9vw, 112px) clamp(40px, 5vw, 64px); }
+
+  .kicker {
+    margin: 0 0 22px;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  h1 {
+    margin: 0;
+    font-family: "Pixelify", sans-serif;
+    font-weight: 400;
+    font-size: clamp(38px, 6.4vw, 76px);
+    line-height: 1.06;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    max-width: 20ch;
+  }
+
+  .lede {
+    margin: 26px 0 0;
+    max-width: 62ch;
+    font-size: 15.5px;
+    color: var(--text-base);
+  }
+
+  .install {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 40px 0 0;
+    padding: 16px 16px 16px 22px;
+    background: var(--card);
+    border: 1px solid var(--border-strong);
+    border-radius: 20px;
+    max-width: 860px;
+  }
+
+  .install code {
+    flex: 1;
+    overflow-x: auto;
+    white-space: nowrap;
+    font-size: 14px;
+    color: var(--text);
+    scrollbar-width: thin;
+  }
+
+  .install .prompt { color: var(--dim); user-select: none; }
+
+  button.copy {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 120ms ease, filter 120ms ease;
+  }
+  button.copy:hover { filter: brightness(1.08); }
+  button.copy:active { transform: scale(0.97); }
+  button.copy svg { width: 14px; height: 14px; fill: currentColor; }
+
+  .note { margin: 18px 0 0; font-size: 13px; color: var(--muted); max-width: 74ch; }
+
+  .quicklinks { display: flex; flex-wrap: wrap; gap: 24px; margin: 26px 0 0; font-size: 13px; }
+  .quicklinks a { color: var(--text-base); border-bottom: 1px solid var(--border-strong); padding-bottom: 2px; }
+  .quicklinks a:hover { color: var(--accent); border-color: var(--accent); text-decoration: none; }
+
+  .shots { padding-top: clamp(24px, 4vw, 40px); display: grid; gap: clamp(24px, 3.5vw, 44px); }
+
+  figure.shot { margin: 0; }
+  figure.shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--canvas);
+  }
+
+  section.block { padding-top: clamp(56px, 8vw, 104px); }
+
+  h2 {
+    margin: 0 0 8px;
+    font-family: "Pixelify", sans-serif;
+    font-weight: 400;
+    font-size: clamp(26px, 3.4vw, 38px);
+    line-height: 1.14;
+    letter-spacing: -0.015em;
+    color: var(--text);
+  }
+
+  .sub { margin: 0 0 32px; color: var(--muted); max-width: 62ch; font-size: 14px; }
+
+  table.requirements {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  table.requirements th {
+    text-align: left;
+    padding: 0 12px 12px 0;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dim);
+    font-weight: 400;
+    border-bottom: 1px solid var(--border);
+  }
+  table.requirements td {
+    padding: 14px 12px 14px 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-base);
+  }
+  table.requirements td:first-child { color: var(--text); }
+  table.requirements td.version { color: var(--muted); }
+  .yes { color: #5db87a; }
+  .careful { color: #e8993a; }
+  .no { color: #e8704f; }
+  @media (prefers-color-scheme: light) {
+    .yes { color: #35704a; }
+    .careful { color: #7d5a20; }
+    .no { color: #a34428; }
+  }
+
+  section.block.wrap > .features { display: grid; gap: 26px 56px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 720px) { .features { grid-template-columns: 1fr; gap: 22px; } }
+  .feature { font-size: 14px; color: var(--muted); }
+  .feature strong { display: block; margin-bottom: 4px; color: var(--text); font-weight: 400; font-size: 15px; }
+
+  .commands { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  .command { display: grid; grid-template-columns: 150px 1fr; gap: 16px; padding: 16px 20px; background: var(--card); }
+  .command .flag { font-size: 13px; color: var(--text); }
+  .command .what { font-size: 13px; color: var(--muted); overflow-x: auto; white-space: nowrap; }
+  @media (max-width: 640px) {
+    .command { grid-template-columns: 1fr; gap: 4px; }
+    nav.top { display: none; }
+    .install { flex-direction: column; align-items: stretch; padding: 16px 18px; }
+    .install code { white-space: pre-wrap; overflow-wrap: break-word; }
+    button.copy { justify-content: center; }
+  }
+
+  footer {
+    margin-top: clamp(72px, 10vw, 128px);
+    border-top: 1px solid var(--border);
+    padding: 30px var(--pad) 44px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 32px;
+    align-items: baseline;
+    font-size: 12px;
+    color: var(--dim);
+  }
+  footer .mark { font-family: "Pixelify", sans-serif; color: var(--muted); font-size: 14px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    button.copy, .toast { transition: none; }
+  }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%) translateY(12px);
+    background: var(--card-soft);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    padding: 10px 20px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease, transform 160ms ease;
+  }
+  .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <a class="brand" href="#top">
+    <img src="resources/brand/mark-on-dark-64.png" alt="" width="26" height="26">
+    Pi Desktop
+  </a>
+  <nav class="top">
+    <a href="#install">Install</a>
+    <a href="#features">Features</a>
+    <a href="#requirements">Requirements</a>
+    <a href="#maintain">Maintain</a>
+    <a href="https://github.com/FrameT-bit/Pi-Desktop">GitHub</a>
+  </nav>
+</header>
+
+<main id="top">
+
+  <section class="hero wrap">
+    <p class="kicker">Native GTK4 + libadwaita &nbsp;/&nbsp; 1.7.1</p>
+    <h1>A desktop for the Pi coding agent.</h1>
+    <p class="lede">Chat and code in one window: sessions that keep running, memory you can edit, personas, plan mode, permissions, restore points and sub-agents in a resizable rail. It talks to Pi over RPC, locally or over SSH.</p>
+
+    <div class="install" id="install">
+      <code id="cmd"><span class="prompt">$ </span>curl -fsSL https://framet-bit.github.io/Pi-Desktop/install.sh | bash</code>
+      <button class="copy" id="copy" type="button" aria-label="Copy the install command">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 2h9a3 3 0 0 1 3 3v11h-2V5a1 1 0 0 0-1-1H9V2Zm-3 4h9a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V9a3 3 0 0 1 3-3Z"/></svg>
+        Copy
+      </button>
+    </div>
+
+    <p class="note">It compiles on your machine: about 4 to 8 minutes and 1 GB of disk the first time, at low priority with half your cores. After that a rebuild takes seconds, and everything runs offline.</p>
+
+    <p class="quicklinks">
+      <a href="https://github.com/FrameT-bit/Pi-Desktop/releases">Releases</a>
+      <a href="https://github.com/FrameT-bit/Pi-Desktop">Source</a>
+      <a href="https://github.com/FrameT-bit/Pi-Desktop/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="install.sh">Read the installer</a>
+    </p>
+  </section>
+
+  <div class="wrap shots">
+    <figure class="shot"><img src="site/shots/attachments.jpg" alt="Pi Desktop composer with two image thumbnails and a PDF card attached, plus reasoning and search toggles." loading="lazy" width="1600" height="900"></figure>
+    <figure class="shot"><img src="site/shots/clarify.jpg" alt="A question from Pi with three preset answers and a free-text field." loading="lazy" width="1600" height="900"></figure>
+    <figure class="shot"><img src="site/shots/memory.jpg" alt="Settings showing project memory and a user memory field with save, reload and compact buttons." loading="lazy" width="1600" height="900"></figure>
+    <figure class="shot"><img src="site/shots/subagents.jpg" alt="Sub-agent model tiers: best, balanced and cheap, with overrides per model family." loading="lazy" width="1600" height="900"></figure>
+  </div>
+
+
+  <section class="block wrap" id="features">
+    <h2>What it does</h2>
+    <p class="sub">One window for the whole loop: ask, watch it work, review the diff, keep what matters.</p>
+
+    <div class="features">
+      <p class="feature"><strong>Chat and code modes</strong>Switched from the header; the same conversation can build software or explain it.</p>
+      <p class="feature"><strong>Live turn feedback</strong>A pulse under the sent message and a receipt with phase, elapsed time and tokens.</p>
+      <p class="feature"><strong>Sessions that survive</strong>Each session runs in its own Pi RPC process, so a new session does not kill a running turn.</p>
+      <p class="feature"><strong>Memory you can edit</strong>Durable preferences and project facts, with compact, review and reload before saving.</p>
+      <p class="feature"><strong>Sub-agents in the rail</strong>Delegated work with best, balanced or cheap tiers, overridable per model family.</p>
+      <p class="feature"><strong>Attachments</strong>Images arrive as thumbnails, other files as cards; PDFs are read as text when pdftotext is present.</p>
+      <p class="feature"><strong>Permissions and restore points</strong>Permission modes, safety rules and file rollback before anything destructive.</p>
+      <p class="feature"><strong>Two themes, two fonts</strong>Independent light and dark selections, with Pixelify, JetBrains Mono or the system typeface.</p>
+    </div>
+  </section>
+
+  <section class="block wrap" id="requirements">
+    <h2>What it needs</h2>
+    <p class="sub">Pi Desktop is built against GTK4 4.16 and libadwaita 1.5, which is a distribution package. The installer reads both versions before it compiles anything, so an unsupported system is told so in two seconds instead of failing halfway through the compiler.</p>
+
+    <table class="requirements">
+      <thead>
+        <tr><th>System</th><th>GTK4</th><th>Install</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Fedora 41 or newer</td><td class="version">4.16 and up</td><td class="yes">supported</td></tr>
+        <tr><td>Ubuntu 25.04 or newer</td><td class="version">4.18 and up</td><td class="yes">supported</td></tr>
+        <tr><td>Debian 13 or newer</td><td class="version">4.18 and up</td><td class="yes">supported</td></tr>
+        <tr><td>Arch, openSUSE Tumbleweed</td><td class="version">current</td><td class="yes">supported</td></tr>
+        <tr><td>Ubuntu 24.04 LTS</td><td class="version">4.14</td><td class="careful">build in a container</td></tr>
+        <tr><td>Debian 12</td><td class="version">4.8</td><td class="no">not supported</td></tr>
+      </tbody>
+    </table>
+
+    <p class="sub" style="margin-top:26px">On a system whose GTK4 is too old the installer stops and asks: upgrade the distribution, or build inside a rootless podman container with <code>--container</code>, which leaves the system packages untouched. Rust 1.83 or newer is installed into the app's own directory when your machine does not have it, so nothing outside your home changes.</p>
+  </section>
+
+  <section class="block wrap" id="maintain">
+    <h2>Keep it current</h2>
+    <p class="sub">The same command does maintenance. Add <code>--dry-run</code> to see the plan before anything happens, and <code>--background</code> to detach the build and keep working.</p>
+
+    <div class="commands">
+      <div class="command">
+        <span class="flag">--update</span>
+        <span class="what">rebuild the latest release; only what changed is recompiled</span>
+      </div>
+      <div class="command">
+        <span class="flag">--status</span>
+        <span class="what">version, paths, launcher and cache size</span>
+      </div>
+      <div class="command">
+        <span class="flag">--uninstall</span>
+        <span class="what">remove the app, the toolchain it added and the launcher; keep your settings</span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <span class="mark">Pi Desktop</span>
+  <span>GPL-3.0-or-later</span>
+  <span>An independent project by FrameT. Not affiliated with, endorsed by, or sponsored by Earendil Inc.</span>
+  <span><a href="https://github.com/FrameT-bit/Pi-Desktop/issues">Issues</a></span>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite">Copied</div>
+
+<script>
+  (function () {
+    var button = document.getElementById('copy');
+    var command = document.getElementById('cmd');
+    var toast = document.getElementById('toast');
+    var timer;
+
+    function flash(text) {
+      toast.textContent = text;
+      toast.classList.add('on');
+      clearTimeout(timer);
+      timer = setTimeout(function () { toast.classList.remove('on'); }, 1600);
+    }
+
+    function fallbackCopy(text) {
+      var area = document.createElement('textarea');
+      area.value = text;
+      area.setAttribute('readonly', '');
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (error) { ok = false; }
+      document.body.removeChild(area);
+      return ok;
+    }
+
+    button.addEventListener('click', function () {
+      var text = command.textContent.replace(/^\$\s*/, '').trim();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(
+          function () { flash('Copied'); },
+          function () { flash(fallbackCopy(text) ? 'Copied' : 'Select and copy'); }
+        );
+        return;
+      }
+      flash(fallbackCopy(text) ? 'Copied' : 'Select and copy');
+    });
+  }());
+</script>
+
+</body>
+</html>
