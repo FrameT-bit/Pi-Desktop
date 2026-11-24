@@ -52,3 +52,38 @@ glyphs in the project's pixel language:
 
 Provider names and marks are trademarks of their owners. Pi Desktop uses them
 only to identify the configured provider; no endorsement is implied.
+
+## Render settings
+
+`tools/gen-logos.sh` renders each slug at a fixed grid, so grid 12 lands at
+24 px, 14 at 28 px and 10 at 20 px. Line marks sample nearest; filled marks
+sample averaged.
+
+| provider(s) | slug | grid | sampling |
+|---|---|---|---|
+| Anthropic | `anthropic` | 12 | average |
+| OpenAI | `openai` | 14 | nearest |
+| DeepSeek | `deepseek` | 10 | average |
+| Google / Gemini | `googlegemini` | 10 | average |
+| Groq | `groq` | 14 | average |
+| Meta / Llama | `meta` | 10 | average |
+| Mistral | `mistralai` | 12 | average |
+| NVIDIA NIM | `nvidia` | 10 | average |
+| Ollama | `ollama` | 12 | average |
+| OpenRouter | `openrouter` | 14 | nearest |
+| xAI | `xai` | 12 | average |
+| Cerebras | `cerebras` | 14 | average |
+| Fireworks | `fireworks` | 12 | average |
+| Together AI | `together` | 12 | average |
+| Baseten | `baseten` | 12 | average |
+| Moonshot / Kimi | `moonshotai` | 14 | nearest |
+| Z.AI | `zai` | 12 | average |
+| MiniMax | `minimax` | 14 | nearest |
+| Qwen | `qwen` | 14 | nearest |
+| OpenCode | `opencode` | 12 | average |
+| Vercel AI Gateway | `vercel` | 10 | average |
+| Hugging Face | `huggingface` | 14 | nearest |
+| GitHub Copilot | `githubcopilot` | 14 | average |
+| Ant Ling | `antling` | 12 | average |
+| Xiaomi MiMo | `xiaomi` | 14 | nearest |
+| Radius | `radius` | 12 | average |

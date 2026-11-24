@@ -2,74 +2,88 @@
 
 # Pi Desktop
 
-A native desktop app for working with Pi, built with Rust, GTK4 and libadwaita.
-It connects to Pi over RPC. Everything can run locally; SSH is optional if Pi
-runs on another machine.
+A native desktop app for the Pi coding agent, written in Rust with GTK4 and
+libadwaita. It talks to Pi over RPC, either on the same machine or over SSH.
 
 [![Built with DeepSeek](https://img.shields.io/badge/Built%20with-DeepSeek-4D6BFF?style=flat-square)](https://www.deepseek.com/)
 [![Built with Codex](https://img.shields.io/badge/Built%20with-Codex-111111?style=flat-square)](https://openai.com/codex/)
 
-DeepSeek and Codex were used as development tools to help make Pi Desktop a
-working project. Neither is needed to build or run the app.
+DeepSeek and Codex were used as development tools on this project. Neither is
+needed to build or run the app.
 
-Pi Desktop is an independent project by FrameT. It is not affiliated with,
-endorsed by, or sponsored by Earendil Inc. The name "Pi" is used only to
-describe compatibility with the Pi coding agent.
+Pi Desktop is an independent project by FrameT. It is not affiliated with or
+endorsed by Earendil Inc. The name "Pi" is used only to describe compatibility
+with the Pi coding agent.
 
 ## What it does
 
-- Chat and code modes in one app, switched from the header.
-- Live turn feedback: a 1px pulse under the sent message and a receipt with
-  phase (sent, thinking, tools, writing, done), elapsed time and tokens.
-- Manual `/compact [focus]` instruction in the composer: summarizes old context
-  and reports the estimated tokens saved. Pi's automatic compaction stays
-  enabled by default.
-- Clickable Markdown links open the default browser. Copy responses with the
-  per-message button; there is no duplicate universal right-click menu.
-- Sessions run in separate Pi RPC processes: New Session while a turn is
-  running keeps the old turn alive in the background, and switching back
-  attaches to that running process. Running-session indicators live in the
-  sidebar and session tabs; background permission prompts wait until opened.
-- Long conversations render the newest messages first: history is shown as a bounded tail
-  (the last 20 messages) with a "load earlier" button that pages backwards,
-  and tool/diff cards start collapsed so a huge session does not build
-  thousands of widgets or keep them alive.
-- Several attachments per message: images keep a thumbnail strip, and any
-  other file (PDF, source, CSV, Office document) becomes a file card. Text is
-  inlined for the agent and PDFs are extracted with `pdftotext` when present.
-- Optional inline images: consecutive images share a carousel in the chat,
-  outside tool cards. Click an image to enlarge it. Toggle in Settings → Model.
-- Compact Memory, Personality and System Prompt in Settings: choose a model
-  available to local Pi, review the shorter draft, then save to apply it.
-- Optional clarify questions: the model can end a turn with a multiple-choice
-  question plus an always-available free-text field, and the desktop shows a
-  card and a system notification. Toggle in Settings → Model → features.
-- Sub-agent tier (best / balanced / cheap) resolved inside the model family of
-  the current session, with per-family model picks. Written to Pi's
-  `settings.json` as `subagents.defaultModel` and per-provider role overrides.
-- Windowed mode is draggable from the custom header (double-click maximizes).
-- Sessions, search, tree, artifacts, jobs and Pi extensions.
-- Configure installed extensions when they expose settings: search, memory,
-  personas and MCP open their settings page; guard, subagents and openwiki
-  open their config file (JSON or .env).
-- Workspace cleanup: right-click a project group to move all its sessions to
-  the trash. Five or more sessions require three confirmations. The trash
-  button in the sidebar footer restores them for 14 days. The project folder
-  itself is never deleted; workspace cleanup is local-session only for now.
-- 50 food themes, light and dark, searchable in Settings → Personalization.
-- Personalization tab for theme, typeface (Pixelify/JetBrains, Adwaita or system)
-  and font size.
-- Separate light and dark theme selections. The header toggle switches between
-  those saved themes without resetting either choice, in Chat and Code modes.
-- Session tabs are opt-in (`[ui] session_tabs=true`); the sidebar shows the last
-  response time and the model that produced it.
-- Structured background sub-agent status in the resizable activity rail, and a
-  keyboard-accessible reasoning picker using only the model's supported levels.
-- Memory, personas, plan mode, permissions, restore points and subagents.
-- Weekly GitHub release check on app start, never on a background timer.
-- Updates tab with a manual check, release links and AppImage downloads from
-  FrameT-bit/Pi-Desktop. Published previews are labeled.
-- Credits tab with version, links, license and the preinstalled extension bundle.
+Chat and code modes live in the same window, and the header switches between
+them. The sidebar holds the sessions, the session tree, artifacts, tasks, Git
+review and the installed extensions. `Ctrl+K` searches commands and sessions,
+`Ctrl+F` searches inside the open chat, and `Ctrl+Shift+F` searches every
+session.
+
+**Turn feedback.** A 1px pulse sits under the message you sent, and a receipt
+under the reply reports its phase (sent, thinking, tools, writing, done), the
+elapsed time and the token count. Markdown links open the system browser, and
+each message has its own copy button.
+
+**Sessions stay alive.** Every session runs in its own Pi RPC process, so
+starting a new session while a turn is running leaves that turn running, and
+switching back attaches to the process that is still there. Running sessions are
+marked in the sidebar and in the tabs, and a permission prompt that arrives in
+the background waits until you open that session.
+
+**Long sessions stay cheap.** The newest messages come first. History is a tail
+of the last 20 messages with a "load earlier" button that pages backwards, and
+tool and diff cards start collapsed, so an old session does not build thousands
+of widgets and keep them alive.
+
+**Attachments.** Images collect into a thumbnail strip, and any other file (PDF,
+source, CSV, Office document) becomes a card. Text is inlined for the agent and
+PDFs are read with `pdftotext` when it is installed. Consecutive images can
+instead share a carousel in the chat, outside the tool cards, where a click
+enlarges them. Settings → Model turns the carousel off.
+
+**Context you control.** `/compact [focus]` summarizes the old context and
+reports the estimated tokens saved, while Pi's own automatic compaction stays
+enabled. Compact Memory, Personality and System Prompt work the same way in
+Settings. Choose a model the local Pi has, read the shorter draft, then save.
+
+**Clarify questions.** A turn can end with a multiple-choice question that
+always accepts free text. The desktop shows it as a card and sends a system
+notification, and Settings → Model → features turns it off.
+
+**Sub-agents.** A tier of best, balanced or cheap resolves inside the model
+family of the current session, with a pick per family, and is written to Pi's
+`settings.json` as `subagents.defaultModel` plus per-provider overrides. Their
+status appears in a resizable activity rail, and the reasoning picker only
+offers levels the model actually supports.
+
+**Appearance.** 50 food themes, light and dark, searchable in
+Settings → Personalization, where the typeface (Pixelify, JetBrains, Adwaita or
+the system one) and the font size are set. Light and dark are chosen separately,
+and the header toggle switches between the two saved choices without resetting
+either, in Chat and Code modes.
+
+**Workspace cleanup.** Right-click a project group to move its sessions to the
+trash. Five or more sessions ask three times first. The trash button in the
+sidebar footer brings them back for 14 days. The project folder itself is never
+deleted, and cleanup only touches local sessions for now.
+
+**Extensions.** Memory, personas, plan mode, permissions, restore points and
+subagents are built in. Those that expose settings can be configured from the
+app: search, memory, personas and MCP open a settings page, while guard,
+subagents and openwiki open their config file.
+
+**Window and tabs.** Windowed mode is draggable from the header, with a
+double-click to maximize. Session tabs are opt-in (`[ui] session_tabs=true`),
+and the sidebar shows when each session last answered and which model answered.
+
+**Updates.** The app checks GitHub for a new release when it starts, never on a
+timer. The Updates tab has a manual check, release links and AppImage downloads,
+and labels the prereleases. The Credits tab carries the version, links, license
+and the preinstalled extension bundle.
 
 ## Requirements
 
@@ -88,9 +102,9 @@ The same URL is the project's landing page, at <https://framet-bit.github.io/Pi-
 
 The installer builds the latest release from source and installs it into the
 current user's home, as `~/.local/bin/pi-desktop` plus the desktop entry, the
-icons and the bundled fonts. It compiles at low priority with half the cores and keeps a
-reusable cache, so a later run only rebuilds what changed. Interrupting it is
-safe, the next run continues. Nothing is written outside your home.
+icons and the bundled fonts. It compiles at low priority with half the cores and
+keeps a reusable cache, so a later run only rebuilds what changed. Interrupting
+it is safe, the next run continues. Nothing is written outside your home.
 
 Maintenance uses the same command.
 
@@ -122,10 +136,11 @@ system packages untouched.
 ./setup.sh
 ```
 
-The setup wizard installs into the current user's home: `~/.local/bin/pi-desktop`,
-the desktop entry, icons and bundled fonts. It does not need root.
+The setup wizard installs into the current user's home, as
+`~/.local/bin/pi-desktop` plus the desktop entry, icons and bundled fonts. It
+does not need root.
 
-Non-interactive and maintenance modes:
+Non-interactive and maintenance modes use the same script.
 
 ```sh
 ./setup.sh --no-gui       # terminal install, no wizard
@@ -176,45 +191,15 @@ server is embedded.
 
 ## Provider logos
 
-The header model chip and the model list use a 24–28 px pixel mark per
-provider, falling back to the provider initial when no mark exists. Logos are
-generated from `resources/logos/src/` by `tools/gen-logos.sh`, which drives
-`tools/pixelify.py` (block 2: grid 12 renders at 24 px, 14 at 28 px, 10 at
-20 px). Line logos use nearest sampling; filled marks use averaged sampling.
+The header model chip and the model list draw a 24 or 28 px pixel mark for each
+provider, and fall back to the provider initial when there is no mark. The marks
+are generated from `resources/logos/src/` by `tools/gen-logos.sh`, which drives
+`tools/pixelify.py`. The grid and sampling chosen for each slug, with the sources
+and licenses, are in `resources/logos/src/README.md`.
 
-| provider(s) | slug | grid | sampling |
-|---|---|---|---|
-| Anthropic | `anthropic` | 12 | average |
-| OpenAI | `openai` | 14 | nearest |
-| DeepSeek | `deepseek` | 10 | average |
-| Google / Gemini | `googlegemini` | 10 | average |
-| Groq | `groq` | 14 | average |
-| Meta / Llama | `meta` | 10 | average |
-| Mistral | `mistralai` | 12 | average |
-| NVIDIA NIM | `nvidia` | 10 | average |
-| Ollama | `ollama` | 12 | average |
-| OpenRouter | `openrouter` | 14 | nearest |
-| xAI | `xai` | 12 | average |
-| Cerebras | `cerebras` | 14 | average |
-| Fireworks | `fireworks` | 12 | average |
-| Together AI | `together` | 12 | average |
-| Baseten | `baseten` | 12 | average |
-| Moonshot / Kimi | `moonshotai` | 14 | nearest |
-| Z.AI | `zai` | 12 | average |
-| MiniMax | `minimax` | 14 | nearest |
-| Qwen | `qwen` | 14 | nearest |
-| OpenCode | `opencode` | 12 | average |
-| Vercel AI Gateway | `vercel` | 10 | average |
-| Hugging Face | `huggingface` | 14 | nearest |
-| GitHub Copilot | `githubcopilot` | 14 | average |
-| Ant Ling | `antling` | 12 | average |
-| Xiaomi MiMo | `xiaomi` | 14 | nearest |
-| Radius | `radius` | 12 | average |
-
-Sources and licenses are listed in `resources/logos/src/README.md`. The OpenRouter
-and Ant Ling marks are simplified custom glyphs because no usable monochrome
-asset was available; all other marks come from Simple Icons or the provider's
-official favicon/press mark.
+The OpenRouter and Ant Ling marks are simplified glyphs drawn for this project,
+because no usable monochrome asset existed. The rest come from Simple Icons or
+from the provider's own favicon or press mark.
 
 ## Layout
 
@@ -241,12 +226,11 @@ Pi Desktop is free software under the **GNU General Public License v3.0 or
 later**. See `LICENSE`.
 
 The license allows use, study, modification and redistribution, including paid
-distribution, provided that distributed derivative works remain GPL and offer
-the corresponding source code. The GPL does not prohibit selling copies.
+distribution, as long as distributed derivative works stay under the GPL and
+ship the corresponding source. Selling copies is allowed.
 
 The Pi Desktop name, icon and banner live in `resources/brand/` and `design/`.
 No official pi.dev logo is included. See `TRADEMARKS.md`.
-
 
 ## AppImage
 
