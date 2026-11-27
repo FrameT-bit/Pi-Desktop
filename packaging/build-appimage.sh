@@ -33,6 +33,10 @@ cp "$root/target/release/pi-desktop" "$appdir/usr/bin/pi-desktop"
 cp "$root/resources/brand/logo-256.png" "$appdir/usr/share/icons/hicolor/256x256/apps/pi-desktop.png"
 cp "$root/resources/brand/logo-256.png" "$appdir/pi-desktop.png"
 cp "$root"/resources/fonts/*.ttf "$root"/resources/fonts/*-OFL.txt "$appdir/usr/share/fonts/pi-desktop/"
+mkdir -p "$appdir/usr/share/licenses/pi-desktop"
+cp "$root/LICENSE" "$root/THIRD_PARTY_LICENSES.md" "$appdir/usr/share/licenses/pi-desktop/"
+cp "$root/resources/icons/src/LICENSE" "$appdir/usr/share/licenses/pi-desktop/Phosphor-Icons-MIT.txt"
+cp "$root/resources/icons/src/LICENSE-pixelarticons" "$appdir/usr/share/licenses/pi-desktop/Pixelarticons-MIT.txt"
 
 cat > "$appdir/usr/share/applications/io.github.FrameT.PiDesktop.desktop" <<EOF
 [Desktop Entry]
@@ -58,6 +62,9 @@ cat > "$appdir/AppRun" <<'EOF'
 #!/bin/sh
 set -e
 this_dir="$(readlink -f "$(dirname "$0")")"
+case "${1:-}" in
+    --version|-V) exec "$this_dir"/AppRun.wrapped "$@" ;;
+esac
 if [ -r "$this_dir/apprun-hooks/linuxdeploy-plugin-gtk.sh" ]; then
     . "$this_dir/apprun-hooks/linuxdeploy-plugin-gtk.sh"
 fi

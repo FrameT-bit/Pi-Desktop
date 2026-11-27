@@ -20,6 +20,8 @@
   --cor-acento: @accent;
   --cor-borda: @border;
   --cor-superficie: @card_bg;
+  /* Opaque workbench snapshots share the surrounding content-panel surface. */
+  --cor-canvas: @canvas;
   --cor-selecao: @selected_bg;
   /* Preserve the app's pixel-art controls while sharing one 44px hit target. */
   --raio-botao: 0;
@@ -32,6 +34,18 @@
   --rail-body-min: 236px;
   /* Three reasoning options, with room for the "Extra high" label. */
   --reasoning-width: 288px;
+  /* Running tool dots and pending approval share a calm status cadence. */
+  --dur-pulso: 1200ms;
+  --dur-passo: 150ms;
+  --dur-passo-duplo: 300ms;
+  --raio-pill: 999px;
+  --esp-alvo: var(--altura-controle);
+  --cor-accent: var(--cor-acento);
+  --cor-text: var(--cor-texto);
+  --cor-error: @error;
+  /* Action artwork shares a 24px slot; chevrons and task markers are secondary. */
+  --icone-acao: 24px;
+  --icone-detalhe: 16px;
 }
 
 window {
@@ -81,7 +95,7 @@ separator {
 
 .header-panel {
   background-color: @card_bg;
-  border: 1px solid @panel_border;
+  border: var(--fio) solid var(--cor-borda);
   border-radius: 0;
   min-height: 44px;
   padding: 0 10px;
@@ -110,7 +124,7 @@ separator {
 .model-chip {
   background-color: transparent;
   background-image: none;
-  border: 1px solid @border;
+  border: none;
   border-radius: 0;
   padding: 0 var(--esp-12);
   min-height: var(--altura-miolo);
@@ -118,7 +132,7 @@ separator {
 }
 
 .model-chip:hover {
-  border-color: @border_accent;
+  background-color: var(--cor-selecao);
 }
 
 .model-chip-label {
@@ -142,7 +156,7 @@ separator {
 .theme-button {
   background-color: transparent;
   background-image: none;
-  border: 1px solid @border;
+  border: none;
   border-radius: 0;
   box-shadow: none;
   min-width: var(--altura-miolo);

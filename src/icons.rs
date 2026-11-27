@@ -9,6 +9,7 @@ use crate::tokens;
 include!(concat!(env!("OUT_DIR"), "/icons.rs"));
 
 pub const ICON_SIZE: i32 = 24;
+pub const DETAIL_SIZE: i32 = 16;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Tone {
@@ -49,6 +50,8 @@ pub fn icon(name: &str, tone: Tone) -> gtk::Image {
     let image = gtk::Image::new();
     image.add_css_class("ui-icon");
     image.set_pixel_size(ICON_SIZE);
+    image.set_halign(gtk::Align::Center);
+    image.set_valign(gtk::Align::Center);
     register(&image, name, tone);
 
     let name = name.to_string();
@@ -130,4 +133,20 @@ fn resolve_name(name: &str) -> String {
     }
 }
 
+#[cfg(test)]
+mod stage_fright_tests {
+    use super::*;
 
+    #[test]
+    fn tool_glyphs_have_every_theme_tone_and_scale() {
+        for name in ["file", "file-plus", "pencil", "terminal", "search", "globe", "brain", "robot", "plug", "list", "check", "play", "circle", "help"] {
+            for tone in ["ink", "accent", "muted"] {
+                for dark in [false, true] {
+                    for scale in [1, 2] {
+                        assert!(icon_bytes(name, tone, dark, scale).is_some(), "{name}/{tone}/{dark}/{scale}");
+                    }
+                }
+            }
+        }
+    }
+}

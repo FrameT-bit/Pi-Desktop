@@ -2,6 +2,55 @@
 
 # Pi Desktop
 
+### Stage Fright (1.8.0)
+
+The Git tab uses a [MeGit-inspired workbench](docs/git-workbench.md): compact
+Unstaged/Staged lists, click-to-preview diffs, Ctrl/Shift multi-selection,
+Stage/Unstage selection or all, and a file filter. While filtering, **Stage shown**
+and **Unstage shown** affect only visible files, never hidden changes.
+Space/Enter moves selected
+files, Ctrl+Enter commits, and Ctrl+F focuses the current filter. The History tab
+shows the actual parent graph, refs, author, commit message and changed-file diffs
+without changing HEAD or the index (200 commits initially, up to 2,000).
+**Open repository…** chooses a local repository independently of the chat
+workspace; selecting a subfolder resolves its repository root. The active path
+is always shown. **Use workspace** restores automatic following. This choice
+lasts for the current app run, and switching preserves per-repository commit
+message drafts in memory. Invalid selections or cancelling do not replace the
+active repository. No repository is created or searched for recursively.
+Polling preserves selection. It also supports branches, Fetch, fast-forward-only
+Pull, Publish and merge/rebase recovery. **Discard** saves a recoverable stash;
+**Destroy** requires confirmation. File actions are in the right-click menu
+(Menu or Shift+F10 from the keyboard). Stashing before a repository's first commit
+is not supported by Git and leaves the file untouched.
+
+The [focused Git UX pass](docs/git-ux.md) keeps the current branding with a
+compact header and local tabs. **More…** holds New branch and manual Refresh.
+Commit becomes available only with staged files, a nonblank message and no
+conflicts. Clean and no-match states explain the next action; successful
+operations use a short confirmation, with detailed Git output in its tooltip.
+
+Responses stream by default. Enable **Prefer waiting for responses** in
+Settings → Interface to show only the completed response. Plan approvals stay in
+the bottom bar until answered. One plan shows **Plan · Execute · Stay in plan ·
+Refine** inline, with only a soft background behind Plan and no inner frame.
+Session-labelled menus appear only when more than one plan is pending.
+Plan tasks live in the rail in both view modes.
+Window size, maximized state and rail layout persist. Wayland controls window
+position.
+
+The sidebar, Credits, Updates and `--version` all read the application's
+`APP_VERSION`, derived at build time from `Cargo.toml`; no UI label owns a
+separate version number. This is the desktop app version, not the Pi RPC server's.
+
+Offline UI checks: `python3 tools/verify-ui.py` (PNGs and measurements in
+`dist/qa/1.8.0`). Use `--output PATH`, `--temp-root PATH` or `--font-scale 125`.
+Checks use a private headless Mutter compositor and D-Bus session by default:
+no test windows appear on the desktop. `mutter` and `dbus-run-session` are
+development prerequisites. Visible tests require the explicit `--interactive` flag.
+The opt-in `--live-stream live-stream live-wait` cases make two ephemeral model
+calls with tools disabled. They are not part of the offline regression suite.
+
 A native desktop app for the Pi coding agent, written in Rust with GTK4 and
 libadwaita. It talks to Pi over RPC, either on the same machine or over SSH.
 

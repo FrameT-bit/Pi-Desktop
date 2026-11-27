@@ -37,6 +37,8 @@ pub struct ChatView {
     empty_quick: gtk::Box,
     empty_hint: gtk::Label,
     inner: RefCell<Inner>,
+    stream_scheduled: Cell<bool>,
+    assistant_had_thinking: Cell<bool>,
     messages: RefCell<Vec<Value>>,
     history_start: Cell<usize>,
     more: gtk::Button,
@@ -108,6 +110,7 @@ struct Stream {
     label: gtk::Label,
     text: String,
     rendered: usize,
+    finished: bool,
 }
 
 struct TurnUi {
@@ -331,6 +334,8 @@ impl ChatView {
             empty_quick: quick.clone(),
             empty_hint: hint.clone(),
             inner: RefCell::new(Inner::default()),
+            stream_scheduled: Cell::new(false),
+            assistant_had_thinking: Cell::new(false),
             messages: RefCell::new(Vec::new()),
             history_start: Cell::new(0),
             more,
@@ -1053,6 +1058,7 @@ impl ChatView {
 
     pub fn begin_assistant(&self) {
         self.inner.borrow_mut().streams.clear();
+        self.assistant_had_thinking.set(false);
     }
 
     fn new_stream(&self) -> Stream {
@@ -1083,10 +1089,11 @@ impl ChatView {
             label,
             text: String::new(),
             rendered: 0,
+            finished: false,
         }
     }
 
-    pub fn assistant_delta(&self, index: i64, delta: &str) {
+    pub fn assistant_delta(self: &Rc<Self>, index: i64, delta: &str) {
         let mut inner = self.inner.borrow_mut();
         if !inner.streams.contains_key(&index) {
             let stream = self.new_stream();
@@ -1096,13 +1103,34 @@ impl ChatView {
             return;
         };
         stream.text.push_str(delta);
-        if stream.text.len().saturating_sub(stream.rendered) >= 240
-            || delta.contains('\n')
-        {
-            stream.rendered = stream.text.len();
-            stream
-                .label
-                .set_text(&format!("{}▍", tool_display(&stream.text)));
+        drop(inner);
+        if !self.stream_scheduled.replace(true) {
+            let weak = Rc::downgrade(self);
+            glib::timeout_add_local_once(Duration::from_millis(80), move || {
+                let Some(me) = weak.upgrade() else { return; };
+                me.stream_scheduled.set(false);
+                let mut changed = false;
+                for stream in me.inner.borrow_mut().streams.values_mut() {
+                    if !stream.finished && stream.rendered != stream.text.len() {
+                        stream.label.set_text(&format!("{}▍", stream.text));
+                        stream.rendered = stream.text.len();
+                        changed = true;
+                    }
+                }
+                if changed { me.maybe_follow(); }
+            });
+        }
+    }
+
+    pub fn assistant_text_end(&self, index: i64, content: &str) {
+        let mut inner = self.inner.borrow_mut();
+        if let Some(stream) = inner.streams.get_mut(&index) {
+            if stream.finished { return; }
+            if !content.is_empty() { stream.text = content.to_string(); }
+            stream.label.set_visible(false);
+            stream.label.set_text("");
+            self.render_assistant_text(&stream.wrapper, &stream.text);
+            stream.finished = true;
         }
         drop(inner);
         self.maybe_follow();
@@ -1125,6 +1153,13 @@ impl ChatView {
                     if text.trim().is_empty() && question.is_none() { continue; }
                     if let Some(stream) = streams.remove(&(index as i64)) {
                         // Keep the streamed position, including the timestamp.
+                        if stream.finished && stream.text == text && question.is_none() {
+                            previous = Some(stream.wrapper.upcast());
+                            continue;
+                        }
+                        while let Some(child) = stream.label.next_sibling() {
+                            stream.wrapper.remove(&child);
+                        }
                         stream.wrapper.remove(&stream.label);
                         self.render_assistant_text(&stream.wrapper, &text);
                         previous = Some(stream.wrapper.upcast());
@@ -1134,7 +1169,14 @@ impl ChatView {
                     self.assistant_body(&text).upcast()
                 }
                 HistBlock::Images(images) => gallery::widget(images).upcast(),
-                HistBlock::Thinking(_) => continue,
+                HistBlock::Thinking(text) => {
+                    if self.assistant_had_thinking.get() || text.trim().is_empty() { continue; }
+                    let row = ThinkingRow::new("medium", self.width.get());
+                    row.set_text(&text);
+                    row.show_done();
+                    self.remember_thinking(&row);
+                    row.root.upcast()
+                }
             };
             let next = streams.iter().filter(|(key, _)| **key >= index as i64)
                 .min_by_key(|(key, _)| *key).map(|(_, stream)| stream.wrapper.clone());
@@ -1168,12 +1210,17 @@ impl ChatView {
             if stream.text.trim().is_empty() {
                 self.list.remove(&stream.wrapper);
             } else {
-                stream.label.set_text(&tool_display(&stream.text));
+                if !stream.finished {
+                    stream.label.set_visible(false);
+                    stream.label.set_text("");
+                    self.render_assistant_text(&stream.wrapper, &stream.text);
+                }
             }
         }
     }
 
     pub fn thinking_start(&self, level: &str) {
+        self.assistant_had_thinking.set(true);
         self.seal_stream();
         let row = ThinkingRow::new(level, self.width.get());
         self.remember_thinking(&row);
@@ -2025,7 +2072,7 @@ pub(crate) fn text_of_result(result: &Value) -> String {
 }
 
 fn tool_result_name(message: &Value) -> String {
-    for key in ["tool", "tool", "name"] {
+    for key in ["tool", "toolName", "name"] {
         if let Some(name) = message.get(key).and_then(Value::as_str) {
             if !name.trim().is_empty() {
                 return name.to_string();
@@ -2055,7 +2102,7 @@ fn tool_result_is_error(message: &Value) -> bool {
 const DIFF_COLLAPSED_LINES: usize = 8;
 /// A single generated patch can contain tens of thousands of lines. Building a
 /// widget per line froze the UI and ballooned memory; render a bounded prefix.
-const MAX_DIFF_RENDER_LINES: usize = 2000;
+pub const MAX_DIFF_RENDER_LINES: usize = 2000;
 
 struct DiffState {
     rows: Vec<gtk::Widget>,
@@ -2089,6 +2136,7 @@ struct ToolRow {
     dels: gtk::Label,
     status: gtk::Label,
     status_icon: gtk::Image,
+    running: gtk::Box,
     head_button: gtk::Button,
     chevron: gtk::Image,
     file_icon: gtk::Image,
@@ -2116,9 +2164,9 @@ impl ToolRow {
         let chevron = icons::icon("chevron-down", Tone::Muted);
         chevron.add_css_class("tool-chevron");
 
-        let file_icon = icons::icon("edit", Tone::Muted);
+        let file_icon = icons::icon(tool_icon(name), Tone::Muted);
         file_icon.add_css_class("tool-file-icon");
-        file_icon.set_visible(false);
+        file_icon.set_visible(true);
 
         let title = gtk::Label::new(None);
         title.add_css_class("tool-title");
@@ -2148,6 +2196,16 @@ impl ToolRow {
         status_icon.set_visible(false);
 
         let header = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        let running = gtk::Box::new(gtk::Orientation::Horizontal, 4);
+        running.add_css_class("tool-running");
+        for index in 0..3 {
+            let dot = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+            dot.add_css_class("tool-running-dot");
+            dot.add_css_class(&format!("dot-{index}"));
+            running.append(&dot);
+        }
+        running.set_valign(gtk::Align::Center);
+        header.append(&running);
         header.append(&chevron);
         header.append(&file_icon);
         header.append(&title);
@@ -2215,6 +2273,7 @@ impl ToolRow {
             dels,
             status,
             status_icon,
+            running,
             head_button,
             chevron,
             file_icon,
@@ -2305,67 +2364,8 @@ impl ToolRow {
         while let Some(child) = self.diff_body.first_child() {
             self.diff_body.remove(&child);
         }
-        let mut rows: Vec<gtk::Widget> = Vec::new();
-        let mut first_path = String::new();
-        let mut budget = MAX_DIFF_RENDER_LINES;
-        for file in &diff.files {
-            if first_path.is_empty() {
-                first_path = file.path.clone();
-            }
-            for hunk in &file.hunks {
-                if budget == 0 {
-                    break;
-                }
-                let split = hunk
-                    .lines
-                    .iter()
-                    .take_while(|line| line.kind == diff::LineKind::Meta)
-                    .count();
-                let header = diff::Line {
-                    kind: diff::LineKind::Meta,
-                    old_no: None,
-                    new_no: None,
-                    text: hunk.header.clone(),
-                };
-                for line in &hunk.lines[..split] {
-                    if budget == 0 {
-                        break;
-                    }
-                    let row = diff_line_widget(line);
-                    self.diff_body.append(&row);
-                    rows.push(row.upcast());
-                    budget -= 1;
-                }
-                if budget > 0 {
-                    let row = diff_line_widget(&header);
-                    self.diff_body.append(&row);
-                    rows.push(row.upcast());
-                    budget -= 1;
-                }
-                for line in &hunk.lines[split..] {
-                    if budget == 0 {
-                        break;
-                    }
-                    let row = diff_line_widget(line);
-                    self.diff_body.append(&row);
-                    rows.push(row.upcast());
-                    budget -= 1;
-                }
-                if budget == 0 {
-                    break;
-                }
-            }
-            if budget == 0 {
-                break;
-            }
-        }
-        if budget == 0 {
-            let note = gtk::Label::new(Some("diff truncated in the interface"));
-            note.add_css_class("diff-truncated");
-            note.set_xalign(0.0);
-            self.diff_body.append(&note);
-            rows.push(note.upcast());
-        }
+        let rows = append_diff_rows(&self.diff_body, diff, true);
+        let first_path = diff.files[0].path.clone();
 
         let file = &diff.files[0];
         self.file_icon.set_visible(true);
@@ -2416,7 +2416,7 @@ impl ToolRow {
         let (label, class) = match state {
             "success" => ("ok", "ok"),
             "error" => ("error", "error"),
-            _ => ("…", "pending"),
+            _ => ("", "pending"),
         };
         match state {
             "success" => {
@@ -2432,6 +2432,7 @@ impl ToolRow {
             }
         }
         self.status.add_css_class(class);
+        self.running.set_visible(state == "pending");
         self.status.set_text(label);
         if state == "error" {
             self.apply_expanded(true);
@@ -2469,7 +2470,35 @@ impl ToolRow {
     }
 }
 
-fn diff_line_widget(line: &diff::Line) -> gtk::Box {
+pub fn append_diff_rows(body: &gtk::Box, diff: &diff::Diff, ellipsize: bool) -> Vec<gtk::Widget> {
+    let mut rows = Vec::new();
+    for file in &diff.files {
+        let mut budget = MAX_DIFF_RENDER_LINES;
+        let total: usize = file.hunks.iter().map(|hunk| hunk.lines.len() + 1).sum();
+        for hunk in &file.hunks {
+            let header = diff::Line { kind: diff::LineKind::Meta, old_no: None, new_no: None, text: hunk.header.clone() };
+            let split = hunk.lines.iter().take_while(|line| line.kind == diff::LineKind::Meta).count();
+            for line in hunk.lines[..split].iter().chain(std::iter::once(&header)).chain(hunk.lines[split..].iter()) {
+                if budget == 0 { break; }
+                let row = diff_line_widget(line, ellipsize);
+                body.append(&row);
+                rows.push(row.upcast());
+                budget -= 1;
+            }
+            if budget == 0 { break; }
+        }
+        if total > MAX_DIFF_RENDER_LINES {
+            let note = gtk::Label::new(Some("Diff truncated in the interface (2,000 lines per file)"));
+            note.add_css_class("diff-truncated");
+            note.set_xalign(0.0);
+            body.append(&note);
+            rows.push(note.upcast());
+        }
+    }
+    rows
+}
+
+fn diff_line_widget(line: &diff::Line, ellipsize: bool) -> gtk::Box {
     let row = gtk::Box::new(gtk::Orientation::Horizontal, 6);
     row.add_css_class("diff-line");
     match line.kind {
@@ -2490,7 +2519,7 @@ fn diff_line_widget(line: &diff::Line) -> gtk::Box {
     text.set_halign(gtk::Align::Fill);
     text.set_hexpand(true);
     text.set_selectable(true);
-    text.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    if ellipsize { text.set_ellipsize(gtk::pango::EllipsizeMode::End); }
     row.append(&text);
     row
 }
@@ -2503,6 +2532,23 @@ fn diff_number(number: Option<u32>) -> gtk::Label {
     label.set_xalign(1.0);
     label.set_halign(gtk::Align::Start);
     label
+}
+
+fn tool_icon(name: &str) -> &'static str {
+    let name = name.to_ascii_lowercase();
+    if name.starts_with("mcp") || name.contains("__") { return "plug"; }
+    match name.as_str() {
+        "read" => "file",
+        "edit" | "patch" | "apply_patch" => "pencil",
+        "write" => "file-plus",
+        "bash" | "shell" => "terminal",
+        "grep" | "find" | "glob" | "search" => "search",
+        "web_search" | "websearch" | "fetch" | "webfetch" => "globe",
+        "thinking" => "brain",
+        "subagent" | "agent" | "task" => "robot",
+        "todo" | "todowrite" | "todoread" => "list",
+        _ => "plug",
+    }
 }
 
 fn args_preview(args: &Value) -> String {
@@ -2667,6 +2713,7 @@ impl ThinkingRow {
 
         let head = gtk::Box::new(gtk::Orientation::Horizontal, 6);
         head.append(&chevron);
+        head.append(&icons::icon("brain", Tone::Muted));
         head.append(&title);
 
         let head_button = gtk::Button::new();
@@ -2825,5 +2872,3 @@ fn scroll_thinking_to_end(body: &gtk::ScrolledWindow) {
     let bottom = (adjustment.upper() - adjustment.page_size()).max(0.0);
     adjustment.set_value(bottom);
 }
-
-

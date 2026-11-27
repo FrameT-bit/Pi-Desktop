@@ -25,7 +25,7 @@ const GROUPS: &[(&str, &[(&str, &str)])] = &[
         "NAVIGATION",
         &[
             ("Ctrl+K", "commands, sessions and actions"),
-            ("Ctrl+F", "search in chat"),
+            ("Ctrl+F", "search in chat / filter the current Git view"),
             ("Ctrl+Shift+F", "search for sessions"),
             ("Shift+Tab", "change persona"),
             ("Ctrl+P", "next model"),
@@ -33,7 +33,16 @@ const GROUPS: &[(&str, &[(&str, &str)])] = &[
             ("Ctrl+N", "new session"),
             ("Ctrl+,", "settings"),
             ("Ctrl+/", "this sheet"),
-            ("Ctrl+Shift+G", "Git review: diff, stage and commit"),
+            ("Ctrl+Shift+G", "Git workbench: staging, diff and history"),
+        ],
+    ),
+    (
+        "GIT WORKBENCH",
+        &[
+            ("Ctrl / Shift + click", "select multiple files"),
+            ("Space / Enter", "stage / unstage the selected files"),
+            ("Ctrl+Enter", "commit the staged changes"),
+            ("Right-click / Menu / Shift+F10", "open file, recoverable discard, destroy"),
         ],
     ),
     (

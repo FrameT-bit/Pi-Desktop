@@ -1,5 +1,60 @@
 # Changelog
 
+## 1.8.0 — Stage Fright
+
+### Added
+
+- Git Changes/Staged groups, per-file and group staging, branch switching and
+  creation, Fetch, fast-forward-only Pull, and Publish for branches without an upstream.
+- MeGit-inspired Git workbench with compact Unstaged/Staged lists, immediate
+  previews, Ctrl/Shift multi-selection, batch staging, filters and keyboard actions.
+- Read-only Git history: actual parent graph, refs, author/date, full message,
+  changed files and per-file diffs; 200 commits initially, expandable to 2,000.
+- Open a local Git repository without changing the chat workspace; show its
+  resolved root and return to the workspace with one action. Invalid/cancelled
+  selections preserve the active repository, and commit drafts survive switching
+  repositories within the app run.
+- Focused Git UX refinement without rebranding: compact repository header/local
+  tabs, New branch and Refresh under More, plain-language sync status, distinct
+  empty states, and commit readiness hints.
+- Filtered bulk staging/unstaging affects shown files only; hidden changes remain
+  untouched. Short operation confirmations retain Git details in a tooltip.
+- Explicit merge/rebase conflicts, Open file, confirmed Abort, and Continue after
+  conflicts are staged.
+- Discard saves a named stash and reports its recovery reference. Permanent
+  destruction is a separate, confirmed action.
+- Persistent plan approvals in the bottom bar; simultaneous plans carry session labels. All plan tasks
+  and their progress count appear in the rail, including Chat mode.
+- Plan approvals keep the bottom bar's dimensions unchanged. A single plan shows
+  its choices inline beside a softly highlighted Plan label, without an inner
+  frame. Only multiple simultaneous plans compact into session-labelled popovers.
+  Header controls no longer have decorative borders.
+- Tool-specific glyphs and running dots, with an offline icon generator.
+- Header action icons and provider logos share a 24px slot; secondary indicators
+  use 16px. Help uses the same pixel-art icon family.
+- Saved window size, maximized state, rail width and rail visibility. Window
+  position remains compositor-managed on Wayland.
+
+### Fixed
+
+- Read real Pi `assistantMessageEvent` and `contentIndex` fields while preserving
+  the legacy aliases. Text streams on an 80 ms timer, without tool-output clipping,
+  and becomes Markdown in place when its block ends.
+- The sidebar no longer reports a hardcoded Pi 1.5.0: sidebar, Credits, Updates,
+  update checks and `--version` share the package-derived application version.
+- **Prefer waiting for responses** in Settings persists as `[ui] wait_for_response`.
+- Git status handles unborn branches, detached HEAD, quoted/NUL-delimited paths,
+  renames containing arrows, partial files and conflict states.
+- Unstaging works before the first commit; diffs disable ANSI colors and share
+  the chat renderer with horizontal scrolling and a 2,000-row limit per file.
+- Git polls silently every three seconds while visible, every fifteen seconds
+  otherwise, and refreshes its sidebar badge when a turn settles.
+- Reopening a closed session restores its tab; Ctrl+Shift+T reopens the last closed tab.
+- Unicode title prefixes cannot panic; semicolons in model-family overrides survive saving.
+- Completed sessions retain DONE without restoring stale running state on selection.
+- The native UI harness uses portable temporary directories and versioned output,
+  with streaming, thinking, plan-bar, status and Git fixtures.
+
 ## 1.7.1
 
 ### Added

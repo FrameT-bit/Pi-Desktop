@@ -7,6 +7,7 @@ mod extension_ui;
 mod families;
 mod files;
 mod git;
+mod git_history;
 mod history;
 mod icons;
 mod images;
@@ -34,6 +35,7 @@ mod websearch;
 use gtk::prelude::*;
 
 const APP_ID: &str = "io.github.FrameT.PiDesktop";
+pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() -> glib::ExitCode {
     // Child processes (Pi, git, curl) otherwise inherit Portuguese libc messages
@@ -44,7 +46,7 @@ fn main() -> glib::ExitCode {
 
     let argv: Vec<String> = std::env::args().skip(1).collect();
     if argv.iter().any(|arg| arg == "--version" || arg == "-V") {
-        println!("pi-desktop {}", env!("CARGO_PKG_VERSION"));
+        println!("pi-desktop {APP_VERSION}");
         return glib::ExitCode::SUCCESS;
     }
     let cli = config::Config::from_args(&argv);
@@ -104,7 +106,9 @@ fn maybe_snapshot(app: &adw::Application) {
     let wait = std::time::Duration::from_secs(delay as u64);
     let app = app.clone();
     glib::timeout_add_local(std::time::Duration::from_millis(300), move || {
-        if begin.elapsed() < wait {
+        let qa_ready = std::env::var_os("PI_DESKTOP_SNAPSHOT_ON_REPORT").is_some()
+            && std::env::var("PI_DESKTOP_QA_REPORT").is_ok_and(|path| std::path::Path::new(&path).is_file());
+        if begin.elapsed() < wait && !qa_ready {
             return glib::ControlFlow::Continue;
         }
         let mut captured = false;
@@ -208,12 +212,26 @@ fn snapshot(window: &gtk::Window, path: &str) -> bool {
 }
 
 fn render_widget(widget: &gtk::Widget, window: &gtk::Window, path: &str) -> bool {
-    let width = widget.width().max(1) as f64;
-    let height = widget.height().max(1) as f64;
+    window.queue_allocate();
+    window.allocate(window.width(), window.height(), -1, None);
+    // width()/height() exclude CSS padding and borders; export the full bar.
+    let width = widget.allocated_width().max(1) as f64;
+    let height = widget.allocated_height().max(1) as f64;
     let paintable = gtk::WidgetPaintable::new(Some(widget));
     let snapshot = gtk::Snapshot::new();
     paintable.snapshot(&snapshot, width, height);
-    let Some(node) = snapshot.to_node() else {
+    let node = snapshot.to_node().or_else(|| {
+        // An occluded Wayland surface may not have a cached paintable frame.
+        // Snapshot the allocated child directly rather than waiting for exposure.
+        let parent = widget.parent()?;
+        let snapshot = gtk::Snapshot::new();
+        if let Some(point) = widget.compute_point(&parent, &gtk::graphene::Point::new(0.0, 0.0)) {
+            snapshot.translate(&gtk::graphene::Point::new(-point.x(), -point.y()));
+        }
+        parent.snapshot_child(widget, &snapshot);
+        snapshot.to_node()
+    });
+    let Some(node) = node else {
         return false;
     };
     let Some(surface) = window.surface() else {
@@ -225,7 +243,8 @@ fn render_widget(widget: &gtk::Widget, window: &gtk::Window, path: &str) -> bool
     if !renderer.is_realized() && renderer.realize(Some(&surface)).is_err() {
         return false;
     }
-    let texture = renderer.render_texture(&node, None);
+    let viewport = gtk::graphene::Rect::new(0.0, 0.0, width as f32, height as f32);
+    let texture = renderer.render_texture(&node, Some(&viewport));
     texture.save_to_png(path).is_ok()
 }
 

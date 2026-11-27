@@ -676,6 +676,7 @@ pub fn interface(config: &Config, form: &mut Form) -> gtk::Box {
     for (key, label, desc, value) in [
         ("timestamps", "time in messages", "HH:MM shows above each message", config.timestamps),
         ("auto_scroll", "Auto-scroll", "follows the end during streaming", config.auto_scroll),
+        ("wait_for_response", "Prefer waiting for responses", "Show the complete response instead of streaming text and thinking.", config.wait_for_response),
         ("show_costs", "cost in status bar", "shows the token/cost block", config.show_costs),
         (
             "cards_expanded",

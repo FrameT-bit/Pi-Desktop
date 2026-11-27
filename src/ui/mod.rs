@@ -16,6 +16,7 @@ pub mod plugin_config;
 pub mod plugins;
 pub mod popup;
 mod qa;
+mod plan_bar;
 pub mod rail;
 pub mod settings;
 pub mod sidebar;
@@ -170,6 +171,9 @@ pub struct AppUi {
     session_override: Option<String>,
     workspace_override: Option<std::path::PathBuf>,
     closed_tabs: RefCell<std::collections::HashSet<String>>,
+    closed_tab_order: RefCell<Vec<String>>,
+    plan_bar: Rc<plan_bar::PlanBar>,
+    session_plans: RefCell<HashMap<String, Vec<String>>>,
     drafts: RefCell<std::collections::HashMap<String, String>>,
     pending_draft_restore: RefCell<Option<String>>,
     view: Cell<ViewMode>,
@@ -241,6 +245,7 @@ impl AppUi {
         let git = git::GitUi::build(crate::config::expand_home(config.effective_workspace()));
         let rail = rail::RailUi::build();
         let status = status::build();
+        let plan_bar = plan_bar::PlanBar::build();
         status.set_show_costs(config.show_costs);
         let (history_tx, history_rx) = async_channel::unbounded::<Vec<RemoteSession>>();
         let (plugin_tx, plugin_rx) = async_channel::unbounded::<PluginEvent>();
@@ -323,19 +328,21 @@ impl AppUi {
         rail_paned.set_shrink_start_child(true);
         rail_paned.set_shrink_end_child(true);
         rail_paned.set_wide_handle(false);
-        let rail_width = Rc::new(Cell::new(340i32));
+        let rail_width = Rc::new(Cell::new(config.rail_width));
         let rail_dragging = Rc::new(Cell::new(false));
-        let rail_open_shared = Rc::new(Cell::new(true));
+        let rail_open_shared = Rc::new(Cell::new(config.rail_open));
         {
             let paned = rail_paned.clone();
             let width = rail_width.clone();
+            let open = rail_open_shared.clone();
             paned.connect_map(move |paned| {
                 let width = width.clone();
+                let open = open.clone();
                 // map can run before allocation; wait for an actual frame.
                 paned.add_tick_callback(move |paned, _| {
                     let total = paned.width();
                     if total <= 1 { return glib::ControlFlow::Continue; }
-                    paned.set_position(total - rail_width_for(total, width.get()));
+                    paned.set_position(total - if open.get() { rail_width_for(total, width.get()) } else { RAIL_HANDLE_WIDTH });
                     glib::ControlFlow::Break
                 });
             });
@@ -356,7 +363,7 @@ impl AppUi {
                 }
                 if paned.width() > 1 && rail_column_c.is_visible() {
                     let total = paned.width();
-                    let wanted = rail_width_for(total, width.get());
+                    let wanted = if open.get() { rail_width_for(total, width.get()) } else { RAIL_HANDLE_WIDTH };
                     let compact = wanted <= RAIL_HANDLE_WIDTH;
                     rail_root.set_visible(open.get() && !compact);
                     let target = (total - wanted).max(0);
@@ -447,7 +454,20 @@ impl AppUi {
         header_handle.set_child(Some(&header.root));
         root.append(&header_handle);
         root.append(&content);
-        root.append(&status.root);
+        let bottom_bar = gtk::Stack::new();
+        bottom_bar.add_css_class("bottom-bar");
+        bottom_bar.set_vhomogeneous(true);
+        bottom_bar.set_hhomogeneous(false);
+        bottom_bar.add_named(&status.root, Some("status"));
+        bottom_bar.add_named(&plan_bar.root, Some("plan"));
+        bottom_bar.set_visible_child_name("status");
+        let weak_bar = bottom_bar.downgrade();
+        plan_bar.root.connect_visible_notify(move |plan| {
+            if let Some(bar) = weak_bar.upgrade() {
+                bar.set_visible_child_name(if plan.is_visible() { "plan" } else { "status" });
+            }
+        });
+        root.append(&bottom_bar);
 
         let grid = gtk::DrawingArea::new();
         grid.add_css_class("bg-grid");
@@ -524,13 +544,17 @@ impl AppUi {
         toast.set_child(Some(&shell));
 
         let qa = std::env::var_os("PI_DESKTOP_QA_REPORT").is_some();
+        let geometry_qa = std::env::var_os("PI_DESKTOP_QA_GEOMETRY_PASS").is_some();
+        let qa_scenario = std::env::var("PI_DESKTOP_QA_SCENARIO").unwrap_or_default();
+        let qa_height = if qa_scenario.starts_with("git") || qa_scenario.starts_with("plan-") { 840 }
+            else if qa_scenario == "gallery" { 720 } else { 600 };
         let qa_small = std::env::var_os("PI_DESKTOP_QA_SMALL").is_some()
-            || std::env::var_os("PI_DESKTOP_QA_SIZE").is_some();
+            || std::env::var_os("PI_DESKTOP_QA_SIZE").is_some() || geometry_qa;
         let window = adw::ApplicationWindow::builder()
             .application(app)
             .title("pi")
             .default_width(1280)
-            .default_height(if qa { 600 } else { 840 })
+            .default_height(if qa { qa_height } else { 840 })
             .build();
         window.set_size_request(
             if qa && !qa_small { 1280 } else { 800 },
@@ -540,6 +564,21 @@ impl AppUi {
         window.set_icon_name(Some("pi-desktop"));
         window.set_content(Some(&toast));
 
+        if !qa || geometry_qa {
+            fit::fit(window.upcast_ref(), config.window_width, config.window_height);
+            window.set_size_request(360, 320);
+            if config.window_maximized { window.maximize(); }
+        }
+        if let Some(settings) = gtk::Settings::default() {
+            if !settings.is_gtk_enable_animations() { window.add_css_class("reduced-motion"); }
+            let weak = window.downgrade();
+            settings.connect_gtk_enable_animations_notify(move |settings| {
+                if let Some(window) = weak.upgrade() {
+                    if settings.is_gtk_enable_animations() { window.remove_css_class("reduced-motion"); }
+                    else { window.add_css_class("reduced-motion"); }
+                }
+            });
+        }
         let rpc = rpc::spawn(transport.clone());
         let active_key = Rc::new(RefCell::new(config.effective_session_id().to_string()));
 
@@ -607,6 +646,9 @@ impl AppUi {
             session_override,
             workspace_override: cli.workspace.clone(),
             closed_tabs: RefCell::new(std::collections::HashSet::new()),
+            closed_tab_order: RefCell::new(Vec::new()),
+            plan_bar,
+            session_plans: RefCell::new(HashMap::new()),
             drafts: RefCell::new(std::collections::HashMap::new()),
             pending_draft_restore: RefCell::new(None),
             view: Cell::new(initial_view),
@@ -632,9 +674,11 @@ impl AppUi {
             self.composer.set_search_active(false);
             self.sidebar.set_active(2);
             self.stack.set_visible_child_name("chat");
-            self.rail.root.set_visible(false);
-            self.rail_handle.set_visible(false);
-            self.rail_column.set_visible(false);
+            self.rail_column.set_visible(true);
+            self.rail.root.set_visible(self.rail_open.get());
+            self.rail_handle.set_visible(true);
+            self.apply_rail_layout();
+            self.update_rail_toggle();
         } else {
             self.chat_search.set(false);
             self.composer.set_search_active(false);
@@ -678,6 +722,21 @@ impl AppUi {
     }
 
     fn wire(self: &Rc<Self>) {
+        let weak = Rc::downgrade(self);
+        self.window.connect_close_request(move |window| {
+            if let Some(me) = weak.upgrade() {
+                let mut config = me.config.borrow_mut();
+                if !window.is_maximized() {
+                    config.window_width = window.width();
+                    config.window_height = window.height();
+                }
+                config.window_maximized = window.is_maximized();
+                config.rail_width = me.rail_width.get();
+                config.rail_open = me.rail_open.get();
+                if let Err(err) = config.save() { eprintln!("Save window geometry: {err}"); }
+            }
+            glib::Propagation::Proceed
+        });
         {
             let me = self.clone();
             self.header
@@ -928,7 +987,7 @@ impl AppUi {
                         return glib::Propagation::Stop;
                     }
                     gtk::gdk::Key::t | gtk::gdk::Key::T => {
-                        me.cycle_thinking();
+                        if shift { me.reopen_tab(); } else { me.cycle_thinking(); }
                         return glib::Propagation::Stop;
                     }
                     gtk::gdk::Key::comma => {
@@ -949,6 +1008,8 @@ impl AppUi {
                         let shift = state.contains(gtk::gdk::ModifierType::SHIFT_MASK);
                         if shift {
                             me.sidebar.open_search();
+                        } else if me.stack.visible_child_name().as_deref() == Some("git") {
+                            me.git.focus_filter();
                         } else if me.chat.find_is_open() {
                             me.chat.find_close();
                             me.composer.focus();
@@ -983,6 +1044,7 @@ impl AppUi {
                     me.composer.focus();
                     return glib::Propagation::Stop;
                 }
+                if me.plan_bar.is_pending() { return glib::Propagation::Stop; }
                 if me.state.borrow().running {
                     me.escape_streaming();
                     return glib::Propagation::Stop;
@@ -2638,6 +2700,16 @@ impl AppUi {
             .bash_finish(&id, output, exit_code, cancelled, truncated);
     }
 
+    fn reopen_tab(self: &Rc<Self>) {
+        loop {
+            let Some(path) = self.closed_tab_order.borrow_mut().pop() else { return; };
+            if !self.closed_tabs.borrow_mut().remove(&path) { continue; }
+            let index = self.state.borrow().sessions.iter().position(|session| session.path == path);
+            if let Some(index) = index { self.select_session(index); }
+            return;
+        }
+    }
+
     fn close_tab(self: &Rc<Self>, index: usize) {
         let (path, active) = {
             let state = self.state.borrow();
@@ -2649,7 +2721,8 @@ impl AppUi {
         let Some(path) = path else {
             return;
         };
-        self.closed_tabs.borrow_mut().insert(path);
+        self.closed_tabs.borrow_mut().insert(path.clone());
+        self.closed_tab_order.borrow_mut().push(path);
         if active == Some(index) {
             let next = {
                 let state = self.state.borrow();
@@ -2704,22 +2777,17 @@ impl AppUi {
                 active_key,
             )
         };
-        if !running {
-            return;
-        }
         let entry = SessionActivity {
-            running: true,
+            running,
             phase,
             started,
             unread: false,
             waiting: false,
         };
         let mut activity = self.activity.borrow_mut();
-        for key in [session_id, session_file.unwrap_or_default(), active_key] {
-            if !key.trim().is_empty() {
-                activity.insert(key, entry.clone());
-            }
-        }
+        activity.remove(&session_id);
+        if let Some(file) = session_file { activity.remove(&file); }
+        if !active_key.is_empty() { activity.insert(active_key, entry); }
     }
 
     fn new_session(self: &Rc<Self>) {
@@ -2834,8 +2902,7 @@ impl AppUi {
     fn toggle_rail(&self) {
         let open = !self.rail_open.get();
         self.rail_open.set(open);
-        let page = !self.view.get().is_chat()
-            && self.stack.visible_child_name().as_deref() == Some("chat");
+        let page = self.stack.visible_child_name().as_deref() == Some("chat");
         self.rail_column.set_visible(page);
         self.rail.root.set_visible(page && open);
         self.rail_handle.set_visible(page);
@@ -2866,7 +2933,7 @@ impl AppUi {
             return;
         }
         self.sidebar.set_active(index);
-        let show_rail = !self.view.get().is_chat() && index == 2;
+        let show_rail = index == 2;
         self.rail_column.set_visible(show_rail);
         self.rail.root
             .set_visible(show_rail && self.rail_open.get());
@@ -2894,7 +2961,7 @@ impl AppUi {
                 let config = self.config.borrow();
                 crate::config::expand_home(config.effective_workspace())
             };
-            self.git.set_repo(repo);
+            self.git.set_workspace(repo);
             self.stack.set_visible_child_name("git");
             self.git.refresh();
             return;
@@ -2943,6 +3010,8 @@ impl AppUi {
                 None => return,
             }
         };
+        self.closed_tabs.borrow_mut().remove(&target.path);
+        self.refresh_header();
         let active = self.active_key.borrow().clone();
         let active_value = active.borrow().clone();
         if active_value == target.path || active_value == target.session_id {
@@ -3011,6 +3080,11 @@ impl AppUi {
         self.chat.clear();
         self.rail.clear_activity();
         self.restore_draft(&target.session_id);
+        let lines = {
+            let plans = self.session_plans.borrow();
+            plans.get(&target.session_id).or_else(|| plans.get(&target.path)).cloned()
+        };
+        if let Some(lines) = lines { self.rail.set_plan(&lines); }
         self.composer.set_running(running);
         self.composer.set_queue(0);
         self.sidebar.set_active(2);
@@ -3953,7 +4027,7 @@ impl AppUi {
                 me.select_nav(4)
             }));
             let me = self.clone();
-            items.push(Item::new("Git review", "diff, internship and commit", "ACTIONS", move || {
+            items.push(Item::new("Git workbench", "stage, diff, commit and history", "ACTIONS", move || {
                 me.select_nav(5)
             }));
             let me = self.clone();
@@ -4443,8 +4517,7 @@ impl AppUi {
                         }
                     }
                     "message_start" | "message_update" => {
-                        let update = record
-                            .get("AssistantMessageEvent")
+                        let update = rpc::assistant_update(&record)
                             .and_then(|event| event.get("type"))
                             .and_then(Value::as_str)
                             .unwrap_or("");
@@ -4456,17 +4529,28 @@ impl AppUi {
                         }
                     }
                     "agent_settled" => {
+                        self.git.refresh();
                         if let Some(activity) = self.activity.borrow_mut().get_mut(&key) {
                             activity.running = false;
                             activity.phase = "DONE".to_string();
                             activity.unread = true;
                             activity.waiting = false;
+                            activity.started = None;
                         }
                         self.pool.borrow_mut().remove(&key);
                         changed = true;
                     }
                     "extension_ui_request" => {
                         if let Some(request) = extension_ui::Request::parse(&record) {
+                            if request.method == extension_ui::Method::SetWidget
+                                && matches!(request.widget_key.as_str(), "plan-all" | "plan-todos") {
+                                self.session_plans.borrow_mut().insert(key.clone(), request.widget_lines.unwrap_or_default());
+                                return;
+                            }
+                            if request.is_plan_approval() {
+                                self.queue_plan_approval(key.clone(), request);
+                                return;
+                            }
                             if request.method.is_dialog() {
                                 let was_waiting = self
                                     .activity
@@ -4592,6 +4676,7 @@ impl AppUi {
                 self.refresh_sidebar();
             }
             "agent_settled" => {
+                self.git.refresh();
                 let aborted = record
                     .get("aborted")
                     .and_then(Value::as_bool)
@@ -4633,7 +4718,7 @@ impl AppUi {
                         state.turn_tokens = state.turn_finished_tokens + output;
                     }
                 }
-                if let Some(update) = record.get("AssistantMessageEvent") {
+                if let Some(update) = rpc::assistant_update(record) {
                     self.on_assistant_update(update);
                 }
                 self.refresh_status();
@@ -4689,7 +4774,7 @@ impl AppUi {
             }
             "tool_execution_start" => {
                 let id = str_of(record, "toolCallId");
-                let name = str_of(record, "tool");
+                let name = rpc::tool_name(record).to_string();
                 let args = record.get("args").cloned().unwrap_or(Value::Null);
                 self.state.borrow_mut().phase = TurnPhase::Tools;
                 self.refresh_turn();
@@ -4710,7 +4795,7 @@ impl AppUi {
                 let id = str_of(record, "toolCallId");
                 if let Some(partial) = record.get("partialResult") {
                     self.chat.tool_update(&id, partial);
-                    if is_subagent_tool(&str_of(record, "tool")) {
+                    if is_subagent_tool(rpc::tool_name(record)) {
                         self.rail
                             .subagent_update(&id, &chat::text_of_result(partial));
                     } else {
@@ -4728,7 +4813,7 @@ impl AppUi {
                 let duration = record.get("duration").and_then(Value::as_f64);
                 let result = record.get("result").cloned().unwrap_or(Value::Null);
                 self.chat.tool_end(&id, &result, is_error, duration);
-                if is_subagent_tool(&str_of(record, "tool")) {
+                if is_subagent_tool(rpc::tool_name(record)) {
                     self.rail.subagent_end(&id, is_error);
                 } else {
                     self.rail.activity_end(&id, is_error, &chat::text_of_result(&result));
@@ -4834,10 +4919,48 @@ impl AppUi {
         }
     }
 
+    fn queue_plan_approval(self: &Rc<Self>, key: String, request: extension_ui::Request) {
+        let active = self.active_key.borrow().borrow().clone() == key;
+        let handle = if active { Some(self.rpc.borrow().clone()) }
+            else { self.pool.borrow().get(&key).map(|(_, handle)| handle.clone()) };
+        let Some(handle) = handle else { return };
+        let session = self.state.borrow().sessions.iter()
+            .find(|s| s.path == key || s.session_id == key)
+            .and_then(|s| s.name.clone()).unwrap_or_else(|| if active { self.state.borrow().display_name() } else { key.clone() });
+        let mut activity = self.activity.borrow_mut();
+        let entry = activity.entry(key.clone()).or_insert_with(|| SessionActivity {
+            running: true, phase: "WAITING".into(), started: Some(Instant::now()), unread: !active, waiting: true,
+        });
+        entry.waiting = true;
+        entry.phase = "WAITING".into();
+        drop(activity);
+        let id = request.id.clone();
+        let weak = Rc::downgrade(self);
+        self.plan_bar.push(key.clone(), session, request, move |response| {
+            handle.send(extension_ui::response_json(&id, &response));
+            if let Some(me) = weak.upgrade() {
+                if let Some(entry) = me.activity.borrow_mut().get_mut(&key) {
+                    entry.waiting = false;
+                    entry.phase = "THINKING".into();
+                }
+                me.refresh_sidebar();
+                me.refresh_header();
+            }
+        });
+        self.refresh_sidebar();
+        self.refresh_header();
+    }
+
     fn on_extension_ui(self: &Rc<Self>, record: &Value) {
         let Some(request) = extension_ui::Request::parse(record) else {
             return;
         };
+
+        if request.is_plan_approval() {
+            let key = self.active_key.borrow().borrow().clone();
+            self.queue_plan_approval(key, request);
+            return;
+        }
 
         if request.method.is_dialog() {
             let me = self.clone();
@@ -4872,11 +4995,13 @@ impl AppUi {
                 if request.widget_key == "subagent-async" && request.widget_lines.is_none() {
                     self.rail.clear_subagent_snapshot();
                 }
-                if request.widget_key == "plan-all" {
+                if matches!(request.widget_key.as_str(), "plan-all" | "plan-todos") {
                     let lines = request.widget_lines.clone().unwrap_or_default();
+                    let key = self.active_key.borrow().borrow().clone();
+                    self.session_plans.borrow_mut().insert(key, lines.clone());
                     self.rail.set_plan(&lines);
                     self.ext_widgets.borrow_mut().set(
-                        "plan-all",
+                        &request.widget_key,
                         None,
                         request.placement,
                     );
@@ -4940,12 +5065,10 @@ impl AppUi {
 
     fn on_assistant_update(self: &Rc<Self>, update: &Value) {
         let kind = update.get("type").and_then(Value::as_str).unwrap_or("");
+        if self.config.borrow().wait_for_response && (kind.starts_with("text_") || kind.starts_with("thinking_")) { return; }
         match kind {
             "text_delta" => {
-                let index = update
-                    .get("contentIndices")
-                    .and_then(Value::as_i64)
-                    .unwrap_or(0);
+                let index = rpc::content_index(update);
                 if let Some(delta) = update.get("delta").and_then(Value::as_str) {
                     self.chat.assistant_delta(index, delta);
                     let mut state = self.state.borrow_mut();
@@ -4958,7 +5081,8 @@ impl AppUi {
                     }
                 }
             }
-            "text_end" => {}
+            "text_end" => self.chat.assistant_text_end(
+                rpc::content_index(update), update.get("content").and_then(Value::as_str).unwrap_or("")),
             "thinking_start" => {
                 let level = self.state.borrow().thinking_level.clone();
                 self.chat.thinking_start(&level);
@@ -5146,6 +5270,9 @@ impl AppUi {
                         state.running = streaming;
                         if streaming && state.phase == TurnPhase::Sent {
                             state.phase = TurnPhase::Thinking;
+                        } else if !streaming && matches!(state.phase, TurnPhase::Thinking | TurnPhase::Writing | TurnPhase::Tools) {
+                            if let Some(started) = state.run_started.take() { state.run_elapsed = started.elapsed(); }
+                            state.phase = TurnPhase::Done;
                         }
                     }
                     state.resolve_active_session();
@@ -5693,6 +5820,13 @@ impl AppUi {
     }
     fn activity_snapshot(&self, state: &AppState) -> HashMap<String, SessionActivity> {
         let mut activity = self.activity.borrow().clone();
+        for session in &state.sessions {
+            let entry = activity.get(&session.session_id).or_else(|| activity.get(&session.path)).cloned();
+            if let Some(entry) = entry {
+                activity.insert(session.path.clone(), entry.clone());
+                activity.insert(session.session_id.clone(), entry);
+            }
+        }
         let mut keys: Vec<String> = vec![state.session_id.clone()];
         if let Some(file) = state.session_file.as_ref() {
             keys.push(file.clone());
@@ -5728,7 +5862,9 @@ impl AppUi {
             }
         } else {
             for key in keys {
-                activity.remove(&key);
+                if state.phase == TurnPhase::Done {
+                    activity.insert(key, SessionActivity { running: false, phase: "DONE".into(), started: None, unread: false, waiting: false });
+                } else { activity.remove(&key); }
             }
         }
         activity

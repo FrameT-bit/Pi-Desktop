@@ -77,6 +77,19 @@ pub struct HeaderUi {
     menu: Rc<RefCell<MenuState>>,
 }
 
+fn normalize_window_icons(widget: &gtk::Widget) {
+    let mut child = widget.first_child();
+    while let Some(current) = child {
+        child = current.next_sibling();
+        if let Some(image) = current.downcast_ref::<gtk::Image>() {
+            image.set_pixel_size(icons::ICON_SIZE);
+            image.set_halign(gtk::Align::Center);
+            image.set_valign(gtk::Align::Center);
+        }
+        normalize_window_icons(&current);
+    }
+}
+
 pub fn build(model: &str, theme: &Theme) -> HeaderUi {
     let root = gtk::CenterBox::new();
     root.add_css_class("header-panel");
@@ -85,7 +98,8 @@ pub fn build(model: &str, theme: &Theme) -> HeaderUi {
 
     let mark = gtk::Image::new();
     mark.add_css_class("wordmark-mark");
-    mark.set_pixel_size(24);
+    mark.set_pixel_size(icons::ICON_SIZE);
+    mark.set_size_request(icons::ICON_SIZE, icons::ICON_SIZE);
     mark.set_valign(gtk::Align::Center);
     if let Some(texture) = mark_paintable(theme.palette()) {
         mark.set_paintable(Some(&texture));
@@ -151,6 +165,7 @@ pub fn build(model: &str, theme: &Theme) -> HeaderUi {
     model_label.set_max_width_chars(28);
 
     let caret = icons::icon("chevron-down", Tone::Muted);
+    caret.set_pixel_size(icons::DETAIL_SIZE);
     caret.add_css_class("model-chip-chevron");
     caret.set_valign(gtk::Align::Center);
 
@@ -169,7 +184,8 @@ pub fn build(model: &str, theme: &Theme) -> HeaderUi {
     model_button.set_tooltip_text(Some("Change model"));
     model_button.set_valign(gtk::Align::Center);
 
-    let help_button = gtk::Button::with_label("?");
+    let help_button = gtk::Button::new();
+    help_button.set_child(Some(&icons::icon("help", Tone::Ink)));
     help_button.add_css_class("theme-button");
     help_button.add_css_class("help-button");
     help_button.set_tooltip_text(Some("keyboard shortcuts (Ctrl+/)"));
@@ -195,6 +211,7 @@ pub fn build(model: &str, theme: &Theme) -> HeaderUi {
     let controls = gtk::WindowControls::new(gtk::PackType::End);
     controls.add_css_class("window-controls");
     controls.set_valign(gtk::Align::Center);
+    controls.connect_map(|controls| normalize_window_icons(controls.upcast_ref()));
 
     let mode_chat = gtk::ToggleButton::with_label("CHAT");
     mode_chat.add_css_class("mode-option");

@@ -102,6 +102,15 @@ pub struct Request {
 }
 
 impl Request {
+    pub fn is_plan_approval(&self) -> bool {
+        match self.method {
+            Method::Select => self.title == "Plan mode - what next?"
+                && self.options.iter().any(|option| option == "Execute the plan (track progress)"),
+            Method::Confirm => matches!(self.title.as_str(), "Execute the plan?" | "Run this plan?"),
+            _ => false,
+        }
+    }
+
     pub fn parse(record: &Value) -> Option<Self> {
         if record.get("type").and_then(Value::as_str) != Some("extension_ui_request") {
             return None;
@@ -172,6 +181,24 @@ pub enum Response {
     Value(String),
     Confirmed(bool),
     Cancelled,
+}
+
+#[cfg(test)]
+mod plan_approval_tests {
+    use super::*;
+
+    #[test]
+    fn only_known_plan_approvals_are_nonmodal() {
+        let parse = |title: &str, method: &str, options: Value| Request::parse(&json!({
+            "type":"extension_ui_request", "method":method, "title":title, "options":options
+        })).unwrap();
+        assert!(parse("Plan mode - what next?", "select", json!(["Execute the plan (track progress)"])).is_plan_approval());
+        assert!(parse("Execute the plan?", "confirm", json!([])).is_plan_approval());
+        for title in ["Delete the plan?", "Abort merge?", "Destroy this change?", "Plan mode - what next?"] {
+            assert!(!parse(title, "confirm", json!([])).is_plan_approval());
+        }
+        assert!(!parse("Choose a model", "select", json!(["Execute the plan (track progress)"])).is_plan_approval());
+    }
 }
 
 pub fn response_json(id: &str, response: &Response) -> Value {

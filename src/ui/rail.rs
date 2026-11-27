@@ -7,6 +7,31 @@ use gtk::prelude::*;
 
 use crate::icons::{self, Tone};
 
+fn plan_item(line: &str) -> (&'static str, &str) {
+    for (prefix, state) in [
+        ("☑", "done"), ("✓", "done"), ("[x]", "done"), ("[X]", "done"),
+        ("[>]", "current"), ("[-]", "current"), ("▶", "current"),
+        ("[ ]", "pending"), ("☐", "pending"),
+    ] {
+        if let Some(text) = line.strip_prefix(prefix) { return (state, text.trim()); }
+    }
+    ("pending", line)
+}
+
+#[cfg(test)]
+mod plan_tests {
+    #[test]
+    fn checkboxes_and_current_step_markers_are_parsed_without_glyphs() {
+        for (line, state) in [("☑ finished", "done"), ("[X] finished", "done"),
+            ("[>] running", "current"), ("[-] running", "current"), ("☐ later", "pending"), ("[ ] later", "pending")] {
+            let (actual, text) = super::plan_item(line);
+            assert_eq!(actual, state);
+            assert!(!text.contains('['));
+            assert!(!text.contains('☐'));
+        }
+    }
+}
+
 struct Subagent {
     id: String,
     running: Rc<std::cell::Cell<bool>>,
@@ -34,6 +59,7 @@ pub struct RailUi {
     stack: gtk::Stack,
     plan_box: gtk::Box,
     plan_list: gtk::Box,
+    plan_title: gtk::Label,
     activity_list: gtk::Box,
     activity_empty: gtk::Label,
     subagents_list: gtk::Box,
@@ -222,6 +248,7 @@ impl RailUi {
             stack,
             plan_box,
             plan_list,
+            plan_title,
             activity_list,
             activity_empty,
             subagents_list,
@@ -267,36 +294,32 @@ impl RailUi {
             self.plan_box.set_visible(false);
             return;
         }
-        for line in cleaned.iter().take(8) {
-            let done = line.starts_with('☑')
-                || line.starts_with("[x]")
-                || line.starts_with("[X]")
-                || line.starts_with('✓');
-            let text = line
-                .trim_start_matches(['☑', '☐', '✓', ' '])
-                .trim_start_matches("[x]")
-                .trim_start_matches("[X]")
-                .trim_start_matches(']')
-                .trim();
-            let label = gtk::Label::new(Some(&format!(
-                "{} {text}",
-                if done { "✓" } else { "○" }
-            )));
+        let done_count = cleaned.iter().filter(|line| plan_item(line).0 == "done").count();
+        self.plan_title.set_text(&format!("Plan {done_count}/{}", cleaned.len()));
+        let mut current_found = cleaned.iter().any(|line| plan_item(line).0 == "current");
+        for line in &cleaned {
+            let (state, text) = plan_item(line);
+            let state = if state == "pending" && !current_found { "current" } else { state };
+            if state == "current" { current_found = true; }
+            let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+            row.add_css_class("rail-plan-row");
+            row.add_css_class(state);
+            let marker = icons::icon(match state { "done" => "check", "current" => "play", _ => "circle" },
+                if state == "current" { Tone::Accent } else { Tone::Muted });
+            marker.set_pixel_size(icons::DETAIL_SIZE);
+            row.append(&marker);
+            let label = gtk::Label::new(Some(text));
             label.add_css_class("rail-plan-item");
-            if done {
+            if state == "done" {
                 label.add_css_class("done");
             }
             label.set_xalign(0.0);
             label.set_wrap(true);
             label.set_wrap_mode(gtk::pango::WrapMode::WordChar);
             label.set_max_width_chars(44);
-            self.plan_list.append(&label);
-        }
-        if cleaned.len() > 8 {
-            let more = gtk::Label::new(Some(&format!("+{} item(s)", cleaned.len() - 8)));
-            more.add_css_class("rail-plan-more");
-            more.set_xalign(0.0);
-            self.plan_list.append(&more);
+            label.set_hexpand(true);
+            row.append(&label);
+            self.plan_list.append(&row);
         }
         self.plan_box.set_visible(true);
     }
@@ -586,6 +609,7 @@ impl RailUi {
     }
 
     pub fn clear_activity(&self) {
+        self.set_plan(&[]);
         self.clear_subagent_snapshot();
         while let Some(child) = self.activity_list.first_child() {
             self.activity_list.remove(&child);

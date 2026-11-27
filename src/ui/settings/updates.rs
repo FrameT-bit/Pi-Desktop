@@ -13,7 +13,7 @@ pub(super) fn page() -> gtk::Box {
     status.set_wrap(true);
     status.set_selectable(true);
     status.set_xalign(0.0);
-    release.append(&row("Installed", "", &gtk::Label::new(Some(env!("CARGO_PKG_VERSION")))));
+    release.append(&row("Installed", "", &gtk::Label::new(Some(crate::APP_VERSION))));
     release.append(&status);
 
     let actions = gtk::Box::new(gtk::Orientation::Horizontal, 6);

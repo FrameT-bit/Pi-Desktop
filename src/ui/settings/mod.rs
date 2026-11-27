@@ -696,6 +696,7 @@ fn collect(form: &Form, before: &Config) -> Result<Config, String> {
     config.font_scale = font_scale;
     config.font = FontChoice::from_index(form.index("font"));
     config.session_tabs = form.boolean("session_tabs");
+    config.wait_for_response = form.boolean("wait_for_response");
     config.show_costs = form.boolean("show_costs");
     config.cards_expanded = form.boolean("cards_expanded");
     config.ai_images = form.boolean("ai_images");

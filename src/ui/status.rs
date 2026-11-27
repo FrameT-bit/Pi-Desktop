@@ -37,8 +37,8 @@ pub struct StatusUi {
 pub fn build() -> StatusUi {
     let root = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     root.add_css_class("statusbar");
-    root.set_height_request(32);
-    root.set_valign(gtk::Align::End);
+    root.set_height_request(48);
+    root.set_valign(gtk::Align::Fill);
 
     let target = value_label("LOCAL · ~/projects");
     target.add_css_class("status-target");
@@ -205,7 +205,7 @@ impl StatusUi {
         let show_ext = !chat && !self.ext.text().is_empty();
         self.ext.set_visible(show_ext);
         self.ext_sep.set_visible(show_ext);
-        self.root.set_height_request(if chat { 26 } else { 32 });
+        self.root.set_height_request(48);
     }
 
     pub fn set_target(&self, text: &str) {

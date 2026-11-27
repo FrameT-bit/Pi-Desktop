@@ -128,12 +128,22 @@ pub fn clean(raw: &str, opener: &str) -> Option<String> {
         return None;
     }
     let opener_head = derive(opener).to_lowercase();
-    if !opener_head.is_empty() && lower.starts_with(&opener_head[..opener_head.len().min(24)])
+    if !opener_head.is_empty() && lower.starts_with(&opener_head.chars().take(24).collect::<String>())
     {
         return None;
     }
 
     Some(sentence_case(&line))
+}
+
+#[cfg(test)]
+mod stage_fright_tests {
+    #[test]
+    fn accented_openers_never_slice_inside_a_character() {
+        for opener in ["sessão meu configuração", "aaaaaaaaaaaaaaaaaaaaaaaé resto", "😀".repeat(25).as_str()] {
+            assert!(super::clean("A different concise title", opener).is_some());
+        }
+    }
 }
 
 fn strip_prefix<'a>(text: &'a str, prefix: &str) -> &'a str {
@@ -277,5 +287,3 @@ pub fn probe_model(config: &crate::config::Config, model: &str) -> Result<String
     }
     Ok(reply.chars().take(200).collect())
 }
-
-

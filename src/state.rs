@@ -6,7 +6,6 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use crate::config::{self, Config, Target};
 
 pub const WORKSPACE: &str = "~/projects";
-pub const PI_VERSION: &str = "1.5.0";
 pub const DEFAULT_MODEL: &str = "—";
 pub const DEFAULT_MODEL_ID: &str = "";
 pub const DEFAULT_MODEL_PROVIDER: &str = "";

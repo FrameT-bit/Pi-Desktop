@@ -9,7 +9,7 @@ use gtk::prelude::*;
 
 use crate::icons::{self, Tone};
 use crate::session_ops::{project_label, session_slug};
-use crate::state::{AppState, ModelItem, RemoteSession, SessionActivity, PI_VERSION};
+use crate::state::{AppState, ModelItem, RemoteSession, SessionActivity};
 
 use super::menu;
 
@@ -116,7 +116,7 @@ impl SidebarUi {
                 "Sessions" => "history of project sessions",
                 "Tree" => "ramifications and fork points of the session",
                 "Extensions" => "Pi packages installed and catalog",
-                "Git" => "review of workspace: diff, internship and commit",
+                "Git" => "open a repository, stage, diff, commit and browse history",
                 _ => "",
             }));
             if index == 2 {
@@ -173,7 +173,7 @@ impl SidebarUi {
         let footer = gtk::Box::new(gtk::Orientation::Horizontal, 8);
         footer.add_css_class("sidebar-footer");
 
-        let version = gtk::Label::new(Some(&format!("pi {PI_VERSION}")));
+        let version = gtk::Label::new(Some(&format!("Pi Desktop {}", crate::APP_VERSION)));
         version.add_css_class("footer-version");
 
         let spacer_footer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
@@ -750,7 +750,7 @@ impl SidebarInner {
             meta_row.append(&pulse);
         }
         meta_row.append(&meta);
-        if unread && !running {
+        if !running && (unread || activity.as_ref().is_some_and(|activity| activity.phase == "DONE")) {
             let done = gtk::Label::new(Some("DONE"));
             done.add_css_class("session-done");
             meta_row.append(&done);

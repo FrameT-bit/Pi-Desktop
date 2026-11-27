@@ -8,7 +8,7 @@ use crate::theme::Palette;
 
 include!(concat!(env!("OUT_DIR"), "/logos.rs"));
 
-pub const LOGO_SIZE: i32 = 24;
+pub const LOGO_SIZE: i32 = crate::icons::ICON_SIZE;
 
 pub fn provider_slug(provider: &str) -> Option<&'static str> {
     let provider = provider.trim().to_ascii_lowercase();
@@ -83,10 +83,10 @@ pub fn widget(provider: &str, palette: Palette) -> gtk::Widget {
     };
     let image = gtk::Image::new();
     image.add_css_class("model-logo");
-    let side = texture.width();
-    image.set_pixel_size(side);
-    image.set_size_request(side, side);
+    image.set_pixel_size(LOGO_SIZE);
+    image.set_size_request(LOGO_SIZE, LOGO_SIZE);
     image.set_valign(gtk::Align::Center);
+    image.set_halign(gtk::Align::Center);
     image.set_paintable(Some(&texture));
     image.set_tooltip_text(Some(provider));
     image.upcast()

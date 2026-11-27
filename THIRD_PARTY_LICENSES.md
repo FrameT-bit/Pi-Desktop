@@ -22,7 +22,11 @@ its original distribution.
   `resources/fonts/PixelifySans-OFL.txt`.
 - JetBrains Mono: SIL Open Font License 1.1; see
   `resources/fonts/JetBrainsMono-OFL.txt`.
-- Pixelarticons: MIT. The icons in `resources/icons/ui` are derived from that set.
+- Pixelarticons: MIT. Most icons in `resources/icons/ui` derive from that set,
+  including globe, play, circle and help. See `resources/icons/src/LICENSE-pixelarticons`.
+- Phosphor Icons: MIT, Copyright (c) 2023 Phosphor Icons. The brain and file-plus
+  glyphs pass through `tools/pixelify.py` before packaging; see
+  `resources/icons/src/LICENSE`.
 - Provider logos in `resources/logos/`: marks of their respective providers,
   used only for identification. Simple Icons artwork is CC0-1.0; other marks
   come from the provider's official favicon or press asset. The OpenRouter and

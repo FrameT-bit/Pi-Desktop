@@ -329,6 +329,12 @@ pub struct Config {
 
     pub view: ViewMode,
     pub session_tabs: bool,
+    pub wait_for_response: bool,
+    pub window_width: i32,
+    pub window_height: i32,
+    pub window_maximized: bool,
+    pub rail_width: i32,
+    pub rail_open: bool,
     pub timestamps: bool,
     pub auto_scroll: bool,
     pub chat_width: i32,
@@ -388,6 +394,12 @@ impl Default for Config {
             append_system_prompt: String::new(),
             view: ViewMode::Code,
             session_tabs: false,
+            wait_for_response: false,
+            window_width: 1280,
+            window_height: 840,
+            window_maximized: false,
+            rail_width: 340,
+            rail_open: true,
             timestamps: true,
             auto_scroll: true,
             chat_width: DEFAULT_CHAT_WIDTH,
@@ -596,6 +608,7 @@ impl Config {
 
             let long_value = || unescape_text(raw_value.trim());
             let value = || {
+                if key == "subagent_models" { return raw_value.trim().to_string(); }
                 raw_value
                     .split(['#', ';'])
                     .next()
@@ -605,6 +618,24 @@ impl Config {
             };
 
             match key.as_str() {
+                "window_width" if ui => {
+                    if let Some(parsed) = parse_int(&value(), 360, 16384) { self.window_width = parsed; }
+                }
+                "window_height" if ui => {
+                    if let Some(parsed) = parse_int(&value(), 320, 16384) { self.window_height = parsed; }
+                }
+                "window_maximized" if ui => {
+                    if let Some(parsed) = parse_bool(&value()) { self.window_maximized = parsed; }
+                }
+                "rail_width" if ui => {
+                    if let Some(parsed) = parse_int(&value(), 44, 4096) { self.rail_width = parsed; }
+                }
+                "rail_open" if ui => {
+                    if let Some(parsed) = parse_bool(&value()) { self.rail_open = parsed; }
+                }
+                "wait_for_response" if ui || section.is_empty() => {
+                    if let Some(parsed) = parse_bool(&value()) { self.wait_for_response = parsed; }
+                }
                 "theme" | "light_theme" | "dark_theme" => {} // Owned by theme.rs.
                 "session_tabs" if ui || section.is_empty() => {
                     if let Some(parsed) = parse_bool(&value()) { self.session_tabs = parsed; }
@@ -987,6 +1018,12 @@ obtain with a tool."
             ),
             ("ui", "view", self.view.as_str().to_string()),
             ("ui", "session_tabs", bool_str(self.session_tabs)),
+            ("ui", "wait_for_response", bool_str(self.wait_for_response)),
+            ("ui", "window_width", self.window_width.to_string()),
+            ("ui", "window_height", self.window_height.to_string()),
+            ("ui", "window_maximized", bool_str(self.window_maximized)),
+            ("ui", "rail_width", self.rail_width.to_string()),
+            ("ui", "rail_open", bool_str(self.rail_open)),
             ("ui", "timestamps", bool_str(self.timestamps)),
             ("ui", "auto_scroll", bool_str(self.auto_scroll)),
             ("ui", "chat_width", self.chat_width.to_string()),
@@ -1036,6 +1073,34 @@ fn parse_bool(value: &str) -> Option<bool> {
 #[cfg(test)]
 mod ui_tests {
     use super::*;
+
+    #[test]
+    fn streaming_geometry_and_two_family_overrides_survive_a_save() {
+        for wait in [true, false] {
+            let mut config = Config::default();
+            config.merge(&format!("[ui]\nwait_for_response={wait}\nwindow_width=1100\nwindow_height=720\nwindow_maximized=true\nrail_width=460\nrail_open=false\nsubagent_models=openai=best:openai/gpt-6;anthropic=best:anthropic/opus\n"));
+            let text = render_preserving("[other]\nkeep=me\n", &config.known_entries());
+            let mut loaded = Config::default();
+            loaded.merge(&text);
+            assert_eq!(loaded.wait_for_response, wait);
+            assert_eq!((loaded.window_width, loaded.window_height, loaded.rail_width), (1100, 720, 460));
+            assert!(loaded.window_maximized);
+            assert!(!loaded.rail_open);
+            assert_eq!(loaded.subagent_models, config.subagent_models);
+            assert!(loaded.subagent_models.contains(";anthropic="));
+            assert!(text.contains("keep=me"));
+        }
+    }
+
+    #[test]
+    fn invalid_geometry_does_not_override_defaults() {
+        let mut config = Config::default();
+        config.merge("[ui]\nwindow_width=-1\nwindow_height=true\nrail_width=0\nwait_for_response=maybe\n");
+        assert_eq!(config.window_width, 1280);
+        assert_eq!(config.window_height, 840);
+        assert_eq!(config.rail_width, 340);
+        assert!(!config.wait_for_response);
+    }
 
     #[test]
     fn session_tabs_are_opt_in_and_persist_across_saves() {

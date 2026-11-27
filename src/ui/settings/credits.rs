@@ -1,7 +1,6 @@
 
 use gtk::prelude::*;
 
-use crate::state::PI_VERSION;
 use crate::updater;
 
 use super::pages::{block, row};
@@ -25,8 +24,8 @@ pub fn page() -> gtk::Box {
     about_rows.add_css_class("settings-rows");
     about.append(&about_rows);
     for (label, value, description) in [
-        ("version", env!("CARGO_PKG_VERSION").to_string(), "application version"),
-        ("Pi server", PI_VERSION.to_string(), "target RPC protocol"),
+        ("version", crate::APP_VERSION.to_string(), "application version"),
+        ("Pi server", "RPC".to_string(), "external coding agent; not the desktop app version"),
         ("author", "FrameT".to_string(), "author of the project"),
         ("License", "GPL-3.0-or-later".to_string(), "free software; see LICENSE"),
     ] {

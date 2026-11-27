@@ -35,7 +35,7 @@ impl UpdateState {
 }
 
 pub fn current_version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
+    crate::APP_VERSION.to_string()
 }
 
 fn now() -> i64 {
@@ -214,4 +214,3 @@ mod tests {
         eprintln!("Latest public release: v{} (prerelease: {})", state.latest, state.prerelease);
     }
 }
-

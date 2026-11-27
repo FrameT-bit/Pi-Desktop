@@ -9,12 +9,41 @@ use serde_json::Value;
 
 use crate::state::{path_with_pi, Connection, Transport};
 
+pub fn assistant_update(record: &Value) -> Option<&Value> {
+    record.get("AssistantMessageEvent").or_else(|| record.get("assistantMessageEvent"))
+}
+
+pub fn content_index(update: &Value) -> i64 {
+    update.get("contentIndices").or_else(|| update.get("contentIndex"))
+        .and_then(Value::as_i64).unwrap_or(0)
+}
+
+pub fn tool_name(record: &Value) -> &str {
+    record.get("tool").or_else(|| record.get("toolName")).and_then(Value::as_str).unwrap_or("")
+}
+
+#[cfg(test)]
+mod protocol_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn real_and_legacy_event_spellings_keep_their_precedence() {
+        let real = json!({"assistantMessageEvent":{"type":"text_delta","contentIndex":3,"delta":"hello"}});
+        assert_eq!(content_index(assistant_update(&real).unwrap()), 3);
+        let both = json!({"AssistantMessageEvent":{"contentIndices":2,"contentIndex":3},
+            "assistantMessageEvent":{"contentIndex":4}});
+        assert_eq!(content_index(assistant_update(&both).unwrap()), 2);
+    }
+}
+
 pub enum RpcEvent {
     Conn(Connection),
     Record(Value),
     Stderr(String),
 }
 
+#[derive(Clone)]
 pub struct RpcHandle {
     cmd_tx: Sender<Msg>,
     pub events: async_channel::Receiver<RpcEvent>,

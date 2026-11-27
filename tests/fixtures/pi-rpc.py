@@ -3,6 +3,47 @@
 import json
 import os
 import sys
+import threading
+import time
+
+streaming = False
+output_lock = threading.Lock()
+
+
+def emit(record):
+    with output_lock:
+        print(json.dumps(record), flush=True)
+
+
+def stream_reply(prompt):
+    global streaming
+    streaming = True
+    emit({"type": "agent_start"})
+    emit({"type": "message_start", "message": {"role": "assistant", "content": []}})
+    def update(event):
+        emit({"type": "message_update", "assistantMessageEvent": event})
+    if prompt == "fixture-thinking":
+        update({"type": "thinking_start", "contentIndex": 0})
+        update({"type": "thinking_delta", "contentIndex": 0, "delta": "Thinking fixture is visible before the final message."})
+        time.sleep(1.4)
+        update({"type": "thinking_end", "contentIndex": 0, "content": "Thinking fixture is visible before the final message."})
+        content = [{"type": "thinking", "thinking": "Thinking fixture is visible before the final message."},
+                   {"type": "text", "text": "Thinking finished."}]
+    else:
+        text = ""
+        update({"type": "text_start", "contentIndex": 2})
+        for _ in range(20):
+            text += "abcdefghij" * 4
+            update({"type": "text_delta", "contentIndex": 2, "delta": "abcdefghij" * 4})
+            time.sleep(0.08)
+        update({"type": "text_end", "contentIndex": 2, "content": text})
+        time.sleep(0.3)
+        content = [{"type": "thinking", "thinking": ""}, {"type": "thinking", "thinking": ""},
+                   {"type": "text", "text": text}]
+    emit({"type": "message_end", "message": {"role": "assistant", "content": content}})
+    streaming = False
+    emit({"type": "agent_end", "messages": []})
+    emit({"type": "agent_settled", "messages": []})
 
 if "--print" in sys.argv and os.environ.get("PI_FIXTURE_COMPACT"):
     text = sys.stdin.read()
@@ -34,8 +75,10 @@ for line in sys.stdin:
     command = request.get("type", "")
     if command == "set_thinking_level":
         level = request["level"]
+    if command == "prompt" and request.get("message", "").startswith("fixture-"):
+        threading.Thread(target=stream_reply, args=(request["message"],), daemon=True).start()
     data = {
-        "get_state": {"sessionId": "ui-fixture", "sessionName": "UI regression checks", "isStreaming": False, "model": model, "thinkingLevel": level},
+        "get_state": {"sessionId": "ui-fixture", "sessionName": "UI regression checks", "isStreaming": streaming, "model": model, "thinkingLevel": level},
         "get_available_models": {"models": [model, {"provider": "test", "id": "fixture-cheap", "name": "Fixture Cheap"}]},
         "get_available_thinking_levels": {"levels": ["off", "low", "medium", "high", "xhigh", "max"]},
         "get_messages": {"messages": synthetic_messages(int(os.environ.get("PI_FIXTURE_MESSAGES", "0")))},
@@ -46,4 +89,4 @@ for line in sys.stdin:
     if log := os.environ.get("PI_DESKTOP_FIXTURE_LOG"):
         with open(log, "a") as stream:
             stream.write(json.dumps(request) + "\n")
-    print(json.dumps({"type": "response", "id": request.get("id"), "command": command, "success": True, "data": data}), flush=True)
+    emit({"type": "response", "id": request.get("id"), "command": command, "success": True, "data": data})

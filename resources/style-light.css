@@ -90,6 +90,8 @@
   --cor-acento: @accent;
   --cor-borda: @border;
   --cor-superficie: @card_bg;
+  /* Opaque workbench snapshots share the surrounding content-panel surface. */
+  --cor-canvas: @canvas;
   --cor-selecao: @selected_bg;
   /* Preserve the app's pixel-art controls while sharing one 44px hit target. */
   --raio-botao: 0;
@@ -102,6 +104,18 @@
   --rail-body-min: 236px;
   /* Three reasoning options, with room for the "Extra high" label. */
   --reasoning-width: 288px;
+  /* Running tool dots and pending approval share a calm status cadence. */
+  --dur-pulso: 1200ms;
+  --dur-passo: 150ms;
+  --dur-passo-duplo: 300ms;
+  --raio-pill: 999px;
+  --esp-alvo: var(--altura-controle);
+  --cor-accent: var(--cor-acento);
+  --cor-text: var(--cor-texto);
+  --cor-error: @error;
+  /* Action artwork shares a 24px slot; chevrons and task markers are secondary. */
+  --icone-acao: 24px;
+  --icone-detalhe: 16px;
 }
 
 window {
@@ -151,7 +165,7 @@ separator {
 
 .header-panel {
   background-color: @card_bg;
-  border: 1px solid @panel_border;
+  border: var(--fio) solid var(--cor-borda);
   border-radius: 0;
   min-height: 44px;
   padding: 0 10px;
@@ -180,7 +194,7 @@ separator {
 .model-chip {
   background-color: transparent;
   background-image: none;
-  border: 1px solid @border;
+  border: none;
   border-radius: 0;
   padding: 0 var(--esp-12);
   min-height: var(--altura-miolo);
@@ -188,7 +202,7 @@ separator {
 }
 
 .model-chip:hover {
-  border-color: @border_accent;
+  background-color: var(--cor-selecao);
 }
 
 .model-chip-label {
@@ -212,7 +226,7 @@ separator {
 .theme-button {
   background-color: transparent;
   background-image: none;
-  border: 1px solid @border;
+  border: none;
   border-radius: 0;
   box-shadow: none;
   min-width: var(--altura-miolo);
@@ -3631,13 +3645,12 @@ entry placeholder {
 
 
 .session-tab-group {
-  border: 1px solid transparent;
+  border: none;
   background-color: transparent;
 }
 
 .session-tab-group.active {
-  border-color: @border;
-  background-color: @card_bg;
+  background-color: var(--cor-selecao);
 }
 
 .session-tab-group.active .session-tab {
@@ -3740,11 +3753,13 @@ entry placeholder {
 
 
 .git-page {
-  background-color: transparent;
+  background-color: var(--cor-canvas);
+  font-family: "JetBrains Mono", monospace;
+  color: var(--cor-texto);
 }
 
 .git-inner {
-  margin: 24px 32px;
+  margin: var(--esp-16);
 }
 
 .git-branch {
@@ -3754,43 +3769,40 @@ entry placeholder {
 }
 
 .git-meta {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
-  color: @muted;
+  font-size: var(--tipo-controle);
+  color: var(--cor-texto);
 }
 
 .git-status {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
-  color: @muted;
+  font-size: var(--tipo-controle);
+  color: var(--cor-texto);
 }
 
 .git-status.error {
   color: @error;
 }
 
-.git-btn {
+.git-btn, .git-more > button, .plan-choice {
   background-color: transparent;
   background-image: none;
-  border: 1px solid @panel_border;
-  border-radius: 0;
+  border: none;
+  border-radius: var(--raio-botao);
   box-shadow: none;
-  padding: 2px 12px;
-  min-height: 26px;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: @text;
+  padding: 0 var(--esp-8);
+  min-height: var(--esp-alvo);
+  min-width: var(--esp-alvo);
+  font-size: var(--tipo-controle);
+  text-transform: none;
+  color: var(--cor-texto);
 }
 
-.git-btn:hover {
+.git-btn:hover, .git-more > button:hover, .plan-choice:hover {
   background-color: alpha(@text, 0.06);
 }
 
 .git-btn.accent {
-  color: @accent;
-  border-color: alpha(@accent, 0.55);
+  color: var(--cor-texto);
+  background-color: var(--cor-selecao);
 }
 
 .git-btn:disabled {
@@ -3800,33 +3812,30 @@ entry placeholder {
 
 .git-list-scroll,
 .git-diff-scroll {
-  background-color: @card_bg;
-  border: 1px solid @border;
+  background-color: var(--cor-superficie);
+  border: none;
 }
 
 .git-list {
-  background-color: @card_bg;
+  background-color: transparent;
 }
 
 .git-file {
-  padding: 7px 10px;
-  border-bottom: 1px solid alpha(@border, 0.55);
+  padding: 0 var(--esp-8);
+  border: none;
+  min-height: var(--esp-alvo);
 }
 
 .git-file-path {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 12px;
-  color: @text;
+  font-size: var(--tipo-descricao);
+  color: var(--cor-texto);
 }
 
 .git-chip {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border: 1px solid alpha(@border, 0.8);
-  padding: 1px 5px;
-  color: @muted;
+  font-size: var(--tipo-controle);
+  border: none;
+  padding: 0;
+  color: var(--cor-texto);
 }
 
 .git-chip.staged,
@@ -3853,16 +3862,15 @@ entry placeholder {
 .git-mini {
   background-color: transparent;
   background-image: none;
-  border: 1px solid @panel_border;
-  border-radius: 0;
+  border: none;
+  border-radius: var(--raio-botao);
   box-shadow: none;
-  padding: 1px 8px;
-  min-height: 22px;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: @text;
+  padding: 0 var(--esp-8);
+  min-height: var(--esp-alvo);
+  min-width: var(--esp-alvo);
+  font-size: var(--tipo-controle);
+  text-transform: none;
+  color: var(--cor-texto);
 }
 
 .git-mini:hover {
@@ -3874,13 +3882,87 @@ entry placeholder {
   border-color: alpha(@error, 0.5);
 }
 
+/* esp-alvo is the accessibility floor; fio is a physical one-pixel edge. */
+.plan-approval {
+  padding: 0 var(--esp-16);
+  background-color: var(--cor-superficie);
+  border: var(--fio) solid var(--cor-accent);
+  border-radius: var(--raio-botao);
+  animation: plan-border var(--dur-pulso) ease-in-out infinite;
+}
+
+/* The status and plan states share one fixed line; popovers never enter layout. */
+.bottom-bar { min-height: var(--esp-48); }
+.plan-approval-title > button {
+  min-height: var(--altura-controle);
+  padding: 0 var(--esp-8);
+  border: none;
+  border-radius: var(--raio-botao);
+  background: none;
+  box-shadow: none;
+}
+
+.plan-tag {
+  padding: var(--esp-4) var(--esp-8);
+  background-color: var(--cor-selecao);
+  color: var(--cor-texto);
+  font-size: var(--tipo-controle);
+  border: none;
+  border-radius: var(--raio-botao);
+}
+
+.plan-scroll { background: none; border: none; }
+
+@keyframes plan-border {
+  50% { border-color: alpha(@accent, 0.4); }
+}
+
+.plan-approval-title {
+  background: none;
+  box-shadow: none;
+  border: none;
+  min-height: var(--esp-alvo);
+  padding: 0;
+  color: var(--cor-text);
+}
+
+.rail-plan-row.current {
+  background-color: alpha(@accent, 0.1);
+  border-radius: var(--raio-botao);
+}
+
+.tool-running-dot {
+  min-width: var(--esp-4);
+  min-height: var(--esp-4);
+  border-radius: var(--raio-pill);
+  background-color: var(--cor-accent);
+  animation: tool-dots var(--dur-pulso) ease-in-out infinite;
+}
+
+.tool-running-dot.dot-1 { animation-delay: var(--dur-passo); }
+.tool-running-dot.dot-2 { animation-delay: var(--dur-passo-duplo); }
+@keyframes tool-dots { 50% { opacity: 0.25; } }
+
+/* GTK's system accessibility preference is the native reduced-motion signal. */
+.reduced-motion .plan-approval,
+.reduced-motion .tool-running-dot { animation: none; }
+
+.git-chip.conflict, .git-chip.error { color: var(--cor-error); }
+.git-branches { min-height: var(--esp-alvo); }
+.git-branches > button {
+  min-height: var(--esp-alvo);
+  background-color: var(--cor-superficie);
+  background-image: none;
+  color: var(--cor-texto);
+  border: none;
+  border-radius: var(--raio-botao);
+  box-shadow: none;
+}
+
 .git-diff-title {
-  padding-left: 2px;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: @muted;
+  padding-left: var(--esp-2);
+  font-size: var(--tipo-controle);
+  color: var(--cor-texto);
 }
 
 .git-diff {
@@ -3890,21 +3972,57 @@ entry placeholder {
 }
 
 .git-empty {
-  padding: 16px;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
-  color: @muted;
+  padding: var(--esp-16);
+  font-size: var(--tipo-controle);
+  color: var(--cor-texto);
 }
 
 .git-commit-entry {
-  background-color: @card_bg;
+  background-color: var(--cor-superficie);
   background-image: none;
-  color: @text;
-  border: 1px solid @border;
-  border-radius: 0;
-  padding: 0 10px;
-  min-height: 30px;
+  color: var(--cor-texto);
+  border: none;
+  border-radius: var(--raio-botao);
+  padding: 0 var(--esp-8);
+  min-height: var(--esp-alvo);
 }
+
+.git-filter {
+  min-height: var(--esp-alvo);
+  background-color: var(--cor-superficie);
+  color: var(--cor-texto);
+  border: none;
+  border-radius: var(--raio-botao);
+}
+
+.git-file-list { background-color: var(--cor-superficie); }
+.git-file-list row {
+  min-height: var(--esp-alvo);
+  padding: 0 var(--esp-8);
+  border: none;
+  border-radius: var(--raio-botao);
+  color: var(--cor-texto);
+}
+.git-file-list row:selected { background-color: var(--cor-selecao); }
+.git-file-list row:selected .git-chip { color: var(--cor-texto); }
+.git-file-list row:hover { background-color: alpha(@text, 0.06); }
+.git-file-list row:focus-visible { outline-color: var(--cor-acento); }
+.git-history-message {
+  padding: var(--esp-8);
+  font-size: var(--tipo-descricao);
+  color: var(--cor-texto);
+}
+.git-tabs button {
+  padding: 0 var(--esp-16);
+  min-height: var(--esp-alvo);
+  border: none;
+  border-radius: var(--raio-botao);
+  background-image: none;
+  background-color: transparent;
+  color: var(--cor-texto);
+  box-shadow: none;
+}
+.git-tabs button:checked { background-color: var(--cor-selecao); }
 
 
 
@@ -4574,9 +4692,24 @@ entry placeholder {
 
 
 .mode-switch {
-  border: var(--fio) solid var(--cor-borda);
+  border: none;
   padding: 0;
   min-height: var(--altura-miolo);
+}
+
+.header-panel .window-controls button {
+  min-width: var(--altura-controle);
+  min-height: var(--altura-controle);
+  padding: 0;
+  border: none;
+}
+
+.header-panel .window-controls image {
+  -gtk-icon-size: var(--icone-acao);
+  min-width: var(--icone-acao);
+  min-height: var(--icone-acao);
+  padding: 0;
+  margin: 0;
 }
 
 .mode-option {
